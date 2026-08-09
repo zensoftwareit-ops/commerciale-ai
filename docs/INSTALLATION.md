@@ -51,6 +51,161 @@ Cambiare subito la password dalla pagina **Account**. Queste credenziali sono pu
 
 ## 3. Installazione su server
 
+### Procedura Plesk con MariaDB
+
+Questa è la sequenza da seguire quando il repository è già stato collegato a Plesk e `git pull` è terminato correttamente. **Non usare `composer run setup` su Plesk**: quel comando prepara l'ambiente locale con SQLite e dipendenze di sviluppo.
+
+#### 1. Selezionare PHP 8.3
+
+In **Siti Web e Domini > PHP** selezionare PHP 8.3 o superiore, preferibilmente con PHP-FPM. Verificare che siano abilitate almeno le estensioni:
+
+```text
+ctype, curl, dom, fileinfo, filter, hash, mbstring, openssl,
+pdo, pdo_mysql, session, tokenizer, xml
+```
+
+Impostare `memory_limit` ad almeno `512M` per l'installazione. Plesk consente di cambiare versione e impostazioni PHP dalla pagina PHP del dominio.
+
+#### 2. Installare le dipendenze Composer
+
+Dopo il `git pull`, eseguire **Install**, non **Update**: `install` rispetta le versioni bloccate in `composer.lock`, mentre `update` potrebbe cambiarle.
+
+Dal pannello Plesk, a seconda della versione dell'interfaccia:
+
+1. aprire **Siti Web e Domini > dominio > PHP Composer**;
+2. verificare che la cartella dell'applicazione sia quella contenente `composer.json`;
+3. premere **Scan/Scansiona** se l'applicazione non è elencata;
+4. premere **Install Dependencies/Installa dipendenze**.
+
+In alternativa, via terminale SSH, entrare nella radice del repository ed eseguire su Debian/Ubuntu:
+
+```bash
+/opt/plesk/php/8.3/bin/php /usr/lib/plesk-9.0/composer.phar install --no-dev --optimize-autoloader --no-interaction
+```
+
+Su sistemi RHEL/AlmaLinux/Rocky il percorso Plesk può essere `/usr/lib64/plesk-9.0/composer.phar`:
+
+```bash
+/opt/plesk/php/8.3/bin/php /usr/lib64/plesk-9.0/composer.phar install --no-dev --optimize-autoloader --no-interaction
+```
+
+Se non sai quale percorso è presente, usa il pulsante PHP Composer di Plesk. Al termine deve esistere la directory `vendor/`.
+
+#### 3. Creare database e utente MariaDB
+
+In **Siti Web e Domini > Database > Aggiungi database**:
+
+1. creare un database, per esempio `commerciale_ai`;
+2. associarlo al dominio dell'applicazione nel campo **Sito correlato**;
+3. selezionare **Crea un utente database**;
+4. usare una password casuale robusta;
+5. assegnare all'utente accesso in lettura e scrittura al database;
+6. annotare i nomi completi mostrati da Plesk, che potrebbero avere un prefisso;
+7. aprire **Informazioni di connessione** e annotare l'host, normalmente `localhost` o `127.0.0.1`.
+
+Non è necessario creare manualmente le tabelle: lo farà Laravel con le migrazioni.
+
+#### 4. Creare e configurare `.env`
+
+Nella radice del repository, allo stesso livello di `artisan`, creare `.env` copiando `.env.example`. Da terminale:
+
+```bash
+cp .env.example .env
+```
+
+Impostare almeno:
+
+```dotenv
+APP_NAME="Commerciale AI - PreventivoSitoWeb.it"
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://DOMINIO-APP
+
+APP_LOCALE=it
+APP_FALLBACK_LOCALE=it
+
+DB_CONNECTION=mariadb
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=NOME_ESATTO_DATABASE_PLESK
+DB_USERNAME=NOME_ESATTO_UTENTE_PLESK
+DB_PASSWORD="PASSWORD_DATABASE"
+
+SESSION_DRIVER=database
+SESSION_ENCRYPT=true
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+
+AI_PROVIDER=openai
+OPENAI_API_KEY=CHIAVE_OPENAI
+OPENAI_MODEL=gpt-5.6-terra
+```
+
+Se `DB_HOST=127.0.0.1` non funziona, usare esattamente l'host indicato da **Informazioni di connessione** in Plesk. Racchiudere la password tra virgolette se contiene `#`, spazi o caratteri speciali.
+
+Il file `.env` non deve essere aggiunto a Git né collocato nella cartella pubblica.
+
+#### 5. Generare la chiave e creare le tabelle
+
+Dalla radice del progetto:
+
+```bash
+/opt/plesk/php/8.3/bin/php artisan key:generate --force
+/opt/plesk/php/8.3/bin/php artisan config:clear
+/opt/plesk/php/8.3/bin/php artisan migrate --seed --force
+```
+
+Il seed crea l'organizzazione iniziale, la pipeline, una knowledge base dimostrativa e l'utente:
+
+```text
+Email: demo@commerciale-ai.test
+Password: CommercialeAI!2026
+```
+
+La password è pubblica: cambiarla dalla pagina **Account** subito dopo il primo accesso.
+
+#### 6. Configurare il document root
+
+In **Siti Web e Domini > Impostazioni di hosting**, impostare **Document root** sulla cartella `public` del progetto.
+
+Esempi:
+
+```text
+Repository in httpdocs/commerciale-ai  ->  httpdocs/commerciale-ai/public
+Repository direttamente in httpdocs   ->  httpdocs/public
+```
+
+Non impostare mai come document root la radice contenente `.env`, `composer.json` e `artisan`.
+
+#### 7. Permessi e HTTPS
+
+Con File Manager verificare che l'utente della sottoscrizione possa scrivere in:
+
+```text
+storage/
+bootstrap/cache/
+```
+
+Abilitare un certificato valido in **SSL/TLS Certificates** e il reindirizzamento permanente da HTTP a HTTPS. `SESSION_SECURE_COOKIE=true` richiede HTTPS.
+
+#### 8. Ottimizzare e verificare
+
+```bash
+/opt/plesk/php/8.3/bin/php artisan optimize:clear
+/opt/plesk/php/8.3/bin/php artisan config:cache
+/opt/plesk/php/8.3/bin/php artisan route:cache
+/opt/plesk/php/8.3/bin/php artisan view:cache
+/opt/plesk/php/8.3/bin/php artisan migrate:status
+```
+
+Aprire `APP_URL`, accedere e cambiare immediatamente la password. Se compare un errore 500, controllare **Siti Web e Domini > Log** e `storage/logs/laravel.log`.
+
+Per il pilota `preventivositoweb.it`, proseguire con [INSTANCE-PREVENTIVOSITOWEB.md](INSTANCE-PREVENTIVOSITOWEB.md).
+
+### Installazione server generica
+
 Scaricare il codice nella directory dell'applicazione e installare le dipendenze ottimizzate:
 
 ```bash
