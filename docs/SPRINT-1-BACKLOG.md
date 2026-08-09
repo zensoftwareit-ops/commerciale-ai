@@ -1,6 +1,6 @@
 # Sprint 1 — backlog tecnico ordinato
 
-1. Bootstrap Laravel 12 e configurazione PHP 8.3+, PostgreSQL, Redis.
+1. Bootstrap Laravel 12 e configurazione PHP 8.3+ con SQLite.
 2. Definizione contesto tenant, UUID e scope automatici.
 3. Organizzazioni, membership e ruoli `owner`, `sales`, `viewer`.
 4. Autenticazione, logout e recupero password.
@@ -13,6 +13,6 @@
 11. Contratto `LeadAnalyzer` e fake deterministico.
 12. Seed Zen Software con dati esclusivamente fittizi.
 13. Test di isolamento, webhook, idempotenza, inserimento e fake AI.
-14. Ambiente Docker, variabili, istruzioni di avvio e threat model.
+14. Ambiente PHP/Composer, variabili, istruzioni di avvio e threat model.
 
 Tutti i punti sono implementati nello Sprint 1. Restano intenzionalmente fuori: provider AI reale, email reale, analisi persistita, bozze, follow-up e report.

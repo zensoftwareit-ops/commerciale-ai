@@ -1,35 +1,59 @@
-# Commerciale AI — Sprint 1
+# Commerciale AI — Sprint 2
 
-Fondamenta multi-tenant e lead inbox per il pilot Zen Software. Include autenticazione e recupero password, ruoli minimi, lead manuali, webhook firmato/idempotente, timeline, provider AI fake e dati demo.
+Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, webhook firmato, profilo aziendale, knowledge base e analisi strutturata con scoring misto AI/regole.
 
 ## Requisiti
 
-- PHP 8.3+ con PDO PostgreSQL (oppure PDO SQLite per i test)
+- PHP 8.3 o superiore
 - Composer 2
-- PostgreSQL 16+
-- Redis 7+
-- opzionale: Docker Compose
+- estensioni PHP: `mbstring`, `openssl`, `pdo`, `pdo_sqlite`
+- SQLite per sviluppo; PostgreSQL è supportato per la produzione
 
-## Avvio locale
+L’installazione richiede soltanto PHP e Composer; code, cache e database di sviluppo usano SQLite.
+
+## Installazione locale
 
 ```bash
-cp .env.example .env
 composer install
+cp .env.example .env
 php artisan key:generate
+```
+
+Creare il database SQLite vuoto:
+
+```bash
+php -r "file_exists('database/database.sqlite') || touch('database/database.sqlite');"
 php artisan migrate --seed
 php artisan serve
 ```
 
-Aprire `http://localhost:8000`. Credenziali demo (solo seed locale):
+In alternativa, il bootstrap completo è disponibile come singolo comando:
+
+```bash
+composer run setup
+```
+
+Aprire `http://localhost:8000`.
+
+Credenziali demo, esclusivamente locali:
 
 - email: `demo@commerciale-ai.test`
 - password: `CommercialeAI!2026`
 
-Per test rapidi senza PostgreSQL, impostare `DB_CONNECTION=sqlite` e creare `database/database.sqlite`.
+## Processi in background
+
+Code e cache usano il database. Quando verranno introdotti job programmati, avviare:
+
+```bash
+php artisan queue:work --tries=3
+php artisan schedule:work
+```
+
+In produzione configurare questi comandi come servizi di sistema e impostare il document root della virtual host sulla directory `public/`.
 
 ## Webhook lead
 
-`POST /api/v1/inbound/leads` con header:
+`POST /api/v1/inbound/leads` richiede:
 
 ```text
 X-Webhook-Source: preventivositoweb-demo
@@ -39,7 +63,11 @@ Idempotency-Key: <identificatore univoco evento>
 Content-Type: application/json
 ```
 
-Il segreto demo è `change-me-in-local-env` e deve essere sostituito prima di qualunque integrazione. La finestra anti-replay è 5 minuti.
+Il segreto del seed è dimostrativo e deve essere sostituito prima dell’integrazione reale.
+
+## Analisi AI
+
+`LeadAnalyzer` è indipendente dal provider. In locale viene usato un provider fake deterministico; ogni risultato viene validato, combinato con regole dichiarate e registrato con metadati, utilizzi e costi. Nessuna chiamata AI reale viene eseguita finché non viene configurato un adapter specifico.
 
 ## Test e qualità
 
@@ -48,10 +76,4 @@ php artisan test
 vendor/bin/pint --test
 ```
 
-La suite usa SQLite in memoria e non chiama servizi AI o email reali.
-
-## Docker
-
-`docker compose up --build` prepara app, PostgreSQL e Redis. Al primo avvio eseguire `docker compose exec app php artisan migrate --seed`. La macchina su cui è stato creato lo Sprint 1 non disponeva di Docker, quindi la build Compose è documentata ma non è stata eseguita localmente.
-
-Vedi [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) per decisioni, rischi e threat model.
+Vedi [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).

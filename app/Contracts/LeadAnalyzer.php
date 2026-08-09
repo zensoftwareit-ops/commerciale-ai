@@ -7,5 +7,5 @@ use App\Models\Lead;
 interface LeadAnalyzer
 {
     /** @return array<string, mixed> */
-    public function analyze(Lead $lead): array;
+    public function analyze(Lead $lead, array $context = []): array;
 }

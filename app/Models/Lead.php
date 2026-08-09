@@ -52,4 +52,9 @@ class Lead extends Model
     {
         return $this->hasMany(LeadContact::class);
     }
+
+    public function analyses(): HasMany
+    {
+        return $this->hasMany(AiAnalysis::class)->latest('version');
+    }
 }

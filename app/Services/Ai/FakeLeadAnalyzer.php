@@ -7,7 +7,7 @@ use App\Models\Lead;
 
 class FakeLeadAnalyzer implements LeadAnalyzer
 {
-    public function analyze(Lead $lead): array
+    public function analyze(Lead $lead, array $context = []): array
     {
         $missing = array_keys(array_filter([
             'email_o_telefono' => ! $lead->email && ! $lead->phone,
@@ -21,14 +21,14 @@ class FakeLeadAnalyzer implements LeadAnalyzer
             'requested_services' => array_values(array_filter([$lead->requested_service])),
             'budget' => ['raw' => $lead->request_data['budget'] ?? null, 'min' => null, 'max' => null, 'currency' => 'EUR'],
             'urgency' => 'unknown',
-            'fit_score' => 50,
+            'fit_score' => $lead->email && $lead->requested_service ? 70 : 50,
             'priority' => 'medium',
             'missing_information' => $missing,
             'risk_flags' => [],
             'recommended_next_action' => 'Verificare la richiesta e preparare una risposta.',
             'qualification_questions' => [],
             'confidence' => 1.0,
-            '_meta' => ['provider' => 'fake', 'model' => 'deterministic-v1', 'policy_version' => 'lead-analysis-v1'],
+            '_meta' => ['provider' => 'fake', 'model' => 'deterministic-v2', 'policy_version' => $context['policy']['version'] ?? 'lead-analysis-v1', 'input_units' => 0, 'output_units' => 0, 'estimated_cost' => 0],
         ];
     }
 }

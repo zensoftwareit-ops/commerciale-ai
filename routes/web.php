@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\KnowledgeDocumentController;
+use App\Http\Controllers\LeadAnalysisController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\OrganizationSettingsController;
 use App\Http\Controllers\PasswordController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,4 +26,13 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::post('/leads', [LeadController::class, 'store'])->middleware('role:owner,sales')->name('leads.store');
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
     Route::patch('/leads/{lead}', [LeadController::class, 'update'])->middleware('role:owner,sales')->name('leads.update');
+    Route::post('/leads/{lead}/analyze', [LeadAnalysisController::class, 'store'])->middleware('role:owner,sales')->name('leads.analyze');
+    Route::patch('/leads/{lead}/analyses/{analysis}', [LeadAnalysisController::class, 'update'])->middleware('role:owner,sales')->name('analyses.update');
+    Route::get('/settings/organization', [OrganizationSettingsController::class, 'edit'])->middleware('role:owner')->name('settings.organization');
+    Route::put('/settings/organization', [OrganizationSettingsController::class, 'update'])->middleware('role:owner')->name('settings.organization.update');
+    Route::get('/knowledge', [KnowledgeDocumentController::class, 'index'])->name('knowledge.index');
+    Route::get('/knowledge/create', [KnowledgeDocumentController::class, 'create'])->middleware('role:owner')->name('knowledge.create');
+    Route::post('/knowledge', [KnowledgeDocumentController::class, 'store'])->middleware('role:owner')->name('knowledge.store');
+    Route::get('/knowledge/{document}/edit', [KnowledgeDocumentController::class, 'edit'])->middleware('role:owner')->name('knowledge.edit');
+    Route::put('/knowledge/{document}', [KnowledgeDocumentController::class, 'update'])->middleware('role:owner')->name('knowledge.update');
 });

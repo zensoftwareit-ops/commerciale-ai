@@ -1,6 +1,6 @@
 # Architettura Sprint 1
 
-Commerciale AI è un monolite modulare Laravel 12 con interfaccia Blade server-rendered. PostgreSQL è il database applicativo; Redis gestirà code e cache. SQLite è ammesso esclusivamente nei test locali.
+Commerciale AI è un monolite modulare Laravel 12 con interfaccia Blade server-rendered. SQLite è il database predefinito per sviluppo e pilot; PostgreSQL è supportato per la produzione. Code, cache e sessioni usano il database senza servizi aggiuntivi.
 
 ## Confini principali
 
@@ -23,11 +23,10 @@ Ogni modello aziendale contiene `organization_id`; lo scope viene attivato dal t
 
 ## Rischi aperti
 
-- Docker e Git non sono installati sulla macchina di sviluppo corrente.
-- La build Docker è definita ma non è stata provata sulla macchina corrente, che non dispone di Docker.
+- Git non è installato sulla macchina di sviluppo corrente; la pubblicazione usa il connettore GitHub.
 - La deduplicazione email/telefono è intenzionalmente conservativa e andrà resa configurabile.
 - La selezione multi-organizzazione usa la sessione ma non espone ancora un selettore UI.
-- Rate limiting distribuito richiede Redis attivo.
+- Il rate limiting su database è sufficiente per il pilot; un backend dedicato potrà essere introdotto solo se necessario.
 
 ## Threat model essenziale
 
