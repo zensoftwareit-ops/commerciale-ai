@@ -11,7 +11,13 @@ Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead
 
 L’installazione richiede soltanto PHP e Composer; code, cache e database di sviluppo usano SQLite.
 
-## Installazione locale
+## Guide
+
+- [Installazione base](docs/INSTALLATION.md): ambiente locale, server, database, HTTPS, SMTP e aggiornamenti.
+- [Istanza pilota preventivositoweb.it](docs/INSTANCE-PREVENTIVOSITOWEB.md): configurazione aziendale, knowledge base, webhook e collaudo.
+- [Checklist pilota sintetica](docs/PILOT.md).
+
+## Installazione locale rapida
 
 ```bash
 composer install
@@ -97,4 +103,4 @@ php artisan test
 vendor/bin/pint --test
 ```
 
-Vedi [docs/PILOT.md](docs/PILOT.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).
+Vedi [docs/INSTALLATION.md](docs/INSTALLATION.md), [docs/INSTANCE-PREVENTIVOSITOWEB.md](docs/INSTANCE-PREVENTIVOSITOWEB.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).
