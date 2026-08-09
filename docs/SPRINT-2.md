@@ -15,9 +15,9 @@
 - registrazione di provider, modello, unità, costi ed errori;
 - aggiornamento di priorità, temperatura, pipeline e timeline.
 
-## Decisione provider
+## Provider
 
-Lo Sprint 2 usa `LeadAnalyzer` come porta applicativa e `FakeLeadAnalyzer` come implementazione deterministica. L’adapter reale verrà aggiunto dopo la scelta esplicita del provider, senza modificare controller, scoring o persistenza.
+`LeadAnalyzer` resta una porta applicativa. In produzione l'implementazione OpenAI usa la Responses API e uno schema JSON rigido; nei test `FakeLeadAnalyzer` mantiene le esecuzioni deterministiche. Il provider si seleziona con `AI_PROVIDER` senza modificare controller, scoring o persistenza.
 
 ## Sicurezza
 

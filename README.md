@@ -1,4 +1,4 @@
-# Commerciale AI — Sprint 2
+# Commerciale AI — Pilot
 
 Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, webhook firmato, profilo aziendale, knowledge base e analisi strutturata con scoring misto AI/regole.
 
@@ -65,9 +65,30 @@ Content-Type: application/json
 
 Il segreto del seed è dimostrativo e deve essere sostituito prima dell’integrazione reale.
 
-## Analisi AI
+## Analisi AI con OpenAI
 
-`LeadAnalyzer` è indipendente dal provider. In locale viene usato un provider fake deterministico; ogni risultato viene validato, combinato con regole dichiarate e registrato con metadati, utilizzi e costi. Nessuna chiamata AI reale viene eseguita finché non viene configurato un adapter specifico.
+L'applicazione usa la Responses API con Structured Outputs. La chiave resta esclusivamente nel file `.env` del server:
+
+```dotenv
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-5.6-terra
+```
+
+Dopo una modifica al file `.env`, eseguire `php artisan config:clear`. Per test e sviluppo offline è possibile impostare `AI_PROVIDER=fake`.
+
+Ogni risultato viene validato, combinato con regole dichiarate e registrato con modello, utilizzi e costo stimato. Nomi e recapiti del contatto non vengono inviati al provider; i contenuti del lead sono trattati come dati non attendibili.
+
+## Preparazione del pilota
+
+Dopo il primo accesso:
+
+1. cambiare la password demo dalla pagina **Account**;
+2. completare **Azienda** e aggiungere almeno un documento alla **Knowledge base**;
+3. aprire **Sorgenti**, ruotare il segreto demo oppure creare una sorgente nuova;
+4. inviare un lead, aprirlo dalla inbox e selezionare **Analizza lead**.
+
+La inbox mostra una checklist di prontezza. La guida completa è in [docs/PILOT.md](docs/PILOT.md).
 
 ## Test e qualità
 
@@ -76,4 +97,4 @@ php artisan test
 vendor/bin/pint --test
 ```
 
-Vedi [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).
+Vedi [docs/PILOT.md](docs/PILOT.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).

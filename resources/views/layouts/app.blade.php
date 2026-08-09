@@ -12,7 +12,7 @@
 @auth
     @php($activeOrganization=app(\App\Support\Tenancy\TenantContext::class)->organization())
     @php($activeRole=auth()->user()->roleFor($activeOrganization))
-    <header class="top"><div><a class="brand" href="{{ route('leads.index') }}">Commerciale AI</a> <a style="margin-left:1rem" href="{{ route('knowledge.index') }}">Knowledge base</a> @if($activeRole==='owner')<a style="margin-left:1rem" href="{{ route('settings.organization') }}">Azienda</a>@endif</div><div>{{ $activeOrganization?->name }} · {{ auth()->user()->name }} <form method="post" action="{{ route('logout') }}" style="display:inline">@csrf <button class="btn btn-muted" type="submit">Esci</button></form></div></header>
+    <header class="top"><div><a class="brand" href="{{ route('leads.index') }}">Commerciale AI</a> <a style="margin-left:1rem" href="{{ route('knowledge.index') }}">Knowledge base</a> @if($activeRole==='owner')<a style="margin-left:1rem" href="{{ route('settings.organization') }}">Azienda</a><a style="margin-left:1rem" href="{{ route('settings.sources') }}">Sorgenti</a>@endif</div><div><a href="{{ route('account.edit') }}">{{ auth()->user()->name }}</a> · {{ $activeOrganization?->name }} <form method="post" action="{{ route('logout') }}" style="display:inline">@csrf <button class="btn btn-muted" type="submit">Esci</button></form></div></header>
 @endauth
 <main class="container">
     @if(session('status'))<div class="notice">{{ session('status') }}</div>@endif

@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InboundSource;
+use App\Models\KnowledgeDocument;
 use App\Models\Lead;
+use App\Models\OrganizationSetting;
 use App\Models\PipelineStage;
 use App\Services\Leads\CreateLead;
 use Illuminate\Http\RedirectResponse;
@@ -17,8 +20,15 @@ class LeadController extends Controller
             ->when($request->filled('status'), fn ($q) => $q->where('operational_status', $request->string('status')))
             ->when($request->filled('source'), fn ($q) => $q->where('source_label', $request->string('source')))
             ->latest('last_activity_at')->paginate(25)->withQueryString();
+        $settings = OrganizationSetting::query()->first();
+        $pilotReadiness = [
+            'company_profile' => ($settings?->completeness ?? 0) === 100,
+            'knowledge_base' => KnowledgeDocument::query()->where('status', 'active')->exists(),
+            'openai' => config('commerciale-ai.ai_provider') === 'openai' && filled(config('commerciale-ai.openai.api_key')),
+            'inbound_source' => InboundSource::query()->where('is_active', true)->exists(),
+        ];
 
-        return view('leads.index', compact('leads'));
+        return view('leads.index', compact('leads', 'pilotReadiness'));
     }
 
     public function create(): View

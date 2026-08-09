@@ -13,8 +13,13 @@ class OrganizationSettingsController extends Controller
     public function edit(): View
     {
         $settings = OrganizationSetting::query()->firstOrNew();
+        $aiStatus = [
+            'provider' => config('commerciale-ai.ai_provider'),
+            'model' => config('commerciale-ai.openai.model'),
+            'configured' => config('commerciale-ai.ai_provider') !== 'openai' || filled(config('commerciale-ai.openai.api_key')),
+        ];
 
-        return view('settings.organization', compact('settings'));
+        return view('settings.organization', compact('settings', 'aiStatus'));
     }
 
     public function update(Request $request): RedirectResponse
