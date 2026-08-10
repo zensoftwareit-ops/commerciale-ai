@@ -106,6 +106,21 @@
     @endif
 </section>
 
+@if($lead->inboundEmails->isNotEmpty())
+<section class="card" style="margin-top:1rem">
+    <div class="toolbar"><div><h2>Risposte ricevute</h2><p class="muted">Messaggi importati dalla casella IMAP e collegati a questo lead.</p></div><span class="badge">{{ $lead->inboundEmails->count() }}</span></div>
+    @foreach($lead->inboundEmails as $email)
+        <article class="email-preview">
+            <div class="toolbar" style="margin-bottom:.5rem">
+                <div><strong>{{ $email->subject }}</strong><div class="muted">Da {{ $email->from_name ?: $email->from_address }} · {{ $email->received_at->format('d/m/Y H:i') }}</div></div>
+                <span class="badge">RICEVUTA</span>
+            </div>
+            {!! nl2br(e($email->body)) !!}
+        </article>
+    @endforeach
+</section>
+@endif
+
 @if($reply = $lead->replies->first())
 <section class="card" style="margin-top:1rem">
     <div class="toolbar">

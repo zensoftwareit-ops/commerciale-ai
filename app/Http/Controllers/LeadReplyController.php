@@ -49,6 +49,7 @@ class LeadReplyController extends Controller
         if (in_array(config('mail.default'), ['log', 'array'], true)) {
             return back()->withErrors(['reply' => 'Invio bloccato: configura un servizio SMTP reale nel file .env.']);
         }
+        $reply->ensureOutboundMessageId();
 
         try {
             Mail::to($reply->recipient)->send(new LeadReplyMail($reply));

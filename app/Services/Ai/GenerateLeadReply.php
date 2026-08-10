@@ -19,7 +19,7 @@ class GenerateLeadReply
 {
     public function __construct(private readonly LeadReplyGenerator $generator) {}
 
-    public function handle(Lead $lead, AiAnalysis $analysis, ?int $actorId = null): LeadReply
+    public function handle(Lead $lead, AiAnalysis $analysis, ?int $actorId = null, array $extraContext = []): LeadReply
     {
         $organizationId = app(TenantContext::class)->requireOrganization()->id;
         if (! filled($lead->email)) {
@@ -30,7 +30,7 @@ class GenerateLeadReply
         $context = ['organization' => $settings?->only([
             'commercial_name', 'business_description', 'products_services', 'tone_of_voice',
             'email_signature', 'appointment_details', 'promised_response_minutes',
-        ])];
+        ]), ...$extraContext];
         $run = AiRun::create([
             'organization_id' => $organizationId,
             'lead_id' => $lead->id,
@@ -48,7 +48,7 @@ class GenerateLeadReply
             ])->validate();
             $meta = $result['_meta'] ?? [];
 
-            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta): LeadReply {
+            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context): LeadReply {
                 $run->update([
                     'status' => 'completed', 'provider' => $meta['provider'] ?? 'unknown',
                     'model' => $meta['model'] ?? 'unknown', 'policy_version' => $meta['policy_version'] ?? 'reply-draft-v1',
@@ -59,9 +59,11 @@ class GenerateLeadReply
                 $reply = LeadReply::create([
                     'organization_id' => $organizationId, 'lead_id' => $lead->id,
                     'ai_analysis_id' => $analysis->id, 'ai_run_id' => $run->id,
-                    'status' => 'draft', 'recipient' => $lead->email,
+                    'status' => 'draft', 'parent_message_id' => data_get($context, 'incoming_email.message_id'),
+                    'recipient' => $lead->email,
                     'subject' => $result['subject'], 'body' => $result['body'],
                 ]);
+                $reply->ensureOutboundMessageId();
                 UsageRecord::create([
                     'organization_id' => $organizationId, 'ai_run_id' => $run->id,
                     'operation' => 'reply_draft', 'provider' => $run->provider, 'model' => $run->model,

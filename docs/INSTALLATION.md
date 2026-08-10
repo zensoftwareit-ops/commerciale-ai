@@ -6,7 +6,7 @@ Questa guida installa una singola istanza di Commerciale AI senza Docker. La ste
 
 - PHP 8.3 o superiore;
 - Composer 2;
-- estensioni PHP `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `mbstring`, `openssl`, `pdo`, `session`, `tokenizer` e `xml`;
+- estensioni PHP `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `pdo`, `session`, `tokenizer`, `xml` e `zip`;
 - `pdo_sqlite` per una prova locale oppure `pdo_mysql`/`pdo_pgsql` per il server;
 - HTTPS per qualsiasi installazione accessibile da Internet;
 - possibilità di impostare il document root del dominio sulla cartella `public/`.
@@ -60,8 +60,8 @@ Questa è la sequenza da seguire quando il repository è già stato collegato a 
 In **Siti Web e Domini > PHP** selezionare PHP 8.3 o superiore, preferibilmente con PHP-FPM. Verificare che siano abilitate almeno le estensioni:
 
 ```text
-ctype, curl, dom, fileinfo, filter, hash, mbstring, openssl,
-pdo, pdo_mysql, session, tokenizer, xml
+ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml,
+mbstring, openssl, pdo, pdo_mysql, session, tokenizer, xml, zip
 ```
 
 Impostare `memory_limit` ad almeno `512M` per l'installazione. Plesk consente di cambiare versione e impostazioni PHP dalla pagina PHP del dominio.
@@ -307,7 +307,47 @@ Dopo la modifica eseguire:
 
 Verificare prima con un reset password di prova, poi con un lead di test: analizzarlo, salvare la bozza e premere **Approva e invia**. Non inserire credenziali SMTP nel repository.
 
-## 6. Aggiornamenti
+## 6. Posta in ingresso IMAP
+
+Per importare le risposte dei lead, usare la stessa casella configurata come `MAIL_FROM_ADDRESS` oppure una casella che riceva le relative risposte. Il client è installato tramite Composer e non richiede l'estensione PHP `imap`.
+
+Configurazione tipica con IMAP su SSL:
+
+```dotenv
+IMAP_ENABLED=true
+IMAP_HOST=mail.example.it
+IMAP_PORT=993
+IMAP_ENCRYPTION=ssl
+IMAP_VALIDATE_CERT=true
+IMAP_USERNAME=commerciale@example.it
+IMAP_PASSWORD="PASSWORD_CASELLA"
+IMAP_AUTHENTICATION=null
+IMAP_FOLDER=INBOX
+IMAP_TIMEOUT=30
+IMAP_SYNC_SINCE_DAYS=14
+IMAP_MAX_MESSAGES=50
+```
+
+Usare host, porta e cifratura indicati dal fornitore della casella. Non disabilitare la validazione del certificato in produzione. Dopo la modifica:
+
+```bash
+/opt/plesk/php/8.3/bin/php artisan optimize:clear
+/opt/plesk/php/8.3/bin/php artisan config:cache
+/opt/plesk/php/8.3/bin/php artisan mail:sync --test
+/opt/plesk/php/8.3/bin/php artisan mail:sync
+```
+
+Il comando mostra soltanto i conteggi. Solo le risposte associate in modo sicuro vengono importate e marcate come lette.
+
+In **Plesk > Siti Web e Domini > Attività pianificate**, creare un'attività ogni cinque minuti eseguita dalla radice del progetto:
+
+```bash
+/opt/plesk/php/8.3/bin/php /PERCORSO/ASSOLUTO/DEL/PROGETTO/artisan mail:sync
+```
+
+In alternativa, sui server che usano lo scheduler Laravel, eseguire `php artisan schedule:run` ogni minuto.
+
+## 7. Aggiornamenti
 
 Prima di aggiornare eseguire un backup di database e file `.env`, quindi:
 
@@ -323,7 +363,7 @@ php artisan view:cache
 php artisan up
 ```
 
-## 7. Controlli finali
+## 8. Controlli finali
 
 ```bash
 php artisan about
@@ -340,16 +380,19 @@ Dal browser verificare inoltre:
 - analisi OpenAI;
 - generazione, modifica e invio di una bozza email;
 - pianificazione di un follow-up;
+- ricezione di una risposta nella casella IMAP, annullamento del follow-up e nuova bozza;
 - creazione e rotazione di una sorgente webhook;
 - reset password via email, se SMTP è attivo.
 
 Il worker delle code non è indispensabile per i flussi attuali. Quando saranno introdotti invii o elaborazioni asincrone, avviare stabilmente `php artisan queue:work --tries=3` tramite il sistema di process management del server.
 
-## 8. Problemi frequenti
+## 9. Problemi frequenti
 
 - **Errore 500 dopo l'installazione:** controllare `storage/logs/laravel.log`, `APP_KEY` e i permessi di `storage/`.
 - **Database non trovato:** verificare `DB_*`, creare il database e rieseguire `php artisan config:clear`.
 - **OpenAI non configurato:** valorizzare `OPENAI_API_KEY` sul server e rieseguire `php artisan config:cache`.
 - **Pagina iniziale del server invece dell'app:** il document root non punta a `public/`.
 - **Email non ricevuta:** verificare che `MAIL_MAILER=smtp`, ricreare la cache di configurazione e controllare `storage/logs/laravel.log`.
+- **Connessione IMAP fallita:** controllare host, porta, cifratura, credenziali e certificato con `php artisan mail:sync --test`.
+- **Risposta non importata:** verificare che il mittente coincida con l'email del lead e che esista almeno un'email inviata dal software.
 - **Webhook 401/403:** verificare il token dell'endpoint e che il dominio sorgente sia tra quelli consentiti.

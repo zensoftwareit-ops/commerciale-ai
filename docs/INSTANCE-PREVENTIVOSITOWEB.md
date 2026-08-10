@@ -218,6 +218,16 @@ Il pilota può ricevere lead reali quando:
 - backup del database disponibile;
 - una persona controlla sempre le analisi prima di azioni verso il cliente.
 
-## 10. Funzioni non ancora incluse
+## 10. Email e risposte
 
-Questa configurazione copre acquisizione, deduplicazione, analisi, scoring e lavoro manuale sul lead. Non sono ancora incluse la gestione utenti dal pannello, la disattivazione delle sorgenti, l'invio automatico delle email, le bozze commerciali, gli appuntamenti e la fatturazione/licenza. Durante il pilota le comunicazioni al cliente devono quindi essere inviate manualmente.
+Configurare SMTP e IMAP sulla stessa casella commerciale. Dopo l'invio di una bozza approvata, rispondere dal recapito del lead e avviare:
+
+```bash
+php artisan mail:sync
+```
+
+La risposta deve comparire nella scheda, il follow-up pendente deve essere annullato e deve apparire una nuova bozza da approvare. Dopo il collaudo manuale, pianificare il comando ogni cinque minuti come descritto nella guida di installazione.
+
+## 11. Funzioni non ancora incluse
+
+Questa configurazione copre acquisizione, deduplicazione, analisi, scoring, bozze approvate, invio email e acquisizione delle risposte. Non sono ancora incluse la gestione utenti dal pannello, gli appuntamenti, le sequenze automatiche di follow-up e la fatturazione/licenza. Ogni comunicazione verso il cliente richiede ancora approvazione umana.

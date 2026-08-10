@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 class LeadReplyMail extends Mailable
@@ -23,5 +24,16 @@ class LeadReplyMail extends Mailable
     public function content(): Content
     {
         return new Content(view: 'emails.lead-reply');
+    }
+
+    public function headers(): Headers
+    {
+        $parent = $this->reply->parent_message_id;
+
+        return new Headers(
+            messageId: $this->reply->outbound_message_id,
+            references: $parent ? [$parent] : [],
+            text: $parent ? ['In-Reply-To' => '<'.$parent.'>'] : [],
+        );
     }
 }

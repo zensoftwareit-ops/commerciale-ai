@@ -60,6 +60,11 @@ class Lead extends Model
 
     public function replies(): HasMany
     {
-        return $this->hasMany(LeadReply::class)->latest();
+        return $this->hasMany(LeadReply::class)->latest()->orderByDesc('id');
+    }
+
+    public function inboundEmails(): HasMany
+    {
+        return $this->hasMany(InboundEmail::class)->latest('received_at');
     }
 }

@@ -67,12 +67,14 @@ class LeadReplyWorkflowTest extends CommercialeAiTestCase
         $reply->refresh();
         $lead = Lead::withoutGlobalScopes()->findOrFail($lead->id);
         $this->assertSame('sent', $reply->status);
+        $this->assertNotNull($reply->outbound_message_id);
         $this->assertSame($user->id, $reply->approved_by);
         $this->assertSame('follow_up_scheduled', $lead->operational_status);
         $this->assertNotNull($lead->next_action_at);
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'email_sent']);
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'follow_up_scheduled']);
-        Mail::assertSent(LeadReplyMail::class, fn (LeadReplyMail $mail): bool => $mail->hasTo('anna@example.test'));
+        Mail::assertSent(LeadReplyMail::class, fn (LeadReplyMail $mail): bool => $mail->hasTo('anna@example.test')
+            && $mail->headers()->messageId === $reply->outbound_message_id);
 
         $session->patch(route('replies.update', [$lead, $reply]), [
             'recipient' => 'other@example.test', 'subject' => 'Modifica', 'body' => 'Non consentita',

@@ -1,6 +1,6 @@
 # Commerciale AI — Pilot
 
-Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base, analisi strutturata e risposte email con approvazione umana.
+Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base, analisi strutturata, risposte email con approvazione umana e sincronizzazione IMAP.
 
 ## Requisiti
 
@@ -48,10 +48,9 @@ Credenziali demo, esclusivamente locali:
 
 ## Processi in background
 
-Code e cache usano il database. Quando verranno introdotti job programmati, avviare:
+Code e cache usano il database. La sincronizzazione IMAP viene programmata ogni cinque minuti quando `IMAP_ENABLED=true`. In produzione avviare lo scheduler Laravel:
 
 ```bash
-php artisan queue:work --tries=3
 php artisan schedule:work
 ```
 
@@ -84,6 +83,8 @@ Dopo una modifica al file `.env`, eseguire `php artisan config:clear`. Per test 
 Ogni risultato viene validato, combinato con regole dichiarate e registrato con modello, utilizzi e costo stimato. I contenuti del lead sono trattati come dati non attendibili.
 
 Dopo l'analisi viene generata una bozza email modificabile. Un operatore deve salvarla, approvarla e inviarla; l'applicazione non invia autonomamente messaggi al cliente. È possibile associare una data di follow-up, registrata come prossima azione e nella timeline del lead.
+
+Con IMAP attivo, le risposte riconosciute vengono importate, mostrate nella scheda del lead e contrassegnate come lette nella casella. Il follow-up pendente viene annullato e viene preparata una nuova bozza da approvare. Messaggi automatici o non associabili restano fuori dall'applicazione e non vengono marcati come letti.
 
 ## Preparazione del pilota
 
