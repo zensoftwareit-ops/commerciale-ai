@@ -42,23 +42,22 @@ Compilare **Azienda** con descrizione, servizi, cliente ideale, tono e firma. In
 
 ## 4. Acquisizione lead
 
-Per il collaudo si può creare un lead manualmente. Per collegare un sito, aprire **Sorgenti** e creare nuove credenziali oppure ruotare quelle demo. Il segreto è visibile una sola volta.
+Per il collaudo si può creare un lead manualmente. Per collegare un sito, aprire **Sorgenti**, indicare i domini consentiti e generare un endpoint dedicato. L’URL segreto è visibile una sola volta.
 
-Il client deve inviare il corpo JSON senza modificarlo dopo aver calcolato:
-
-```text
-signature = HMAC-SHA256(timestamp + "." + raw_json_body, secret)
-```
-
-Header obbligatori:
+Il backend del sito deve soltanto eseguire:
 
 ```text
-X-Webhook-Source: <chiave sorgente>
-X-Webhook-Timestamp: <unix timestamp>
-X-Webhook-Signature: <firma esadecimale>
-Idempotency-Key: <id univoco dell'evento>
+POST https://DOMINIO-APP/api/v1/inbound/leads/<token-segreto>
 Content-Type: application/json
+
+<payload originale del sito>
 ```
+
+Non sono richiesti mapping, firma o header personalizzati. Commerciale AI riconosce automaticamente le strutture più comuni e genera internamente la chiave di idempotenza. L’endpoint deve restare nel backend: non inserirlo in JavaScript pubblico.
+
+Un POST server-to-server non espone necessariamente un dominio verificabile. Il token segreto è quindi l’autenticazione primaria; quando la richiesta contiene `Origin`, `Referer` o un URL sorgente, il dominio viene anche confrontato con quelli consentiti nel database.
+
+Il vecchio endpoint HMAC resta disponibile soltanto per integrazioni già esistenti.
 
 ## 5. Collaudo funzionale
 

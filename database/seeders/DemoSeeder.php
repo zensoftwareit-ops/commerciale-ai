@@ -29,7 +29,7 @@ class DemoSeeder extends Seeder
         ] as $position => [$name,$slug,$category]) {
             PipelineStage::firstOrCreate(['organization_id' => $organization->id, 'slug' => $slug], ['name' => $name, 'system_category' => $category, 'position' => $position + 1]);
         }
-        InboundSource::firstOrCreate(['key' => 'preventivositoweb-demo'], ['organization_id' => $organization->id, 'name' => 'PreventivoSitoWeb Demo', 'secret' => 'change-me-in-local-env', 'is_active' => true]);
+        InboundSource::firstOrCreate(['key' => 'preventivositoweb-demo'], ['organization_id' => $organization->id, 'name' => 'PreventivoSitoWeb Demo', 'secret' => 'change-me-in-local-env', 'allowed_domains' => ['preventivositoweb.it'], 'is_active' => true]);
         OrganizationSetting::firstOrCreate(['organization_id' => $organization->id], [
             'legal_name' => 'Zen Software Demo Srl', 'commercial_name' => 'Zen Software Demo', 'industry' => 'Sviluppo software e siti web',
             'business_description' => 'Studio demo che realizza soluzioni digitali per PMI italiane.',

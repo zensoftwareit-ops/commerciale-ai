@@ -1,6 +1,6 @@
 # Commerciale AI — Pilot
 
-Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, webhook firmato, profilo aziendale, knowledge base e analisi strutturata con scoring misto AI/regole.
+Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base e analisi strutturata con scoring misto AI/regole.
 
 ## Requisiti
 
@@ -57,19 +57,19 @@ php artisan schedule:work
 
 In produzione configurare questi comandi come servizi di sistema e impostare il document root della virtual host sulla directory `public/`.
 
-## Webhook lead
+## Ricezione lead semplificata
 
-`POST /api/v1/inbound/leads` richiede:
+Dal pannello **Sorgenti** si configurano nome e domini consentiti. L’applicazione genera un endpoint segreto dedicato:
 
 ```text
-X-Webhook-Source: preventivositoweb-demo
-X-Webhook-Timestamp: <unix timestamp>
-X-Webhook-Signature: <hex HMAC-SHA256(timestamp + "." + raw body)>
-Idempotency-Key: <identificatore univoco evento>
-Content-Type: application/json
+POST /api/v1/inbound/leads/<token-segreto>
 ```
 
-Il segreto del seed è dimostrativo e deve essere sostituito prima dell’integrazione reale.
+Il sito invia direttamente il proprio oggetto JSON o form, senza mapping, firma o header personalizzati. Il normalizzatore riconosce automaticamente i campi più comuni, conserva i dati commerciali non riconosciuti e genera l’idempotenza internamente.
+
+Il token nell’URL autentica la sorgente. Se sono presenti `Origin`, `Referer` o URL sorgente nel payload, il dominio viene confrontato con la allowlist salvata nel database. L’endpoint va usato esclusivamente dal backend e trattato come una password.
+
+Il precedente endpoint HMAC `POST /api/v1/inbound/leads` resta disponibile per retrocompatibilità.
 
 ## Analisi AI con OpenAI
 
@@ -91,7 +91,7 @@ Dopo il primo accesso:
 
 1. cambiare la password demo dalla pagina **Account**;
 2. completare **Azienda** e aggiungere almeno un documento alla **Knowledge base**;
-3. aprire **Sorgenti**, ruotare il segreto demo oppure creare una sorgente nuova;
+3. aprire **Sorgenti**, inserire i domini consentiti e generare l’endpoint dedicato;
 4. inviare un lead, aprirlo dalla inbox e selezionare **Analizza lead**.
 
 La inbox mostra una checklist di prontezza. La guida completa è in [docs/PILOT.md](docs/PILOT.md).

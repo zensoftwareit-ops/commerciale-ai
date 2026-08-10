@@ -119,91 +119,47 @@ Non inserire password, chiavi API, dati personali dei lead o istruzioni tecniche
 
 1. Aprire **Sorgenti** nell'applicazione.
 2. Creare una sorgente chiamata `preventivositoweb.it produzione`.
-3. Copiare subito **chiave sorgente** e **segreto HMAC**: il segreto è mostrato una sola volta.
-4. Conservare il segreto soltanto nella configurazione server del sito, mai nel JavaScript del browser o nel repository.
-5. La sorgente demo `preventivositoweb-demo` non deve essere usata: il suo segreto è pubblico. Può rimanere inutilizzata durante il test; appena sarà disponibile la disattivazione dal pannello andrà disattivata o rimossa.
+3. Inserire come dominio consentito `preventivositoweb.it`; anche i suoi sottodomini vengono accettati.
+4. Copiare subito l’**endpoint semplice**: il token segreto nell’URL è mostrato una sola volta.
+5. Conservare l’endpoint soltanto nella configurazione server del sito, mai nel JavaScript del browser o nel repository.
+6. Non usare le credenziali HMAC demo per la nuova integrazione.
 
-Endpoint previsto:
+L’endpoint avrà questa forma:
 
 ```text
-POST https://commerciale.preventivositoweb.it/api/v1/inbound/leads
+POST https://commerciale.preventivositoweb.it/api/v1/inbound/leads/<token-segreto>
 ```
 
-## 6. Mappatura del questionario
+## 6. Payload del questionario
 
-Payload consigliato:
+Non è necessario cambiare la struttura prodotta dal sito. Il software cerca automaticamente nomi comuni italiani e inglesi, anche annidati, per identificare contatto, email, telefono, azienda, servizio, messaggio e consensi. Tutti gli altri campi commerciali vengono conservati nella richiesta.
+
+Sono validi, per esempio, sia un payload flat:
 
 ```json
 {
-  "external_id": "psw-20260809-000123",
-  "source": "preventivositoweb.it",
-  "received_at": "2026-08-09T10:30:00+02:00",
-  "contact": {
-    "name": "Mario Rossi",
-    "email": "mario@example.it",
-    "phone": "+39 333 1234567",
-    "company": "Rossi Srl"
-  },
-  "request": {
-    "project_type": "Sito professionale",
-    "project_status": "Rifacimento sito esistente",
-    "page_range": "7-12",
-    "budget": "2.500-5.000 EUR",
-    "primary_goal": "Generare nuovi clienti",
-    "current_site_url": "https://example.it",
-    "features": ["Blog / News", "Multilingua"],
-    "message": "Richiesta pubblicazione entro novembre"
-  },
-  "consent": {
-    "privacy_accepted": true,
-    "marketing_accepted": false
-  }
+  "id_richiesta": "psw-123",
+  "nome_e_cognome": "Mario Rossi",
+  "email": "mario@example.it",
+  "telefono": "+39 333 1234567",
+  "tipo_di_sito": "Sito professionale",
+  "budget": "2.500-5.000 EUR",
+  "obiettivo": "Generare nuovi clienti",
+  "consenso_privacy": true
 }
 ```
 
-`external_id` deve essere un identificatore stabile e univoco della richiesta. Lo stesso evento ritentato deve mantenere sia `external_id` sia `Idempotency-Key`.
+sia una struttura annidata. Non serve aggiungere un identificatore: se presente viene utilizzato, altrimenti l’idempotenza è calcolata automaticamente dal contenuto del payload.
 
 ## 7. Invio PHP dal sito
 
-Esempio essenziale da eseguire **sul server** dopo che il form è stato validato e salvato:
+Il backend deve inoltrare il payload già disponibile, senza ricostruirlo. Esempio PHP essenziale:
 
 ```php
 <?php
 
 $endpoint = getenv('COMMERCIALE_AI_WEBHOOK_URL');
-$sourceKey = getenv('COMMERCIALE_AI_SOURCE_KEY');
-$secret = getenv('COMMERCIALE_AI_WEBHOOK_SECRET');
-$eventId = 'psw-'.bin2hex(random_bytes(12));
-
-$payload = [
-    'external_id' => $eventId,
-    'source' => 'preventivositoweb.it',
-    'received_at' => date(DATE_ATOM),
-    'contact' => [
-        'name' => $form['name'],
-        'email' => $form['email'],
-        'phone' => $form['phone'] ?? null,
-        'company' => $form['company'] ?? null,
-    ],
-    'request' => [
-        'project_type' => $form['project_type'],
-        'project_status' => $form['project_status'],
-        'page_range' => $form['page_range'],
-        'budget' => $form['budget'],
-        'primary_goal' => $form['primary_goal'],
-        'current_site_url' => $form['current_site_url'] ?? null,
-        'features' => $form['features'] ?? [],
-        'message' => $form['notes'] ?? null,
-    ],
-    'consent' => [
-        'privacy_accepted' => (bool) $form['privacy_accepted'],
-        'marketing_accepted' => (bool) ($form['marketing_accepted'] ?? false),
-    ],
-];
-
 $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-$timestamp = (string) time();
-$signature = hash_hmac('sha256', $timestamp.'.'.$json, $secret);
 
 $curl = curl_init($endpoint);
 curl_setopt_array($curl, [
@@ -211,10 +167,6 @@ curl_setopt_array($curl, [
     CURLOPT_POSTFIELDS => $json,
     CURLOPT_HTTPHEADER => [
         'Content-Type: application/json',
-        'X-Webhook-Source: '.$sourceKey,
-        'X-Webhook-Timestamp: '.$timestamp,
-        'X-Webhook-Signature: '.$signature,
-        'Idempotency-Key: '.$eventId,
     ],
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_CONNECTTIMEOUT => 5,
@@ -232,7 +184,9 @@ if ($responseBody === false || ! in_array($status, [200, 201], true)) {
 }
 ```
 
-La firma deve essere calcolata sullo stesso identico `$json` passato a `CURLOPT_POSTFIELDS`. Non ricodificare o formattare il JSON tra firma e invio.
+`$payload` è semplicemente l’array già prodotto e validato dal questionario. Non servono firma, timestamp, chiave sorgente o mapping.
+
+Il token nell’URL autentica la sorgente. Se il POST contiene `Origin`, `Referer`, `source_url`, `site_url`, `domain` o campi equivalenti, il dominio rilevato deve appartenere alla allowlist. Un POST server-to-server può non avere questi dati: in quel caso viene autenticato dal token dell’endpoint e la modalità di verifica viene registrata nel database.
 
 ## 8. Collaudo end-to-end
 
@@ -244,9 +198,10 @@ Eseguire il collaudo con dati chiaramente fittizi e consenso privacy selezionato
 4. controllare che tutti i campi del questionario siano visibili nella scheda;
 5. avviare **Analizza lead**;
 6. confrontare score, riepilogo e prossima azione con i dati inviati;
-7. reinviare lo stesso evento con la stessa `Idempotency-Key` e verificare HTTP `200` senza duplicati;
-8. provare una firma errata e verificare HTTP `401`;
-9. correggere manualmente un'analisi e verificare la timeline.
+7. reinviare lo stesso identico payload e verificare HTTP `200` senza duplicati;
+8. provare un endpoint con token errato e verificare HTTP `404`;
+9. inviare un `Origin` non consentito e verificare HTTP `403`;
+10. correggere manualmente un'analisi e verificare la timeline.
 
 ## 9. Criteri per iniziare il pilota
 
@@ -258,7 +213,7 @@ Il pilota può ricevere lead reali quando:
 - prezzi e limiti verificati;
 - knowledge base attiva;
 - chiave OpenAI configurata sul server;
-- sorgente di produzione creata con segreto non pubblico;
+- sorgente di produzione creata con domini consentiti ed endpoint non pubblico;
 - webhook collaudato anche in caso di ritentativo;
 - informativa privacy aggiornata per descrivere correttamente trattamento e fornitori;
 - backup del database disponibile;

@@ -1,14 +1,15 @@
-# Architettura Sprint 1
+# Architettura del pilot
 
-Commerciale AI è un monolite modulare Laravel 12 con interfaccia Blade server-rendered. SQLite è il database predefinito per sviluppo e pilot; PostgreSQL è supportato per la produzione. Code, cache e sessioni usano il database senza servizi aggiuntivi.
+Commerciale AI è un monolite modulare Laravel 12 con interfaccia Blade server-rendered. SQLite è il database predefinito per sviluppo; MariaDB, MySQL e PostgreSQL sono supportati per il server. Code, cache e sessioni usano il database senza servizi aggiuntivi.
 
 ## Confini principali
 
 - `Support/Tenancy`: contesto tenant e scope Eloquent centralizzato.
 - `Services/Leads`: normalizzazione e creazione atomica di lead e timeline.
-- `Contracts/LeadAnalyzer`: porta indipendente dal provider; nello Sprint 1 è collegata al fake deterministico.
+- `Contracts/LeadAnalyzer`: porta indipendente dal provider, collegata a OpenAI in produzione e al fake deterministico nei test.
 - controller web: autenticazione, inbox, inserimento e scheda lead.
-- controller inbound: autenticazione HMAC, anti-replay, deduplicazione e idempotenza.
+- controller inbound adattivo: endpoint tokenizzato, allowlist dei domini, normalizzazione, deduplicazione e idempotenza automatica;
+- controller inbound HMAC mantenuto per retrocompatibilità.
 
 Ogni modello aziendale contiene `organization_id`; lo scope viene attivato dal tenant risolto dalla membership dell'utente. I webhook risolvono prima la fonte globale e impostano poi esplicitamente il tenant.
 
@@ -17,9 +18,11 @@ Ogni modello aziendale contiene `organization_id`; lo scope viene attivato dal t
 - Ruoli MVP: `owner`, `sales`, `viewer`; il Super Admin verrà introdotto con audit dedicato.
 - La pipeline è configurabile per tenant e conserva una `system_category` per i report.
 - Gli UUID sono chiavi primarie e identificatori pubblici.
-- Nessuna email o chiamata AI reale è ammessa nello Sprint 1.
-- Il webhook usa `X-Webhook-Source`, `X-Webhook-Timestamp`, `X-Webhook-Signature` e `Idempotency-Key`.
-- Firma: HMAC-SHA256 di `<timestamp>.<raw-body>`.
+- Le chiamate OpenAI sono abilitate soltanto quando la chiave è configurata sul server; l’invio email commerciale automatico non è ancora attivo.
+- Il flusso standard usa un token casuale nell’endpoint; nel database viene conservato soltanto il suo hash SHA-256.
+- I domini consentiti sono associati alla sorgente. `Origin`, `Referer` e URL dichiarati nel payload vengono verificati quando disponibili.
+- Nei POST server-to-server senza evidenza del dominio, il token segreto autentica la sorgente; la modalità usata viene registrata nella receipt.
+- Il webhook HMAC con firma di `<timestamp>.<raw-body>` resta disponibile per integrazioni legacy.
 
 ## Rischi aperti
 
@@ -31,7 +34,7 @@ Ogni modello aziendale contiene `organization_id`; lo scope viene attivato dal t
 ## Threat model essenziale
 
 - Cross-tenant disclosure: scope centrale, risoluzione membership e test negativo su route binding.
-- Webhook spoofing/replay: segreto cifrato a riposo, HMAC, finestra temporale e idempotenza.
+- Webhook spoofing/replay: token ad alta entropia memorizzato come hash, allowlist, rate limit e idempotenza automatica; HMAC e finestra temporale sul percorso legacy.
 - Mass assignment: whitelist nei modelli e validazione request.
 - XSS/CSRF: escaping Blade e middleware Laravel; le API non usano sessioni.
 - Dati sensibili nei log: il webhook registra hash e stato, non il payload.

@@ -14,13 +14,20 @@ class InboundSourceSettingsTest extends CommercialeAiTestCase
     {
         [$organization, $owner] = $this->organizationWithUser();
 
-        $response = $this->actingAs($owner)->post('/settings/sources', ['name' => 'Sito pilota']);
+        $response = $this->actingAs($owner)->post('/settings/sources', ['name' => 'Sito pilota', 'allowed_domains_text' => "example.it\nwww.example.it"]);
         $response->assertRedirect()->assertSessionHas('webhook_credentials');
 
         app(TenantContext::class)->set($organization);
         $source = InboundSource::query()->sole();
         $oldSecret = $source->secret;
+        $oldEndpointHash = $source->endpoint_token_hash;
+        $this->assertSame(['example.it', 'www.example.it'], $source->allowed_domains);
         app(TenantContext::class)->clear();
+
+        $this->actingAs($owner)->patch("/settings/sources/{$source->id}/rotate-endpoint")
+            ->assertRedirect()
+            ->assertSessionHas('webhook_credentials');
+        $this->assertNotSame($oldEndpointHash, $source->fresh()->endpoint_token_hash);
 
         $this->actingAs($owner)->patch("/settings/sources/{$source->id}/rotate")
             ->assertRedirect()
