@@ -1,6 +1,6 @@
 # Commerciale AI — Pilot
 
-Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base e analisi strutturata con scoring misto AI/regole.
+Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base, analisi strutturata e risposte email con approvazione umana.
 
 ## Requisiti
 
@@ -81,7 +81,9 @@ OPENAI_MODEL=gpt-5.6-terra
 
 Dopo una modifica al file `.env`, eseguire `php artisan config:clear`. Per test e sviluppo offline è possibile impostare `AI_PROVIDER=fake`.
 
-Ogni risultato viene validato, combinato con regole dichiarate e registrato con modello, utilizzi e costo stimato. Nomi e recapiti del contatto non vengono inviati al provider; i contenuti del lead sono trattati come dati non attendibili.
+Ogni risultato viene validato, combinato con regole dichiarate e registrato con modello, utilizzi e costo stimato. I contenuti del lead sono trattati come dati non attendibili.
+
+Dopo l'analisi viene generata una bozza email modificabile. Un operatore deve salvarla, approvarla e inviarla; l'applicazione non invia autonomamente messaggi al cliente. È possibile associare una data di follow-up, registrata come prossima azione e nella timeline del lead.
 
 ## Preparazione del pilota
 
@@ -90,7 +92,9 @@ Dopo il primo accesso:
 1. cambiare la password demo dalla pagina **Account**;
 2. completare **Azienda** e aggiungere almeno un documento alla **Knowledge base**;
 3. aprire **Sorgenti**, inserire i domini consentiti e generare l’endpoint dedicato;
-4. inviare un lead, aprirlo dalla inbox e selezionare **Analizza lead**.
+4. configurare SMTP per gli invii reali;
+5. inviare un lead, aprirlo dalla inbox e selezionare **Analizza lead**;
+6. controllare la bozza, salvarla e usare **Approva e invia**.
 
 La inbox mostra una checklist di prontezza. La guida completa è in [docs/PILOT.md](docs/PILOT.md).
 

@@ -6,22 +6,33 @@ use App\Models\Activity;
 use App\Models\AiAnalysis;
 use App\Models\Lead;
 use App\Services\Ai\AnalyzeLead;
+use App\Services\Ai\GenerateLeadReply;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Throwable;
 
 class LeadAnalysisController extends Controller
 {
-    public function store(Request $request, string $lead, AnalyzeLead $analyzer): RedirectResponse
+    public function store(Request $request, string $lead, AnalyzeLead $analyzer, GenerateLeadReply $replyGenerator): RedirectResponse
     {
         $lead = Lead::query()->findOrFail($lead);
         try {
-            $analyzer->handle($lead, $request->user()->id);
+            $analysis = $analyzer->handle($lead, $request->user()->id);
         } catch (Throwable) {
             return back()->withErrors(['analysis' => 'Analisi non completata. Controlla la configurazione o riprova.']);
         }
 
-        return back()->with('status', 'Analisi completata.');
+        if (! filled($lead->email)) {
+            return back()->with('status', 'Analisi completata. La bozza email non è stata creata perché il lead non ha un indirizzo email.');
+        }
+
+        try {
+            $replyGenerator->handle($lead, $analysis, $request->user()->id);
+        } catch (Throwable) {
+            return back()->with('status', 'Analisi completata.')->withErrors(['reply' => 'La bozza email non è stata generata. Puoi ripetere l’analisi o controllare la configurazione AI.']);
+        }
+
+        return back()->with('status', 'Analisi completata e bozza email preparata.');
     }
 
     public function update(Request $request, string $lead, string $analysis): RedirectResponse

@@ -57,4 +57,9 @@ class Lead extends Model
     {
         return $this->hasMany(AiAnalysis::class)->latest('version');
     }
+
+    public function replies(): HasMany
+    {
+        return $this->hasMany(LeadReply::class)->latest();
+    }
 }

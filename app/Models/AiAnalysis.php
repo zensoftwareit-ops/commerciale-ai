@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToOrganization;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AiAnalysis extends Model
 {
@@ -21,5 +22,10 @@ class AiAnalysis extends Model
     public function run(): BelongsTo
     {
         return $this->belongsTo(AiRun::class, 'ai_run_id');
+    }
+
+    public function replies(): HasMany
+    {
+        return $this->hasMany(LeadReply::class, 'ai_analysis_id');
     }
 }

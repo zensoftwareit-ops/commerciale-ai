@@ -120,6 +120,7 @@ APP_NAME="Commerciale AI - PreventivoSitoWeb.it"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://DOMINIO-APP
+APP_TIMEZONE=Europe/Rome
 
 APP_LOCALE=it
 APP_FALLBACK_LOCALE=it
@@ -223,6 +224,7 @@ APP_NAME="Commerciale AI"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://DOMINIO-DELL-APP
+APP_TIMEZONE=Europe/Rome
 
 APP_LOCALE=it
 APP_FALLBACK_LOCALE=it
@@ -281,7 +283,7 @@ Laravel include già `public/.htaccess` per Apache. Con Nginx tutte le richieste
 
 ## 5. Posta elettronica
 
-Senza SMTP il recupero password viene scritto nei log e non arriva all'utente. Per abilitarlo:
+Senza SMTP il recupero password e le risposte ai lead vengono scritti nei log e non arrivano al destinatario. Per abilitare gli invii reali:
 
 ```dotenv
 MAIL_MAILER=smtp
@@ -294,7 +296,16 @@ MAIL_FROM_ADDRESS=EMAIL_MITTENTE
 MAIL_FROM_NAME="Commerciale AI"
 ```
 
-Verificare la configurazione con un reset password di prova. Non inserire credenziali SMTP nel repository.
+Su Plesk è possibile usare la casella del dominio. In genere `MAIL_HOST` è il nome del server di posta mostrato nel pannello, la porta è `587` con TLS oppure `465` con SMTPS. Usare sempre i valori forniti dal proprio servizio email.
+
+Dopo la modifica eseguire:
+
+```bash
+/opt/plesk/php/8.3/bin/php artisan optimize:clear
+/opt/plesk/php/8.3/bin/php artisan config:cache
+```
+
+Verificare prima con un reset password di prova, poi con un lead di test: analizzarlo, salvare la bozza e premere **Approva e invia**. Non inserire credenziali SMTP nel repository.
 
 ## 6. Aggiornamenti
 
@@ -327,6 +338,8 @@ Dal browser verificare inoltre:
 - pagina Azienda;
 - creazione di un lead manuale;
 - analisi OpenAI;
+- generazione, modifica e invio di una bozza email;
+- pianificazione di un follow-up;
 - creazione e rotazione di una sorgente webhook;
 - reset password via email, se SMTP è attivo.
 
@@ -338,4 +351,5 @@ Il worker delle code non è indispensabile per i flussi attuali. Quando saranno 
 - **Database non trovato:** verificare `DB_*`, creare il database e rieseguire `php artisan config:clear`.
 - **OpenAI non configurato:** valorizzare `OPENAI_API_KEY` sul server e rieseguire `php artisan config:cache`.
 - **Pagina iniziale del server invece dell'app:** il document root non punta a `public/`.
-- **Webhook 401:** verificare timestamp, segreto e firma calcolata sugli stessi identici byte del JSON inviato.
+- **Email non ricevuta:** verificare che `MAIL_MAILER=smtp`, ricreare la cache di configurazione e controllare `storage/logs/laravel.log`.
+- **Webhook 401/403:** verificare il token dell'endpoint e che il dominio sorgente sia tra quelli consentiti.

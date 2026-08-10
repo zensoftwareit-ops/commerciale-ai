@@ -52,7 +52,8 @@ class SprintTwoAnalysisTest extends CommercialeAiTestCase
         $this->assertSame(70, $analysis->ai_score);
         $this->assertGreaterThan(0, $analysis->rule_score);
         $this->assertSame('completed', AiRun::withoutGlobalScopes()->firstOrFail()->status);
-        $this->assertSame(1, UsageRecord::withoutGlobalScopes()->count());
+        $this->assertSame(2, UsageRecord::withoutGlobalScopes()->count());
+        $this->assertEqualsCanonicalizing(['lead_analysis', 'reply_draft'], UsageRecord::withoutGlobalScopes()->pluck('operation')->all());
         $this->assertContains('organization_profile_incomplete', $analysis->risk_flags);
         $this->assertContains('knowledge_base_empty', $analysis->risk_flags);
         $this->assertSame('to_review', Lead::withoutGlobalScopes()->findOrFail($lead->id)->stage()->withoutGlobalScopes()->first()->slug);
