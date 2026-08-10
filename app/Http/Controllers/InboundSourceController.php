@@ -14,10 +14,7 @@ class InboundSourceController extends Controller
 {
     public function index(): View
     {
-        return view('settings.sources', [
-            'sources' => InboundSource::query()->orderBy('name')->get(),
-            'legacyEndpoint' => url('/api/v1/inbound/leads'),
-        ]);
+        return view('settings.sources', ['sources' => InboundSource::query()->orderBy('name')->get()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -28,12 +25,9 @@ class InboundSourceController extends Controller
         ]);
         $domains = $this->domains($data['allowed_domains_text']);
         $this->ensureDomains($domains);
-        $secret = Str::random(64);
         $endpointToken = Str::random(64);
         $source = InboundSource::create([
             'name' => $data['name'],
-            'key' => Str::slug($data['name']).'-'.Str::lower(Str::random(10)),
-            'secret' => $secret,
             'allowed_domains' => $domains,
             'endpoint_token_hash' => hash('sha256', $endpointToken),
             'is_active' => true,
@@ -44,8 +38,6 @@ class InboundSourceController extends Controller
             ->with('webhook_credentials', [
                 'id' => $source->id,
                 'endpoint' => url('/api/v1/inbound/leads/'.$endpointToken),
-                'key' => $source->key,
-                'secret' => $secret,
             ]);
     }
 
@@ -70,16 +62,6 @@ class InboundSourceController extends Controller
                 'id' => $source->id,
                 'endpoint' => url('/api/v1/inbound/leads/'.$endpointToken),
             ]);
-    }
-
-    public function rotate(InboundSource $source): RedirectResponse
-    {
-        $secret = Str::random(64);
-        $source->update(['secret' => $secret]);
-
-        return back()
-            ->with('status', 'Segreto ruotato. Quello precedente non è più valido.')
-            ->with('webhook_credentials', ['id' => $source->id, 'key' => $source->key, 'secret' => $secret]);
     }
 
     /** @return list<string> */

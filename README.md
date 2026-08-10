@@ -69,8 +69,6 @@ Il sito invia direttamente il proprio oggetto JSON o form, senza mapping, firma 
 
 Il token nell’URL autentica la sorgente. Se sono presenti `Origin`, `Referer` o URL sorgente nel payload, il dominio viene confrontato con la allowlist salvata nel database. L’endpoint va usato esclusivamente dal backend e trattato come una password.
 
-Il precedente endpoint HMAC `POST /api/v1/inbound/leads` resta disponibile per retrocompatibilità.
-
 ## Analisi AI con OpenAI
 
 L'applicazione usa la Responses API con Structured Outputs. La chiave resta esclusivamente nel file `.env` del server:

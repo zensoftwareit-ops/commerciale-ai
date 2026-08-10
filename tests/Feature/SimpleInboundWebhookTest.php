@@ -85,8 +85,6 @@ class SimpleInboundWebhookTest extends CommercialeAiTestCase
         app(TenantContext::class)->set($organization);
         $source = InboundSource::create([
             'name' => 'Test source',
-            'key' => 'source-'.bin2hex(random_bytes(5)),
-            'secret' => 'legacy-secret',
             'allowed_domains' => $domains,
             'endpoint_token_hash' => hash('sha256', $token),
             'is_active' => true,

@@ -7,8 +7,7 @@
 <div class="card" style="margin-bottom:1rem;border-color:#f79009">
     <strong>Credenziali da copiare ora</strong>
     <p class="muted">L’endpoint contiene un token segreto e viene mostrato una sola volta. Usalo soltanto nel backend del sito, mai nel JavaScript pubblico.</p>
-    @if(isset($credentials['endpoint']))<label>Endpoint semplice</label><input readonly value="{{ $credentials['endpoint'] }}" onclick="this.select()"><p>Invia un <code>POST</code> con qualsiasi oggetto JSON o form. Non servono firma, mapping o header personalizzati.</p>@endif
-    @if(isset($credentials['secret']))<details><summary>Credenziali HMAC legacy</summary><label>Chiave sorgente</label><input readonly value="{{ $credentials['key'] }}" onclick="this.select()"><label>Segreto HMAC</label><input readonly value="{{ $credentials['secret'] }}" onclick="this.select()"></details>@endif
+    <label>Endpoint</label><input readonly value="{{ $credentials['endpoint'] }}" onclick="this.select()"><p>Invia un <code>POST</code> con qualsiasi oggetto JSON o form. Non servono firma, mapping o header personalizzati.</p>
 </div>
 @endif
 
@@ -30,7 +29,7 @@
 <div class="grid" style="margin-top:1rem">
 @forelse($sources as $source)
     <section class="card">
-        <div class="toolbar"><div><h2 style="margin:0">{{ $source->name }}</h2><div class="muted"><code>{{ $source->key }}</code></div></div><div><span class="badge">{{ $source->is_active ? 'Attiva' : 'Disattiva' }}</span> <span class="badge {{ $source->endpoint_token_hash ? '' : 'warm' }}">{{ $source->endpoint_token_hash ? 'Endpoint configurato' : 'Endpoint da generare' }}</span></div></div>
+        <div class="toolbar"><h2 style="margin:0">{{ $source->name }}</h2><div><span class="badge">{{ $source->is_active ? 'Attiva' : 'Disattiva' }}</span> <span class="badge {{ $source->endpoint_token_hash ? '' : 'warm' }}">{{ $source->endpoint_token_hash ? 'Endpoint configurato' : 'Endpoint da generare' }}</span></div></div>
         <div class="grid grid-2">
             <form method="post" action="{{ route('settings.sources.update',$source) }}">@csrf @method('put')
                 <label>Domini consentiti</label><textarea name="allowed_domains_text" rows="4" required>{{ implode("\n",$source->allowed_domains ?? []) }}</textarea>
@@ -39,7 +38,6 @@
             <div>
                 <p class="muted">Per sicurezza il token non è recuperabile. Rigenerando l’endpoint, quello precedente smette immediatamente di funzionare.</p>
                 <form method="post" action="{{ route('settings.sources.rotate-endpoint',$source) }}" onsubmit="return confirm('Generare un nuovo endpoint? Quello precedente smetterà subito di funzionare.')">@csrf @method('patch')<button class="btn">{{ $source->endpoint_token_hash ? 'Rigenera endpoint' : 'Genera endpoint' }}</button></form>
-                <details style="margin-top:1rem"><summary>Integrazione HMAC legacy</summary><p><code>{{ $legacyEndpoint }}</code></p><form method="post" action="{{ route('settings.sources.rotate',$source) }}" onsubmit="return confirm('Ruotare il segreto HMAC legacy?')">@csrf @method('patch')<button class="btn btn-muted">Ruota segreto HMAC</button></form></details>
             </div>
         </div>
     </section>

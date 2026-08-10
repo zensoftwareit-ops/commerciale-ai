@@ -10,12 +10,10 @@ class InboundSource extends Model
 {
     use BelongsToOrganization, HasUuid;
 
-    protected $fillable = ['organization_id', 'name', 'key', 'secret', 'allowed_domains', 'endpoint_token_hash', 'is_active'];
-
-    protected $hidden = ['secret'];
+    protected $fillable = ['organization_id', 'name', 'allowed_domains', 'endpoint_token_hash', 'is_active'];
 
     protected function casts(): array
     {
-        return ['secret' => 'encrypted', 'allowed_domains' => 'array', 'is_active' => 'boolean'];
+        return ['allowed_domains' => 'array', 'is_active' => 'boolean'];
     }
 }

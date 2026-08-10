@@ -9,7 +9,7 @@
 7. Servizio atomico di creazione, normalizzazione email/telefono e attività iniziale.
 8. Inserimento manuale con validazione e autorizzazione per ruolo.
 9. Inbox filtrabile e scheda lead con aggiornamento stato/pipeline.
-10. Webhook v1 con HMAC, anti-replay, rate limit, idempotenza e deduplicazione.
+10. Endpoint sorgente tokenizzato con allowlist, rate limit, idempotenza e deduplicazione.
 11. Contratto `LeadAnalyzer` e fake deterministico.
 12. Seed Zen Software con dati esclusivamente fittizi.
 13. Test di isolamento, webhook, idempotenza, inserimento e fake AI.

@@ -57,8 +57,6 @@ Non sono richiesti mapping, firma o header personalizzati. Commerciale AI ricono
 
 Un POST server-to-server non espone necessariamente un dominio verificabile. Il token segreto è quindi l’autenticazione primaria; quando la richiesta contiene `Origin`, `Referer` o un URL sorgente, il dominio viene anche confrontato con quelli consentiti nel database.
 
-Il vecchio endpoint HMAC resta disponibile soltanto per integrazioni già esistenti.
-
 ## 5. Collaudo funzionale
 
 1. Creare o ricevere un lead.

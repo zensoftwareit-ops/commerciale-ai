@@ -2,7 +2,6 @@
 
 return [
     'ai_provider' => env('AI_PROVIDER', 'fake'),
-    'webhook_replay_window_seconds' => (int) env('WEBHOOK_REPLAY_WINDOW_SECONDS', 300),
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-5.6-terra'),

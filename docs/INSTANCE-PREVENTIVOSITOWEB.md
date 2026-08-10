@@ -122,7 +122,6 @@ Non inserire password, chiavi API, dati personali dei lead o istruzioni tecniche
 3. Inserire come dominio consentito `preventivositoweb.it`; anche i suoi sottodomini vengono accettati.
 4. Copiare subito l’**endpoint semplice**: il token segreto nell’URL è mostrato una sola volta.
 5. Conservare l’endpoint soltanto nella configurazione server del sito, mai nel JavaScript del browser o nel repository.
-6. Non usare le credenziali HMAC demo per la nuova integrazione.
 
 L’endpoint avrà questa forma:
 

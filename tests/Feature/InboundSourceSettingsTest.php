@@ -19,7 +19,6 @@ class InboundSourceSettingsTest extends CommercialeAiTestCase
 
         app(TenantContext::class)->set($organization);
         $source = InboundSource::query()->sole();
-        $oldSecret = $source->secret;
         $oldEndpointHash = $source->endpoint_token_hash;
         $this->assertSame(['example.it', 'www.example.it'], $source->allowed_domains);
         app(TenantContext::class)->clear();
@@ -29,11 +28,6 @@ class InboundSourceSettingsTest extends CommercialeAiTestCase
             ->assertSessionHas('webhook_credentials');
         $this->assertNotSame($oldEndpointHash, $source->fresh()->endpoint_token_hash);
 
-        $this->actingAs($owner)->patch("/settings/sources/{$source->id}/rotate")
-            ->assertRedirect()
-            ->assertSessionHas('webhook_credentials');
-
-        $this->assertNotSame($oldSecret, $source->fresh()->secret);
     }
 
     public function test_sales_user_cannot_manage_sources(): void

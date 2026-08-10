@@ -38,7 +38,6 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::post('/settings/sources', [InboundSourceController::class, 'store'])->middleware('role:owner')->name('settings.sources.store');
     Route::put('/settings/sources/{source}', [InboundSourceController::class, 'update'])->middleware('role:owner')->name('settings.sources.update');
     Route::patch('/settings/sources/{source}/rotate-endpoint', [InboundSourceController::class, 'rotateEndpoint'])->middleware('role:owner')->name('settings.sources.rotate-endpoint');
-    Route::patch('/settings/sources/{source}/rotate', [InboundSourceController::class, 'rotate'])->middleware('role:owner')->name('settings.sources.rotate');
     Route::get('/knowledge', [KnowledgeDocumentController::class, 'index'])->name('knowledge.index');
     Route::get('/knowledge/create', [KnowledgeDocumentController::class, 'create'])->middleware('role:owner')->name('knowledge.create');
     Route::post('/knowledge', [KnowledgeDocumentController::class, 'store'])->middleware('role:owner')->name('knowledge.store');
