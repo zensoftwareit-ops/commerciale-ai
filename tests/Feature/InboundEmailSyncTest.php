@@ -125,6 +125,34 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         ]);
     }
 
+    public function test_pending_email_can_be_deleted_but_a_linked_email_cannot(): void
+    {
+        [$organization, $user] = $this->organizationWithUser('sales');
+        app(TenantContext::class)->set($organization);
+        $pending = InboundEmail::create([
+            'status' => 'pending', 'message_hash' => hash('sha256', 'pending-delete'),
+            'from_address' => 'unknown@example.test', 'subject' => 'Messaggio da eliminare',
+            'body' => 'Non appartiene a nessun lead.', 'received_at' => now(),
+        ]);
+        app(TenantContext::class)->clear();
+
+        $session = $this->actingAs($user)->withSession(['organization_id' => $organization->id]);
+        $session->delete(route('inbound-emails.destroy', $pending))->assertRedirect();
+        $this->assertDatabaseMissing('inbound_emails', ['id' => $pending->id]);
+
+        [$lead, $sentReply] = $this->sentReplyWithFollowUp($organization);
+        app(TenantContext::class)->set($organization);
+        $linked = InboundEmail::create([
+            'lead_id' => $lead->id, 'lead_reply_id' => $sentReply->id, 'status' => 'linked',
+            'message_hash' => hash('sha256', 'linked-keep'), 'from_address' => $lead->email,
+            'subject' => 'Risposta collegata', 'body' => 'Da conservare.', 'received_at' => now(),
+        ]);
+        app(TenantContext::class)->clear();
+
+        $session->delete(route('inbound-emails.destroy', $linked))->assertNotFound();
+        $this->assertDatabaseHas('inbound_emails', ['id' => $linked->id]);
+    }
+
     private function sentReplyWithFollowUp($organization): array
     {
         app(TenantContext::class)->set($organization);

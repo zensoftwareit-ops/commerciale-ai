@@ -36,6 +36,7 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->middleware('role:owner')->name('leads.destroy');
     Route::get('/inbound-emails', [InboundEmailController::class, 'index'])->middleware('role:owner,sales')->name('inbound-emails.index');
     Route::post('/inbound-emails/{email}/link', [InboundEmailController::class, 'link'])->middleware('role:owner,sales')->name('inbound-emails.link');
+    Route::delete('/inbound-emails/{email}', [InboundEmailController::class, 'destroy'])->middleware('role:owner,sales')->name('inbound-emails.destroy');
     Route::post('/leads/{lead}/analyze', [LeadAnalysisController::class, 'store'])->middleware('role:owner,sales')->name('leads.analyze');
     Route::patch('/leads/{lead}/analyses/{analysis}', [LeadAnalysisController::class, 'update'])->middleware('role:owner,sales')->name('analyses.update');
     Route::patch('/leads/{lead}/replies/{reply}', [LeadReplyController::class, 'update'])->middleware('role:owner,sales')->name('replies.update');

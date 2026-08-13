@@ -32,6 +32,10 @@
             <p class="muted">La bozza continuerà a essere indirizzata all’email principale del lead. Potrai modificarla prima dell’invio.</p>
             <button class="btn" type="submit" onclick="return confirm('Confermi l’associazione di questa email al lead selezionato?')">Associa email</button>
         </form>
+        <form method="post" action="{{ route('inbound-emails.destroy', $email) }}" style="margin-top:1rem" onsubmit="return confirm('Eliminare definitivamente questa email dalla coda? L’operazione non può essere annullata.')">
+            @csrf @method('delete')
+            <button class="btn" style="background:#b42318" type="submit">Elimina email</button>
+        </form>
     </section>
 @empty
     <section class="card"><p>Nessuna email in attesa di associazione.</p></section>

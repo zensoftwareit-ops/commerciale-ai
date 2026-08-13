@@ -123,4 +123,12 @@ class InboundEmailController extends Controller
 
         return redirect()->route('leads.show', $lead)->with('status', 'Email associata al lead.');
     }
+
+    public function destroy(string $email): RedirectResponse
+    {
+        $inbound = InboundEmail::query()->where('status', 'pending')->findOrFail($email);
+        $inbound->delete();
+
+        return back()->with('status', 'Email in attesa eliminata definitivamente.');
+    }
 }
