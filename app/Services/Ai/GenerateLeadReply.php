@@ -10,6 +10,7 @@ use App\Models\Lead;
 use App\Models\LeadReply;
 use App\Models\OrganizationSetting;
 use App\Models\UsageRecord;
+use App\Services\Quotations\BuildQuotation;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,7 +18,7 @@ use Throwable;
 
 class GenerateLeadReply
 {
-    public function __construct(private readonly LeadReplyGenerator $generator) {}
+    public function __construct(private readonly LeadReplyGenerator $generator, private readonly BuildQuotation $quotationBuilder) {}
 
     public function handle(Lead $lead, AiAnalysis $analysis, ?int $actorId = null, array $extraContext = []): LeadReply
     {
@@ -27,10 +28,11 @@ class GenerateLeadReply
         }
 
         $settings = OrganizationSetting::query()->first();
+        $quotationResult = $this->quotationBuilder->handle($lead);
         $context = ['organization' => $settings?->only([
             'commercial_name', 'business_description', 'products_services', 'tone_of_voice',
             'email_signature', 'appointment_details', 'promised_response_minutes',
-        ]), ...$extraContext];
+        ]), 'quotation' => $quotationResult['context'], ...$extraContext];
         $run = AiRun::create([
             'organization_id' => $organizationId,
             'lead_id' => $lead->id,
@@ -48,7 +50,7 @@ class GenerateLeadReply
             ])->validate();
             $meta = $result['_meta'] ?? [];
 
-            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context): LeadReply {
+            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context, $quotationResult): LeadReply {
                 $run->update([
                     'status' => 'completed', 'provider' => $meta['provider'] ?? 'unknown',
                     'model' => $meta['model'] ?? 'unknown', 'policy_version' => $meta['policy_version'] ?? 'reply-draft-v1',
@@ -56,14 +58,21 @@ class GenerateLeadReply
                     'input_units' => $meta['input_units'] ?? 0, 'output_units' => $meta['output_units'] ?? 0,
                     'estimated_cost' => $meta['estimated_cost'] ?? 0, 'completed_at' => now(),
                 ]);
+                $missingQuotationFields = $quotationResult['context']['missing_fields'] ?? [];
+                $replyKind = $quotationResult['quotation'] ? ($missingQuotationFields === [] ? 'quotation' : 'qualification') : 'general';
+                $automationBlockers = $replyKind === 'qualification' ? $quotationResult['conversation_blockers'] : $quotationResult['blockers'];
                 $reply = LeadReply::create([
                     'organization_id' => $organizationId, 'lead_id' => $lead->id,
                     'ai_analysis_id' => $analysis->id, 'ai_run_id' => $run->id,
                     'status' => 'draft', 'parent_message_id' => data_get($context, 'incoming_email.message_id'),
+                    'reply_kind' => $replyKind,
+                    'automation_eligible' => $replyKind !== 'general' && $automationBlockers === [],
+                    'automation_blockers' => $automationBlockers,
                     'recipient' => $lead->email,
                     'subject' => $result['subject'], 'body' => $result['body'],
                 ]);
                 $reply->ensureOutboundMessageId();
+                $quotationResult['quotation']?->update(['lead_reply_id' => $reply->id]);
                 UsageRecord::create([
                     'organization_id' => $organizationId, 'ai_run_id' => $run->id,
                     'operation' => 'reply_draft', 'provider' => $run->provider, 'model' => $run->model,

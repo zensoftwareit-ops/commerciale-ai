@@ -24,4 +24,7 @@ return [
         'sync_since_days' => (int) env('IMAP_SYNC_SINCE_DAYS', 14),
         'max_messages' => (int) env('IMAP_MAX_MESSAGES', 50),
     ],
+    'automation' => [
+        'external_send_enabled' => (bool) env('AUTOMATION_EXTERNAL_SEND_ENABLED', false),
+    ],
 ];

@@ -15,11 +15,18 @@ class OrganizationSetting extends Model
         'products_services', 'service_area', 'ideal_customer', 'pricing_rules', 'differentiators',
         'qualification_questions', 'exclusion_criteria', 'tone_of_voice', 'email_signature',
         'appointment_details', 'promised_response_minutes', 'authorized_sender', 'completeness',
+        'conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only',
+        'automation_allowed_recipients', 'max_automatic_replies', 'max_auto_quote_amount',
     ];
 
     protected function casts(): array
     {
-        return ['qualification_questions' => 'array', 'completeness' => 'integer'];
+        return [
+            'qualification_questions' => 'array', 'completeness' => 'integer',
+            'conversation_automation_enabled' => 'boolean', 'auto_send_quotes_enabled' => 'boolean',
+            'internal_test_only' => 'boolean', 'automation_allowed_recipients' => 'array',
+            'max_automatic_replies' => 'integer', 'max_auto_quote_amount' => 'decimal:2',
+        ];
     }
 
     public static function completenessFor(array $data): int

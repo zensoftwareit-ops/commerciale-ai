@@ -2,6 +2,7 @@
 
 use App\Contracts\InboundMailbox;
 use App\Services\Mail\SyncInboundEmailReplies;
+use App\Services\Mail\RunConversationAutomation;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -36,6 +37,13 @@ Artisan::command('mail:sync {--test : Verifica soltanto la connessione} {--limit
     }
 })->purpose('Importa le risposte email dalla casella IMAP');
 
+Artisan::command('conversations:automate {--limit=25}', function (RunConversationAutomation $automation): int {
+    $stats = $automation->handle((int) $this->option('limit'));
+    $this->table(['Organizzazioni', 'Candidate', 'Inviate', 'Fallite'], [array_values($stats)]);
+    return $stats['failed'] > 0 ? Command::FAILURE : Command::SUCCESS;
+})->purpose('Invia soltanto preventivi che superano tutti i controlli di automazione');
+
 if (config('commerciale-ai.imap.enabled')) {
     Schedule::command('mail:sync')->everyFiveMinutes()->withoutOverlapping();
 }
+Schedule::command('conversations:automate')->everyFiveMinutes()->withoutOverlapping();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\OrganizationSetting;
+use App\Models\PricingRule;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,8 @@ class OrganizationSettingsController extends Controller
             'configured' => config('commerciale-ai.ai_provider') !== 'openai' || filled(config('commerciale-ai.openai.api_key')),
         ];
 
-        return view('settings.organization', compact('settings', 'aiStatus'));
+        $pricingRules = PricingRule::query()->orderBy('name')->get();
+        return view('settings.organization', compact('settings', 'aiStatus', 'pricingRules'));
     }
 
     public function update(Request $request): RedirectResponse
@@ -33,9 +35,17 @@ class OrganizationSettingsController extends Controller
             'exclusion_criteria' => ['nullable', 'string', 'max:5000'], 'tone_of_voice' => ['required', 'string', 'max:255'],
             'email_signature' => ['required', 'string', 'max:2000'], 'appointment_details' => ['nullable', 'string', 'max:2000'],
             'promised_response_minutes' => ['nullable', 'integer', 'min:1', 'max:10080'], 'authorized_sender' => ['nullable', 'email', 'max:255'],
+            'conversation_automation_enabled' => ['nullable', 'boolean'], 'auto_send_quotes_enabled' => ['nullable', 'boolean'],
+            'internal_test_only' => ['nullable', 'boolean'], 'automation_allowed_recipients_text' => ['nullable', 'string', 'max:5000'],
+            'max_automatic_replies' => ['required', 'integer', 'min:1', 'max:10'], 'max_auto_quote_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
         $data['qualification_questions'] = collect(preg_split('/\r\n|\r|\n/', $data['qualification_questions_text'] ?? ''))->map(fn (string $line): string => trim($line))->filter()->values()->all();
         unset($data['qualification_questions_text']);
+        $data['automation_allowed_recipients'] = collect(preg_split('/[\r\n,]+/', $data['automation_allowed_recipients_text'] ?? ''))->map(fn ($line) => mb_strtolower(trim($line)))->filter()->values()->all();
+        unset($data['automation_allowed_recipients_text']);
+        $data['conversation_automation_enabled'] = (bool) ($data['conversation_automation_enabled'] ?? false);
+        $data['auto_send_quotes_enabled'] = (bool) ($data['auto_send_quotes_enabled'] ?? false);
+        $data['internal_test_only'] = (bool) ($data['internal_test_only'] ?? false);
         $data['completeness'] = OrganizationSetting::completenessFor($data);
         OrganizationSetting::query()->updateOrCreate(['organization_id' => app(TenantContext::class)->id()], $data);
 

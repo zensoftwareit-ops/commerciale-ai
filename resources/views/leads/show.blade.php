@@ -137,6 +137,9 @@
         <span class="badge">{{ $reply->status === 'sent' ? 'INVIATA' : 'DA APPROVARE' }}</span>
     </div>
     @error('reply')<div class="error">{{ $message }}</div>@enderror
+    @if($quotation = $lead->quotations->first())
+        <div class="notice"><strong>Preventivo v{{ $quotation->version }}:</strong> € {{ number_format($quotation->minimum_price,0,',','.') }}–{{ number_format($quotation->maximum_price,0,',','.') }} + IVA · affidabilità {{ $quotation->confidence }}%. @if($quotation->auto_send_eligible) Idoneo all’automazione interna. @else Invio automatico bloccato: {{ implode(', ',$quotation->automation_blockers ?? []) }}. @endif</div>
+    @endif
     @if($reply->status === 'sent')
         <p><strong>A:</strong> {{ $reply->recipient }}</p>
         <p><strong>Oggetto:</strong> {{ $reply->subject }}</p>

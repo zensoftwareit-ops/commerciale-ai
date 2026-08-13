@@ -86,6 +86,8 @@ Dopo l'analisi viene generata una bozza email modificabile. Un operatore deve sa
 
 Con IMAP attivo, le risposte riconosciute vengono importate, mostrate nella scheda del lead e contrassegnate come lette nella casella. Il follow-up pendente viene annullato e viene preparata una nuova bozza da approvare. Un riferimento certo alla conversazione consente l'associazione anche da un indirizzo diverso, mostrando un avviso all'operatore. I messaggi incerti entrano nella pagina **Email da associare** e non vengono mai collegati automaticamente; dopo la verifica è possibile associarli a un lead e memorizzare il mittente come contatto secondario.
 
+Il listino strutturato genera fasce di preventivo deterministiche e versionate. L'AI può presentare la fascia ma non modificarla; quando mancano dati prepara al massimo due domande mirate. L'automazione via cron e l'invio automatico sono disattivati per impostazione predefinita; durante il collaudo possono operare esclusivamente sugli indirizzi interni autorizzati e solo se non esiste alcun blocco di sicurezza. Il numero massimo di interventi automatici per lead impedisce conversazioni senza fine.
+
 ## Preparazione del pilota
 
 Dopo il primo accesso:

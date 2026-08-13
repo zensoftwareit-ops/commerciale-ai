@@ -12,7 +12,8 @@ class LeadReply extends Model
     use BelongsToOrganization, HasUuid;
 
     protected $fillable = [
-        'organization_id', 'lead_id', 'ai_analysis_id', 'ai_run_id', 'status',
+        'organization_id', 'lead_id', 'ai_analysis_id', 'ai_run_id', 'status', 'reply_kind',
+        'delivery_mode', 'automation_eligible', 'automation_blockers',
         'outbound_message_id', 'parent_message_id', 'recipient', 'subject', 'body',
         'follow_up_at', 'follow_up_cancelled_at', 'approved_by', 'approved_at', 'sent_at', 'last_error',
     ];
@@ -22,6 +23,7 @@ class LeadReply extends Model
         return [
             'follow_up_at' => 'datetime', 'follow_up_cancelled_at' => 'datetime',
             'approved_at' => 'datetime', 'sent_at' => 'datetime',
+            'automation_eligible' => 'boolean', 'automation_blockers' => 'array',
         ];
     }
 

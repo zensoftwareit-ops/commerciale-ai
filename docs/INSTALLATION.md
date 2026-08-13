@@ -347,6 +347,26 @@ In **Plesk > Siti Web e Domini > Attività pianificate**, creare un'attività og
 
 In alternativa, sui server che usano lo scheduler Laravel, eseguire `php artisan schedule:run` ogni minuto.
 
+### Automazione preventivi (solo collaudo interno)
+
+In **Azienda** configurare prima il listino strutturato. Ogni regola richiede parole chiave, fascia minima/massima ed eventuali campi obbligatori del payload. Poi inserire gli indirizzi di prova nella lista interna e mantenere selezionato **Limita l'automazione ai destinatari interni autorizzati**.
+
+Il comando eseguito dallo scheduler è:
+
+```bash
+/opt/plesk/php/8.3/bin/php artisan conversations:automate
+```
+
+Quando mancano dati obbligatori può inviare soltanto una domanda di qualificazione, con massimo due quesiti. Non invia automaticamente un preventivo se: la regola è ambigua, mancano dati, la fascia supera il limite, il mittente richiede verifica, è stato raggiunto il numero massimo di risposte, il destinatario non è nella lista interna oppure l'invio preventivi è spento. Per un test controllato lanciare manualmente il comando e verificare i conteggi prima di affidarlo al cron.
+
+Nel file `.env` lasciare:
+
+```dotenv
+AUTOMATION_EXTERNAL_SEND_ENABLED=false
+```
+
+Questo interruttore server impedisce invii automatici a destinatari esterni anche in caso di errore nel pannello. Non abilitarlo durante il pilota interno.
+
 ## 7. Aggiornamenti
 
 Prima di aggiornare eseguire un backup di database e file `.env`, quindi:

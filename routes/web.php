@@ -10,6 +10,7 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadReplyController;
 use App\Http\Controllers\OrganizationSettingsController;
 use App\Http\Controllers\PasswordController;
+use App\Http\Controllers\PricingRuleController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/leads');
@@ -40,6 +41,8 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::post('/leads/{lead}/replies/{reply}/send', [LeadReplyController::class, 'send'])->middleware('role:owner,sales')->name('replies.send');
     Route::get('/settings/organization', [OrganizationSettingsController::class, 'edit'])->middleware('role:owner')->name('settings.organization');
     Route::put('/settings/organization', [OrganizationSettingsController::class, 'update'])->middleware('role:owner')->name('settings.organization.update');
+    Route::post('/settings/pricing-rules', [PricingRuleController::class, 'store'])->middleware('role:owner')->name('settings.pricing-rules.store');
+    Route::put('/settings/pricing-rules/{rule}', [PricingRuleController::class, 'update'])->middleware('role:owner')->name('settings.pricing-rules.update');
     Route::get('/settings/sources', [InboundSourceController::class, 'index'])->middleware('role:owner')->name('settings.sources');
     Route::post('/settings/sources', [InboundSourceController::class, 'store'])->middleware('role:owner')->name('settings.sources.store');
     Route::put('/settings/sources/{source}', [InboundSourceController::class, 'update'])->middleware('role:owner')->name('settings.sources.update');
