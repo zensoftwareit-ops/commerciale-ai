@@ -226,7 +226,7 @@ Configurare SMTP e IMAP sulla stessa casella commerciale. Dopo l'invio di una bo
 php artisan mail:sync
 ```
 
-La risposta deve comparire nella scheda, il follow-up pendente deve essere annullato e deve apparire una nuova bozza da approvare. Dopo il collaudo manuale, pianificare il comando ogni cinque minuti come descritto nella guida di installazione.
+La risposta deve comparire nella scheda, il follow-up pendente deve essere annullato e deve apparire una nuova bozza da approvare. Ripetere il test da una casella diversa: se la risposta conserva le intestazioni della conversazione viene collegata con un avviso; altrimenti compare in **Email da associare**. Da questa pagina associarla manualmente al lead e, solo dopo aver verificato l'identità, memorizzare il nuovo indirizzo come contatto secondario. Dopo il collaudo manuale, pianificare il comando ogni cinque minuti come descritto nella guida di installazione.
 
 ## 11. Funzioni non ancora incluse
 

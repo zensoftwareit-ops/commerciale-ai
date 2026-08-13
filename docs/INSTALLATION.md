@@ -337,7 +337,7 @@ Usare host, porta e cifratura indicati dal fornitore della casella. Non disabili
 /opt/plesk/php/8.3/bin/php artisan mail:sync
 ```
 
-Il comando mostra soltanto i conteggi. Solo le risposte associate in modo sicuro vengono importate e marcate come lette.
+Il comando mostra soltanto i conteggi. Le risposte con un riferimento certo a una conversazione inviata vengono associate anche quando il cliente usa una casella diversa; nella scheda del lead compare un avviso e la bozza resta indirizzata all'email principale. Gli indirizzi secondari già confermati vengono riconosciuti. I messaggi senza prove sufficienti vengono conservati nella pagina **Email da associare**, dove un operatore può scegliere il lead e, facoltativamente, salvare il mittente come contatto secondario.
 
 In **Plesk > Siti Web e Domini > Attività pianificate**, creare un'attività ogni cinque minuti eseguita dalla radice del progetto:
 
@@ -394,5 +394,5 @@ Il worker delle code non è indispensabile per i flussi attuali. Quando saranno 
 - **Pagina iniziale del server invece dell'app:** il document root non punta a `public/`.
 - **Email non ricevuta:** verificare che `MAIL_MAILER=smtp`, ricreare la cache di configurazione e controllare `storage/logs/laravel.log`.
 - **Connessione IMAP fallita:** controllare host, porta, cifratura, credenziali e certificato con `php artisan mail:sync --test`.
-- **Risposta non importata:** verificare che il mittente coincida con l'email del lead e che esista almeno un'email inviata dal software.
+- **Risposta non visibile nel lead:** controllare la pagina **Email da associare**. Se il messaggio non contiene riferimenti alla conversazione e il mittente non è già noto, richiede una verifica manuale.
 - **Webhook 401/403:** verificare il token dell'endpoint e che il dominio sorgente sia tra quelli consentiti.

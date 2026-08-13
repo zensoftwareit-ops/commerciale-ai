@@ -12,13 +12,15 @@ class InboundEmail extends Model
     use BelongsToOrganization, HasUuid;
 
     protected $fillable = [
-        'organization_id', 'lead_id', 'lead_reply_id', 'message_hash', 'message_id',
-        'in_reply_to', 'imap_uid', 'from_address', 'from_name', 'subject', 'body', 'received_at',
+        'organization_id', 'lead_id', 'lead_reply_id', 'status', 'match_confidence',
+        'match_reason', 'sender_differs', 'message_hash', 'message_id', 'in_reply_to',
+        'imap_uid', 'from_address', 'from_name', 'subject', 'body', 'received_at',
+        'linked_by', 'linked_at',
     ];
 
     protected function casts(): array
     {
-        return ['received_at' => 'datetime'];
+        return ['sender_differs' => 'boolean', 'received_at' => 'datetime', 'linked_at' => 'datetime'];
     }
 
     public function lead(): BelongsTo
@@ -29,5 +31,10 @@ class InboundEmail extends Model
     public function reply(): BelongsTo
     {
         return $this->belongsTo(LeadReply::class, 'lead_reply_id');
+    }
+
+    public function linkedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'linked_by');
     }
 }

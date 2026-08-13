@@ -54,7 +54,7 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
             ->get(route('leads.show', $lead))->assertOk()->assertSee('Grazie, il budget è 2.000 euro.');
     }
 
-    public function test_it_is_idempotent_and_does_not_match_a_spoofed_sender(): void
+    public function test_it_is_idempotent_and_links_a_thread_reply_from_a_different_sender(): void
     {
         [$organization] = $this->organizationWithUser();
         [$lead, $sentReply] = $this->sentReplyWithFollowUp($organization);
@@ -71,19 +71,58 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         $this->assertSame(1, $stats['duplicates']);
         $this->assertSame(1, InboundEmail::withoutGlobalScopes()->count());
 
-        $spoofedMailbox = new FakeInboundMailbox([
+        $differentSenderMailbox = new FakeInboundMailbox([
             new InboundEmailMessage(
-                identifier: '202', messageId: 'spoofed@example.test', inReplyTo: $sentReply->outbound_message_id,
+                identifier: '202', messageId: 'forwarded-reply@example.test', inReplyTo: $sentReply->outbound_message_id,
                 references: [], fromAddress: 'attacker@example.test', fromName: null, subject: 'Re: Preventivo',
-                body: 'Messaggio non attendibile.', receivedAt: CarbonImmutable::now(),
+                body: 'Rispondo dalla mia casella personale.', receivedAt: CarbonImmutable::now(),
             ),
         ]);
-        $spoofedStats = (new SyncInboundEmailReplies($spoofedMailbox, app(GenerateLeadReply::class)))->handle();
+        $differentSenderStats = (new SyncInboundEmailReplies($differentSenderMailbox, app(GenerateLeadReply::class)))->handle();
 
-        $this->assertSame(1, $spoofedStats['unmatched']);
-        $this->assertSame([], $spoofedMailbox->seen);
-        $this->assertSame(1, InboundEmail::withoutGlobalScopes()->count());
+        $this->assertSame(1, $differentSenderStats['imported']);
+        $this->assertSame(['202'], $differentSenderMailbox->seen);
+        $this->assertSame(2, InboundEmail::withoutGlobalScopes()->count());
+        $linked = InboundEmail::withoutGlobalScopes()->where('message_id', 'forwarded-reply@example.test')->firstOrFail();
+        $this->assertTrue($linked->sender_differs);
+        $this->assertSame('thread_id', $linked->match_reason);
         $this->assertSame('anna@example.test', Lead::withoutGlobalScopes()->findOrFail($lead->id)->email_normalized);
+    }
+
+    public function test_it_queues_an_uncertain_message_and_allows_manual_linking(): void
+    {
+        [$organization, $user] = $this->organizationWithUser();
+        [$lead] = $this->sentReplyWithFollowUp($organization);
+        $mailbox = new FakeInboundMailbox([
+            new InboundEmailMessage(
+                identifier: '301', messageId: 'unknown-301@example.test', inReplyTo: null,
+                references: [], fromAddress: 'personal@example.test', fromName: 'Anna privata',
+                subject: 'Informazioni aggiuntive', body: 'Sono sempre Anna, scrivo da un altro indirizzo.',
+                receivedAt: CarbonImmutable::now(),
+            ),
+        ]);
+
+        $stats = (new SyncInboundEmailReplies($mailbox, app(GenerateLeadReply::class)))->handle();
+
+        $this->assertSame(1, $stats['unmatched']);
+        $pending = InboundEmail::withoutGlobalScopes()->firstOrFail();
+        $this->assertSame('pending', $pending->status);
+        $this->assertNull($pending->lead_id);
+        $this->actingAs($user)->withSession(['organization_id' => $organization->id])
+            ->post(route('inbound-emails.link', $pending), [
+                'lead_id' => $lead->id,
+                'add_secondary_contact' => '1',
+            ])->assertRedirect(route('leads.show', $lead));
+
+        $pending->refresh();
+        $this->assertSame('linked', $pending->status);
+        $this->assertSame($lead->id, $pending->lead_id);
+        $this->assertSame('manual', $pending->match_confidence);
+        $this->assertDatabaseHas('lead_contacts', [
+            'lead_id' => $lead->id,
+            'email_normalized' => 'personal@example.test',
+            'is_primary' => false,
+        ]);
     }
 
     private function sentReplyWithFollowUp($organization): array

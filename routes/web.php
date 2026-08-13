@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InboundSourceController;
+use App\Http\Controllers\InboundEmailController;
 use App\Http\Controllers\KnowledgeDocumentController;
 use App\Http\Controllers\LeadAnalysisController;
 use App\Http\Controllers\LeadController;
@@ -31,6 +32,8 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::post('/leads', [LeadController::class, 'store'])->middleware('role:owner,sales')->name('leads.store');
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
     Route::patch('/leads/{lead}', [LeadController::class, 'update'])->middleware('role:owner,sales')->name('leads.update');
+    Route::get('/inbound-emails', [InboundEmailController::class, 'index'])->middleware('role:owner,sales')->name('inbound-emails.index');
+    Route::post('/inbound-emails/{email}/link', [InboundEmailController::class, 'link'])->middleware('role:owner,sales')->name('inbound-emails.link');
     Route::post('/leads/{lead}/analyze', [LeadAnalysisController::class, 'store'])->middleware('role:owner,sales')->name('leads.analyze');
     Route::patch('/leads/{lead}/analyses/{analysis}', [LeadAnalysisController::class, 'update'])->middleware('role:owner,sales')->name('analyses.update');
     Route::patch('/leads/{lead}/replies/{reply}', [LeadReplyController::class, 'update'])->middleware('role:owner,sales')->name('replies.update');

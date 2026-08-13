@@ -115,6 +115,12 @@
                 <div><strong>{{ $email->subject }}</strong><div class="muted">Da {{ $email->from_name ?: $email->from_address }} · {{ $email->received_at->format('d/m/Y H:i') }}</div></div>
                 <span class="badge">RICEVUTA</span>
             </div>
+            @if($email->sender_differs)
+                <div class="warning">
+                    Il messaggio è stato associato alla conversazione, ma arriva da <strong>{{ $email->from_address }}</strong>
+                    invece che dall’indirizzo principale <strong>{{ $lead->email }}</strong>. Verifica l’identità prima di rispondere o usare il nuovo indirizzo.
+                </div>
+            @endif
             {!! nl2br(e($email->body)) !!}
         </article>
     @endforeach

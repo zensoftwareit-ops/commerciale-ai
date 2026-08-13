@@ -84,7 +84,7 @@ Ogni risultato viene validato, combinato con regole dichiarate e registrato con 
 
 Dopo l'analisi viene generata una bozza email modificabile. Un operatore deve salvarla, approvarla e inviarla; l'applicazione non invia autonomamente messaggi al cliente. È possibile associare una data di follow-up, registrata come prossima azione e nella timeline del lead.
 
-Con IMAP attivo, le risposte riconosciute vengono importate, mostrate nella scheda del lead e contrassegnate come lette nella casella. Il follow-up pendente viene annullato e viene preparata una nuova bozza da approvare. Messaggi automatici o non associabili restano fuori dall'applicazione e non vengono marcati come letti.
+Con IMAP attivo, le risposte riconosciute vengono importate, mostrate nella scheda del lead e contrassegnate come lette nella casella. Il follow-up pendente viene annullato e viene preparata una nuova bozza da approvare. Un riferimento certo alla conversazione consente l'associazione anche da un indirizzo diverso, mostrando un avviso all'operatore. I messaggi incerti entrano nella pagina **Email da associare** e non vengono mai collegati automaticamente; dopo la verifica è possibile associarli a un lead e memorizzare il mittente come contatto secondario.
 
 ## Preparazione del pilota
 
