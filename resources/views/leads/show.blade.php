@@ -173,4 +173,18 @@
     <p>Nessuna bozza disponibile. Ripeti l’analisi per generarne una.</p>
 </section>
 @endif
+
+@if($activeRole === 'owner')
+<section class="card" style="margin-top:1rem;border-color:#fda29b">
+    <h2 style="color:#b42318">Elimina definitivamente il lead</h2>
+    <p>Questa operazione elimina il lead e tutti i dati collegati: contatti, analisi, email, bozze, preventivi, attività e dati tecnici di elaborazione. Non può essere annullata.</p>
+    <form method="post" action="{{ route('leads.destroy', $lead) }}" onsubmit="return confirm('Confermi la cancellazione DEFINITIVA di questo lead e di tutti i dati collegati?')">
+        @csrf @method('delete')
+        <label>Scrivi ELIMINA per confermare</label>
+        <input name="confirmation" autocomplete="off" required pattern="ELIMINA">
+        @error('confirmation')<div class="error">{{ $message }}</div>@enderror
+        <br><button class="btn" style="background:#b42318">Elimina definitivamente</button>
+    </form>
+</section>
+@endif
 @endsection

@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\OrganizationSetting;
 use App\Models\PipelineStage;
 use App\Services\Leads\CreateLead;
+use App\Services\Leads\DeleteLead;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -68,5 +69,19 @@ class LeadController extends Controller
         $lead->activities()->create(['organization_id' => $lead->organization_id, 'actor_id' => $request->user()->id, 'type' => 'lead_updated', 'title' => 'Stato del lead aggiornato', 'data' => $data, 'occurred_at' => now()]);
 
         return back()->with('status', 'Stato aggiornato.');
+    }
+
+    public function destroy(Request $request, string $lead, DeleteLead $deleter): RedirectResponse
+    {
+        $request->validate([
+            'confirmation' => ['required', 'in:ELIMINA'],
+        ], [
+            'confirmation.in' => 'Per confermare la cancellazione definitiva devi scrivere ELIMINA.',
+        ]);
+        $lead = Lead::query()->findOrFail($lead);
+        $name = $lead->name;
+        $deleter->handle($lead);
+
+        return redirect()->route('leads.index')->with('status', 'Lead “'.$name.'” eliminato definitivamente.');
     }
 }
