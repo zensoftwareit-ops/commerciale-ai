@@ -174,7 +174,7 @@
 </section>
 @endif
 
-@if($activeRole === 'owner')
+@if(auth()->user()->roleFor(app(\App\Support\Tenancy\TenantContext::class)->organization()) === 'owner')
 <section class="card" style="margin-top:1rem;border-color:#fda29b">
     <h2 style="color:#b42318">Elimina definitivamente il lead</h2>
     <p>Questa operazione elimina il lead e tutti i dati collegati: contatti, analisi, email, bozze, preventivi, attività e dati tecnici di elaborazione. Non può essere annullata.</p>
