@@ -65,90 +65,62 @@ class InboundEmailController extends Controller
                 $sentReply->update(['follow_up_cancelled_at' => now()]);
             }
             $lead->update(['operational_status' => 'needs_action', 'next_action_at' => null, 'last_activity_at' => now()]);
-            Activiן}��$z{-���jםa casella che riceva le relative risposte. Il client è installato tramite Composer e non richiede l'estensione PHP `imap`.
+            Activity::create([
+                'organization_id' => $lead->organization_id,
+                'lead_id' => $lead->id,
+                'actor_id' => $request->user()->id,
+                'type' => 'email_received',
+                'title' => 'Email associata manualmente',
+                'data' => ['inbound_email_id' => $inbound->id, 'from' => $inbound->from_address],
+                'occurred_at' => $inbound->received_at,
+            ]);
+            if ($hadFollowUp) {
+                Activity::create([
+                    'organization_id' => $lead->organization_id,
+                    'lead_id' => $lead->id,
+                    'actor_id' => $request->user()->id,
+                    'type' => 'follow_up_cancelled',
+                    'title' => 'Follow-up annullato dopo la risposta',
+                    'data' => ['inbound_email_id' => $inbound->id],
+                    'occurred_at' => now(),
+                ]);
+            }
 
-Configurazione tipica con IMAP su SSL:
+            if (($data['add_secondary_contact'] ?? false) && $senderDiffers) {
+                $normalized = LeadData::normalizeEmail($inbound->from_address);
+                LeadContact::query()->firstOrCreate(
+                    ['lead_id' => $lead->id, 'email_normalized' => $normalized],
+                    [
+                        'organization_id' => $lead->organization_id,
+                        'name' => $inbound->from_name ?: $inbound->from_address,
+                        'email' => $inbound->from_address,
+                        'company' => $lead->company,
+                        'is_primary' => false,
+                    ],
+                );
+            }
+        });
 
-```dotenv
-IMAP_ENABLED=true
-IMAP_HOST=mail.example.it
-IMAP_PORT=993
-IMAP_ENCRYPTION=ssl
-IMAP_VALIDATE_CERT=true
-IMAP_USERNAME=commerciale@example.it
-IMAP_PASSWORD="PASSWORD_CASELLA"
-IMAP_AUTHENTICATION=null
-IMAP_FOLDER=INBOX
-IMAP_TIMEOUT=30
-IMAP_SYNC_SINCE_DAYS=14
-IMAP_MAX_MESSAGES=50
-```
+        $analysis = $lead->analyses()->first();
+        if ($analysis) {
+            try {
+                $replyGenerator->handle($lead->fresh(), $analysis, $request->user()->id, [
+                    'incoming_email' => [
+                        'message_id' => $inbound->message_id,
+                        'from' => $inbound->from_address,
+                        'subject' => $inbound->subject,
+                        'body' => mb_substr($inbound->body, 0, 12000),
+                        'received_at' => $inbound->received_at->toIso8601String(),
+                    ],
+                ]);
+            } catch (Throwable $exception) {
+                report($exception);
 
-Usare host, porta e cifratura indicati dal fornitore della casella. Non disabilitare la validazione del certificato in produzione. Dopo la modifica:
+                return redirect()->route('leads.show', $lead)
+                    ->with('status', 'Email associata. La bozza automatica non è stata generata: puoi ripetere l’analisi.');
+            }
+        }
 
-```bash
-/opt/plesk/php/8.3/bin/php artisan optimize:clear
-/opt/plesk/php/8.3/bin/php artisan config:cache
-/opt/plesk/php/8.3/bin/php artisan mail:sync --test
-/opt/plesk/php/8.3/bin/php artisan mail:sync
-```
-
-Il comando mostra soltanto i conteggi. Le risposte con un riferimento certo a una conversazione inviata vengono associate anche quando il cliente usa una casella diversa; nella scheda del lead compare un avviso e la bozza resta indirizzata all'email principale. Gli indirizzi secondari già confermati vengono riconosciuti. I messaggi senza prove sufficienti vengono conservati nella pagina **Email da associare**, dove un operatore può scegliere il lead e, facoltativamente, salvare il mittente come contatto secondario.
-
-In **Plesk > Siti Web e Domini > Attività pianificate**, creare un'attività ogni cinque minuti eseguita dalla radice del progetto:
-
-```bash
-/opt/plesk/php/8.3/bin/php /PERCORSO/ASSOLUTO/DEL/PROGETTO/artisan mail:sync
-```
-
-In alternativa, sui server che usano lo scheduler Laravel, eseguire `php artisan schedule:run` ogni minuto.
-
-## 7. Aggiornamenti
-
-Prima di aggiornare eseguire un backup di database e file `.env`, quindi:
-
-```bash
-php artisan down
-git pull --ff-only
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-php artisan optimize:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan up
-```
-
-## 8. Controlli finali
-
-```bash
-php artisan about
-php artisan migrate:status
-```
-
-In un ambiente di sviluppo, dove sono presenti anche le dipendenze `require-dev`, eseguire inoltre `php artisan test`.
-
-Dal browser verificare inoltre:
-
-- login e cambio password;
-- pagina Azienda;
-- creazione di un lead manuale;
-- analisi OpenAI;
-- generazione, modifica e invio di una bozza email;
-- pianificazione di un follow-up;
-- ricezione di una risposta nella casella IMAP, annullamento del follow-up e nuova bozza;
-- creazione e rotazione di una sorgente webhook;
-- reset password via email, se SMTP è attivo.
-
-Il worker delle code non è indispensabile per i flussi attuali. Quando saranno introdotti invii o elaborazioni asincrone, avviare stabilmente `php artisan queue:work --tries=3` tramite il sistema di process management del server.
-
-## 9. Problemi frequenti
-
-- **Errore 500 dopo l'installazione:** controllare `storage/logs/laravel.log`, `APP_KEY` e i permessi di `storage/`.
-- **Database non trovato:** verificare `DB_*`, creare il database e rieseguire `php artisan config:clear`.
-- **OpenAI non configurato:** valorizzare `OPENAI_API_KEY` sul server e rieseguire `php artisan config:cache`.
-- **Pagina iniziale del server invece dell'app:** il document root non punta a `public/`.
-- **Email non ricevuta:** verificare che `MAIL_MAILER=smtp`, ricreare la cache di configurazione e controllare `storage/logs/laravel.log`.
-- **Connessione IMAP fallita:** controllare host, porta, cifratura, credenziali e certificato con `php artisan mail:sync --test`.
-- **Risposta non visibile nel lead:** controllare la pagina **Email da associare**. Se il messaggio non contiene riferimenti alla conversazione e il mittente non è già noto, richiede una verifica manuale.
-- **Webhook 401/403:** verificare il token dell'endpoint e che il dominio sorgente sia tra quelli consentiti.
+        return redirect()->route('leads.show', $lead)->with('status', 'Email associata al lead.');
+    }
+}
