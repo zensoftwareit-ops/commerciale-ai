@@ -17,6 +17,7 @@ class OrganizationSetting extends Model
         'appointment_details', 'promised_response_minutes', 'authorized_sender', 'completeness',
         'conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only',
         'automation_allowed_recipients', 'max_automatic_replies', 'max_auto_quote_amount',
+        'auto_analyze_new_leads', 'auto_send_initial_email', 'new_lead_automation_started_at',
     ];
 
     protected function casts(): array
@@ -26,6 +27,8 @@ class OrganizationSetting extends Model
             'conversation_automation_enabled' => 'boolean', 'auto_send_quotes_enabled' => 'boolean',
             'internal_test_only' => 'boolean', 'automation_allowed_recipients' => 'array',
             'max_automatic_replies' => 'integer', 'max_auto_quote_amount' => 'decimal:2',
+            'auto_analyze_new_leads' => 'boolean', 'auto_send_initial_email' => 'boolean',
+            'new_lead_automation_started_at' => 'datetime',
         ];
     }
 

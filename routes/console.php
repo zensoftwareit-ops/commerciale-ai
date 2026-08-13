@@ -3,6 +3,7 @@
 use App\Contracts\InboundMailbox;
 use App\Services\Mail\SyncInboundEmailReplies;
 use App\Services\Mail\RunConversationAutomation;
+use App\Services\Leads\RunNewLeadAutomation;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -43,7 +44,14 @@ Artisan::command('conversations:automate {--limit=25}', function (RunConversatio
     return $stats['failed'] > 0 ? Command::FAILURE : Command::SUCCESS;
 })->purpose('Invia soltanto preventivi che superano tutti i controlli di automazione');
 
+Artisan::command('leads:automate-new {--limit=25}', function (RunNewLeadAutomation $automation): int {
+    $stats = $automation->handle((int) $this->option('limit'));
+    $this->table(['Organizzazioni', 'Candidate', 'Analizzate', 'Bozze', 'Inviate', 'Fallite'], [array_values($stats)]);
+    return $stats['failed'] > 0 ? Command::FAILURE : Command::SUCCESS;
+})->purpose('Analizza i nuovi lead interni e invia la prima email quando autorizzato');
+
 if (config('commerciale-ai.imap.enabled')) {
     Schedule::command('mail:sync')->everyFiveMinutes()->withoutOverlapping();
 }
 Schedule::command('conversations:automate')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('leads:automate-new')->everyFiveMinutes()->withoutOverlapping();

@@ -5,6 +5,8 @@ namespace App\Services\Mail;
 use App\Mail\LeadReplyMail;
 use App\Models\Activity;
 use App\Models\LeadReply;
+use App\Models\OrganizationSetting;
+use App\Models\Quotation;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Throwable;
@@ -14,7 +16,7 @@ class SendLeadReply
     public function handle(LeadReply $reply, ?int $actorId = null, bool $automatic = false): void
     {
         if ($reply->status === 'sent') throw new RuntimeException('Questa email è già stata inviata.');
-        if ($automatic && ! $reply->automation_eligible) throw new RuntimeException('La bozza non supera i controlli per l’invio automatico.');
+        if ($automatic) $this->guardAutomaticSend($reply);
         if (in_array(config('mail.default'), ['log', 'array'], true)) throw new RuntimeException('Configura un servizio SMTP reale prima dell’invio.');
 
         $claimed = LeadReply::query()->whereKey($reply->id)->where('status', 'draft')->update(['status' => 'sending']);
@@ -50,6 +52,27 @@ class SendLeadReply
                 'type' => 'follow_up_scheduled', 'title' => 'Follow-up pianificato',
                 'data' => ['reply_id' => $reply->id, 'follow_up_at' => $reply->follow_up_at->toIso8601String()], 'occurred_at' => now(),
             ]);
+        }
+    }
+
+    private function guardAutomaticSend(LeadReply $reply): void
+    {
+        if (! $reply->automation_eligible) throw new RuntimeException('La bozza non supera i controlli per l’invio automatico.');
+        $settings = OrganizationSetting::query()->first();
+        if (! $settings?->conversation_automation_enabled) throw new RuntimeException('Automazione conversazioni disabilitata.');
+        $lead = $reply->lead;
+        $allowed = collect($settings->automation_allowed_recipients ?? [])->map(fn ($email) => mb_strtolower(trim((string) $email)));
+        if ($settings->internal_test_only && ! $allowed->contains($lead->email_normalized)) throw new RuntimeException('Destinatario non incluso nella lista interna.');
+        if (! $settings->internal_test_only && ! config('commerciale-ai.automation.external_send_enabled')) throw new RuntimeException('Invii automatici esterni disabilitati sul server.');
+        if ($lead->replies()->where('delivery_mode', 'automatic')->where('status', 'sent')->count() >= $settings->max_automatic_replies) throw new RuntimeException('Limite di risposte automatiche raggiunto.');
+
+        if (str_starts_with($reply->reply_kind, 'initial') && ! $settings->auto_send_initial_email) throw new RuntimeException('Invio automatico della prima email disabilitato.');
+        if (str_starts_with($reply->reply_kind, 'initial') && ! $settings->auto_analyze_new_leads) throw new RuntimeException('Automazione dei nuovi lead disabilitata.');
+        if (str_contains($reply->reply_kind, 'quotation')) {
+            if (! $settings->auto_send_quotes_enabled) throw new RuntimeException('Invio automatico preventivi disabilitato.');
+            $quotation = Quotation::query()->where('lead_reply_id', $reply->id)->first();
+            if (! $quotation || ! $quotation->auto_send_eligible) throw new RuntimeException('Preventivo non idoneo all’invio automatico.');
+            if ($settings->max_auto_quote_amount === null || (float) $quotation->maximum_price > (float) $settings->max_auto_quote_amount) throw new RuntimeException('Preventivo oltre la soglia automatica corrente.');
         }
     }
 }

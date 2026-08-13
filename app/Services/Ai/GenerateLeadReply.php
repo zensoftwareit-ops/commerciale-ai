@@ -60,7 +60,14 @@ class GenerateLeadReply
                 ]);
                 $missingQuotationFields = $quotationResult['context']['missing_fields'] ?? [];
                 $replyKind = $quotationResult['quotation'] ? ($missingQuotationFields === [] ? 'quotation' : 'qualification') : 'general';
-                $automationBlockers = $replyKind === 'qualification' ? $quotationResult['conversation_blockers'] : $quotationResult['blockers'];
+                if (data_get($context, 'automation_stage') === 'initial') {
+                    $replyKind = match ($replyKind) {
+                        'quotation' => 'initial_quotation',
+                        'qualification' => 'initial_qualification',
+                        default => 'initial',
+                    };
+                }
+                $automationBlockers = str_ends_with($replyKind, 'qualification') ? $quotationResult['conversation_blockers'] : $quotationResult['blockers'];
                 $reply = LeadReply::create([
                     'organization_id' => $organizationId, 'lead_id' => $lead->id,
                     'ai_analysis_id' => $analysis->id, 'ai_run_id' => $run->id,
