@@ -22,7 +22,7 @@ class RunNewLeadAutomation
     ) {}
 
     /** @return array{organizations:int,candidates:int,analyzed:int,drafted:int,sent:int,failed:int} */
-    public function handle(int $limit = 25): array
+    public function handle(int $limit = 25, ?string $leadId = null): array
     {
         $stats = ['organizations' => 0, 'candidates' => 0, 'analyzed' => 0, 'drafted' => 0, 'sent' => 0, 'failed' => 0];
         foreach (Organization::query()->cursor() as $organization) {
@@ -39,7 +39,8 @@ class RunNewLeadAutomation
                     ->whereNotNull('email_normalized')
                     ->whereNull('initial_automation_completed_at')
                     ->where('initial_automation_attempts', '<', 3)
-                    ->where('created_at', '>=', $settings->new_lead_automation_started_at ?? now())
+                    ->when($leadId, fn ($query) => $query->whereKey($leadId))
+                    ->when(! $leadId, fn ($query) => $query->where('created_at', '>=', $settings->new_lead_automation_started_at ?? now()))
                     ->when($internalOnly, fn ($query) => $query->whereIn('email_normalized', $allowed->all()))
                     ->oldest()->limit(max(1, min($limit, 100)))->get();
 
@@ -86,6 +87,46 @@ class RunNewLeadAutomation
             }
         }
         return $stats;
+    }
+
+    /** @return array<int, array<string, int|string>> */
+    public function diagnose(): array
+    {
+        $rows = [];
+        foreach (Organization::query()->cursor() as $organization) {
+            app(TenantContext::class)->set($organization);
+            try {
+                $settings = OrganizationSetting::query()->first();
+                $allowed = collect($settings?->automation_allowed_recipients ?? [])->map(fn ($email) => mb_strtolower(trim((string) $email)))->filter();
+                $internalOnly = ($settings?->internal_test_only ?? true) || ! config('commerciale-ai.automation.external_send_enabled');
+                $base = Lead::query();
+                $startedAt = $settings?->new_lead_automation_started_at;
+                $rows[] = [
+                    'organization' => $organization->name,
+                    'conversation' => $settings?->conversation_automation_enabled ? 'ON' : 'OFF',
+                    'analysis' => $settings?->auto_analyze_new_leads ? 'ON' : 'OFF',
+                    'initial_email' => $settings?->auto_send_initial_email ? 'ON' : 'OFF',
+                    'internal_only' => $internalOnly ? 'YES' : 'NO',
+                    'allowlist' => $allowed->implode(', ') ?: '(vuota)',
+                    'started_at' => $startedAt?->format('Y-m-d H:i:s') ?? '(non impostato)',
+                    'total_leads' => (clone $base)->count(),
+                    'without_email' => (clone $base)->whereNull('email_normalized')->count(),
+                    'before_activation' => $startedAt ? (clone $base)->where('created_at', '<', $startedAt)->count() : (clone $base)->count(),
+                    'not_allowed' => $internalOnly ? (clone $base)->whereNotNull('email_normalized')->whereNotIn('email_normalized', $allowed->all())->count() : 0,
+                    'completed' => (clone $base)->whereNotNull('initial_automation_completed_at')->count(),
+                    'failed_3x' => (clone $base)->whereNull('initial_automation_completed_at')->where('initial_automation_attempts', '>=', 3)->count(),
+                    'eligible_now' => $settings?->auto_analyze_new_leads && $settings?->conversation_automation_enabled && $startedAt
+                        ? (clone $base)->whereNotNull('email_normalized')->whereNull('initial_automation_completed_at')
+                            ->where('initial_automation_attempts', '<', 3)->where('created_at', '>=', $startedAt)
+                            ->when($internalOnly, fn ($query) => $query->whereIn('email_normalized', $allowed->all()))->count()
+                        : 0,
+                ];
+            } finally {
+                app(TenantContext::class)->clear();
+            }
+        }
+
+        return $rows;
     }
 
     private function prepareInitialReply(LeadReply $reply, OrganizationSetting $settings): void
