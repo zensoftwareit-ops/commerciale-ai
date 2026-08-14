@@ -88,7 +88,7 @@ class GenerateLeadReply
                 $automationBlockers = $replyKind === 'general' || str_ends_with($replyKind, 'qualification')
                     ? $quotationResult['conversation_blockers']
                     : $quotationResult['blockers'];
-                if ($replyKind === 'general' && ! is_array(data_get($context, 'incoming_email'))) {
+                if (! is_array(data_get($context, 'incoming_email')) && data_get($context, 'automation_stage') !== 'initial') {
                     $automationBlockers[] = 'manual_draft';
                 }
                 $reply = LeadReply::create([

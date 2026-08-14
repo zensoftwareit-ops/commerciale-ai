@@ -52,7 +52,9 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         ]);
         PricingRule::create(['name' => 'Sito vetrina', 'keywords' => ['sito web'], 'required_fields' => ['pages'], 'minimum_price' => 1500, 'maximum_price' => 2200, 'validity_days' => 15]);
         $lead = app(CreateLead::class)->handle(['name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Sito web', 'source_label' => 'manual', 'request_data' => ['pages' => 5]]);
-        $reply = app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead));
+        $reply = app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead), null, [
+            'incoming_email' => ['message_id' => 'quote-request@example.test'],
+        ]);
         app(TenantContext::class)->clear();
 
         $this->assertTrue($reply->automation_eligible);
@@ -74,7 +76,9 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         ]);
         PricingRule::create(['name' => 'Sito vetrina', 'keywords' => ['sito web'], 'required_fields' => ['pages'], 'minimum_price' => 1500, 'maximum_price' => 2200]);
         $lead = app(CreateLead::class)->handle(['name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Sito web', 'source_label' => 'manual']);
-        $reply = app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead));
+        $reply = app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead), null, [
+            'incoming_email' => ['message_id' => 'qualification-request@example.test'],
+        ]);
 
         $this->assertSame('qualification', $reply->reply_kind);
         $this->assertTrue($reply->automation_eligible);
