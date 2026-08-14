@@ -31,7 +31,7 @@ class WebklexInboundMailbox implements InboundMailbox
         }
 
         $since = now()->subDays((int) config('commerciale-ai.imap.sync_since_days', 14));
-        $messages = $folder->query()->all()->since($since)->leaveUnread()->setFetchOrderDesc()->limit($limit)->get();
+        $messages = $folder->query()->unseen()->since($since)->leaveUnread()->setFetchOrderAsc()->limit($limit)->get();
         foreach ($messages as $message) {
             $identifier = (string) $message->getUid();
             $this->messages[$identifier] = $message;
@@ -119,3 +119,4 @@ class WebklexInboundMailbox implements InboundMailbox
         return trim(preg_replace("/\n{3,}/", "\n\n", $text) ?? $text);
     }
 }
+

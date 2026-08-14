@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\LeadReplyMail;
+use App\Models\InboundEmail;
 use App\Models\OrganizationSetting;
 use App\Models\PricingRule;
 use App\Models\Quotation;
@@ -80,4 +81,39 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $this->assertStringContainsString('pages', $reply->body);
         $this->assertFalse(Quotation::firstOrFail()->auto_send_eligible);
     }
+
+    public function test_an_internal_general_reply_to_an_inbound_email_can_be_sent_automatically(): void
+    {
+        config()->set('mail.default', 'smtp');
+        Mail::fake();
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti', 'products_services' => 'Siti web',
+            'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale', 'email_signature' => 'Demo',
+            'conversation_automation_enabled' => true, 'internal_test_only' => true,
+            'automation_allowed_recipients' => ['anna@example.test'], 'max_automatic_replies' => 3,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Consulenza',
+            'source_label' => 'manual', 'request_data' => ['message' => 'Vorrei informazioni'],
+        ]);
+        InboundEmail::create([
+            'lead_id' => $lead->id, 'status' => 'linked', 'match_confidence' => 'high', 'match_reason' => 'thread_id',
+            'message_hash' => hash('sha256', 'general-inbound'), 'message_id' => 'general-inbound@example.test',
+            'from_address' => 'anna@example.test', 'subject' => 'Re: Informazioni', 'body' => 'Grazie, mi dica pure.',
+            'received_at' => now(), 'linked_at' => now(),
+        ]);
+        $reply = app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead), null, [
+            'incoming_email' => ['message_id' => 'general-inbound@example.test'],
+        ]);
+        app(TenantContext::class)->clear();
+
+        $this->assertSame('general', $reply->reply_kind);
+        $this->assertTrue($reply->automation_eligible);
+        $stats = app(RunConversationAutomation::class)->handle();
+        $this->assertSame(1, $stats['sent']);
+        $this->assertSame('automatic', $reply->fresh()->delivery_mode);
+    }
 }
+

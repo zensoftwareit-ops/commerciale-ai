@@ -33,6 +33,7 @@ class SyncInboundEmailReplies
             foreach ($this->mailbox->recent(max(1, min($limit, 200))) as $message) {
                 $stats['scanned']++;
                 if ($message->automated || ! filter_var($message->fromAddress, FILTER_VALIDATE_EMAIL)) {
+                    $this->mailbox->markSeen($message->identifier);
                     $stats['automated']++;
 
                     continue;
@@ -53,11 +54,11 @@ class SyncInboundEmailReplies
                         app(TenantContext::class)->set($organization);
                         try {
                             $this->storePending($message, $messageHash);
-                            $this->mailbox->markSeen($message->identifier);
                         } finally {
                             app(TenantContext::class)->clear();
                         }
                     }
+                    $this->mailbox->markSeen($message->identifier);
                     $stats['unmatched']++;
 
                     continue;
@@ -246,3 +247,4 @@ class SyncInboundEmailReplies
         return hash('sha256', mb_strtolower(trim($identity)));
     }
 }
+

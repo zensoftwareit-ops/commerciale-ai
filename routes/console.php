@@ -42,7 +42,7 @@ Artisan::command('conversations:automate {--limit=25}', function (RunConversatio
     $stats = $automation->handle((int) $this->option('limit'));
     $this->table(['Organizzazioni', 'Candidate', 'Inviate', 'Fallite'], [array_values($stats)]);
     return $stats['failed'] > 0 ? Command::FAILURE : Command::SUCCESS;
-})->purpose('Invia soltanto preventivi che superano tutti i controlli di automazione');
+})->purpose('Invia le risposte che superano tutti i controlli di automazione');
 
 Artisan::command('leads:automate-new {--limit=25} {--lead= : UUID di un lead interno da collaudare esplicitamente}', function (RunNewLeadAutomation $automation): int {
     $leadId = $this->option('lead');
@@ -60,10 +60,11 @@ Artisan::command('leads:automation-status', function (RunNewLeadAutomation $auto
     }
     $this->table(array_keys($rows[0]), array_map('array_values', $rows));
     return Command::SUCCESS;
-})->purpose('Mostra perché i lead vengono inclusi o esclusi dall’automazione');
+})->purpose('Mostra perchÃ© i lead vengono inclusi o esclusi dallâ€™automazione');
 
 if (config('commerciale-ai.imap.enabled')) {
     Schedule::command('mail:sync')->everyFiveMinutes()->withoutOverlapping();
 }
 Schedule::command('conversations:automate')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('leads:automate-new')->everyFiveMinutes()->withoutOverlapping();
+

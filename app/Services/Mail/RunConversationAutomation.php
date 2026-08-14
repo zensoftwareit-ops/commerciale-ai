@@ -22,7 +22,7 @@ class RunConversationAutomation
                 $settings = OrganizationSetting::query()->first();
                 if (! $settings?->conversation_automation_enabled) continue;
                 $stats['organizations']++;
-                $replies = LeadReply::query()->where('status', 'draft')->whereIn('reply_kind', ['qualification', 'quotation'])
+                $replies = LeadReply::query()->where('status', 'draft')->whereIn('reply_kind', ['general', 'qualification', 'quotation'])
                     ->where('automation_eligible', true)->latest()->limit(500)->get()
                     ->unique('lead_id')->take(max(1, min($limit, 100)));
                 foreach ($replies as $reply) {
@@ -45,3 +45,4 @@ class RunConversationAutomation
         return $stats;
     }
 }
+

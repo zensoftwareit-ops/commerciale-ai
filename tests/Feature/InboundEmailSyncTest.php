@@ -28,7 +28,7 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
                 identifier: '101', messageId: 'customer-reply-1@example.test',
                 inReplyTo: $sentReply->outbound_message_id, references: [$sentReply->outbound_message_id],
                 fromAddress: 'anna@example.test', fromName: 'Anna Demo', subject: 'Re: Il suo progetto web',
-                body: 'Grazie, il budget è 2.000 euro. Possiamo sentirci venerdì?',
+                body: 'Grazie, il budget Ã¨ 2.000 euro. Possiamo sentirci venerdÃ¬?',
                 receivedAt: CarbonImmutable::now(),
             ),
         ]);
@@ -51,7 +51,7 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'email_received']);
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'follow_up_cancelled']);
         $this->actingAs($user)->withSession(['organization_id' => $organization->id])
-            ->get(route('leads.show', $lead))->assertOk()->assertSee('Grazie, il budget è 2.000 euro.');
+            ->get(route('leads.show', $lead))->assertOk()->assertSee('Grazie, il budget Ã¨ 2.000 euro.');
     }
 
     public function test_it_is_idempotent_and_links_a_thread_reply_from_a_different_sender(): void
@@ -153,6 +153,23 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         $this->assertDatabaseHas('inbound_emails', ['id' => $linked->id]);
     }
 
+    public function test_automated_messages_are_marked_as_seen(): void
+    {
+        $mailbox = new FakeInboundMailbox([
+            new InboundEmailMessage(
+                identifier: '401', messageId: 'automatic-401@example.test', inReplyTo: null,
+                references: [], fromAddress: 'mailer@example.test', fromName: null,
+                subject: 'Risposta automatica', body: 'Fuori sede.', receivedAt: CarbonImmutable::now(),
+                automated: true,
+            ),
+        ]);
+
+        $stats = (new SyncInboundEmailReplies($mailbox, app(GenerateLeadReply::class)))->handle();
+
+        $this->assertSame(1, $stats['automated']);
+        $this->assertSame(['401'], $mailbox->seen);
+    }
+
     private function sentReplyWithFollowUp($organization): array
     {
         app(TenantContext::class)->set($organization);
@@ -191,3 +208,4 @@ class FakeInboundMailbox implements InboundMailbox
 
     public function close(): void {}
 }
+

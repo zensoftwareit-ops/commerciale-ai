@@ -67,13 +67,18 @@ class GenerateLeadReply
                         default => 'initial',
                     };
                 }
-                $automationBlockers = str_ends_with($replyKind, 'qualification') ? $quotationResult['conversation_blockers'] : $quotationResult['blockers'];
+                $automationBlockers = $replyKind === 'general' || str_ends_with($replyKind, 'qualification')
+                    ? $quotationResult['conversation_blockers']
+                    : $quotationResult['blockers'];
+                if ($replyKind === 'general' && ! is_array(data_get($context, 'incoming_email'))) {
+                    $automationBlockers[] = 'manual_draft';
+                }
                 $reply = LeadReply::create([
                     'organization_id' => $organizationId, 'lead_id' => $lead->id,
                     'ai_analysis_id' => $analysis->id, 'ai_run_id' => $run->id,
                     'status' => 'draft', 'parent_message_id' => data_get($context, 'incoming_email.message_id'),
                     'reply_kind' => $replyKind,
-                    'automation_eligible' => $replyKind !== 'general' && $automationBlockers === [],
+                    'automation_eligible' => $automationBlockers === [],
                     'automation_blockers' => $automationBlockers,
                     'recipient' => $lead->email,
                     'subject' => $result['subject'], 'body' => $result['body'],
@@ -104,3 +109,4 @@ class GenerateLeadReply
         }
     }
 }
+

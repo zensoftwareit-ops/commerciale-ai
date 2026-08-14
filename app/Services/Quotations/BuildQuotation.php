@@ -15,24 +15,18 @@ class BuildQuotation
     {
         $settings = OrganizationSetting::query()->first();
         $inbound = $lead->inboundEmails()->first();
+        $conversationBlockers = $this->conversationBlockers($lead, $settings, $inbound);
         $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $inbound?->subject, $inbound?->body])));
         $ranked = PricingRule::query()->where('is_active', true)->get()
             ->map(fn (PricingRule $rule) => ['rule' => $rule, 'score' => collect($rule->keywords)->filter(fn ($keyword) => str_contains($haystack, $this->normalize((string) $keyword)))->count()])
             ->filter(fn ($item) => $item['score'] > 0)->sortByDesc('score')->values();
 
-        if ($ranked->isEmpty()) return ['quotation' => null, 'context' => null, 'blockers' => ['no_matching_pricing_rule'], 'conversation_blockers' => ['no_matching_pricing_rule']];
-        if ($ranked->count() > 1 && $ranked[0]['score'] === $ranked[1]['score']) return ['quotation' => null, 'context' => null, 'blockers' => ['ambiguous_pricing_rule'], 'conversation_blockers' => ['ambiguous_pricing_rule']];
+        if ($ranked->isEmpty()) return ['quotation' => null, 'context' => null, 'blockers' => [...$conversationBlockers, 'no_matching_pricing_rule'], 'conversation_blockers' => $conversationBlockers];
+        if ($ranked->count() > 1 && $ranked[0]['score'] === $ranked[1]['score']) return ['quotation' => null, 'context' => null, 'blockers' => [...$conversationBlockers, 'ambiguous_pricing_rule'], 'conversation_blockers' => $conversationBlockers];
 
         /** @var PricingRule $rule */
         $rule = $ranked[0]['rule'];
         $missing = collect($rule->required_fields ?? [])->filter(fn ($field) => blank($this->fieldValue($lead, (string) $field)))->values()->all();
-        $conversationBlockers = [];
-        if (! $settings?->conversation_automation_enabled) $conversationBlockers[] = 'conversation_automation_disabled';
-        if ($inbound?->sender_differs && $inbound?->match_reason !== 'known_contact') $conversationBlockers[] = 'sender_requires_verification';
-        if ($lead->replies()->where('delivery_mode', 'automatic')->where('status', 'sent')->count() >= ($settings?->max_automatic_replies ?? 0)) $conversationBlockers[] = 'automatic_reply_limit_reached';
-        $allowed = collect($settings?->automation_allowed_recipients ?? [])->map(fn ($email) => mb_strtolower(trim((string) $email)));
-        if ($settings?->internal_test_only && ! $allowed->contains($lead->email_normalized)) $conversationBlockers[] = 'recipient_not_in_internal_allowlist';
-        if (! $settings?->internal_test_only && ! config('commerciale-ai.automation.external_send_enabled')) $conversationBlockers[] = 'external_send_disabled_on_server';
         $blockers = $conversationBlockers;
         if ($missing !== []) $blockers[] = 'missing_required_fields';
         if (! $settings?->auto_send_quotes_enabled) $blockers[] = 'auto_send_quotes_disabled';
@@ -71,8 +65,22 @@ class BuildQuotation
         return str_contains($inboundText, $normalizedField) ? $inboundText : null;
     }
 
+    private function conversationBlockers(Lead $lead, ?OrganizationSetting $settings, mixed $inbound): array
+    {
+        $blockers = [];
+        if (! $settings?->conversation_automation_enabled) $blockers[] = 'conversation_automation_disabled';
+        if ($inbound?->sender_differs && $inbound?->match_reason !== 'known_contact') $blockers[] = 'sender_requires_verification';
+        if ($lead->replies()->where('delivery_mode', 'automatic')->where('status', 'sent')->count() >= ($settings?->max_automatic_replies ?? 0)) $blockers[] = 'automatic_reply_limit_reached';
+        $allowed = collect($settings?->automation_allowed_recipients ?? [])->map(fn ($email) => mb_strtolower(trim((string) $email)));
+        if ($settings?->internal_test_only && ! $allowed->contains($lead->email_normalized)) $blockers[] = 'recipient_not_in_internal_allowlist';
+        if (! $settings?->internal_test_only && ! config('commerciale-ai.automation.external_send_enabled')) $blockers[] = 'external_send_disabled_on_server';
+
+        return $blockers;
+    }
+
     private function normalize(string $value): string
     {
         return Str::of($value)->lower()->ascii()->replaceMatches('/[^a-z0-9]+/', ' ')->squish()->value();
     }
 }
+
