@@ -45,6 +45,7 @@
     @php($activeOrganization=app(\App\Support\Tenancy\TenantContext::class)->organization())
     @php($activeRole=auth()->user()->roleFor($activeOrganization))
     @php($pendingInboundCount=in_array($activeRole, ['owner', 'sales'], true) ? \App\Models\InboundEmail::query()->where('status', 'pending')->count() : 0)
+    @php($unreadNotificationCount=\App\Models\CommercialNotification::query()->where('user_id',auth()->id())->whereNull('read_at')->count())
     <div class="app-shell">
         <aside class="sidebar" id="sidebar">
             <a class="brand-lockup" href="{{ route('leads.index') }}">
@@ -56,6 +57,7 @@
             <nav class="nav" aria-label="Navigazione principale">
                 <a class="nav-link @if(request()->routeIs('leads.*')) active @endif" href="{{ route('leads.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M4 7.5h16M4 12h16M4 16.5h10" stroke-width="1.8" stroke-linecap="round"/></svg></span>Lead inbox</a>
                 <a class="nav-link @if(request()->routeIs('knowledge.*')) active @endif" href="{{ route('knowledge.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M5 4.5h10a3 3 0 0 1 3 3v12H8a3 3 0 0 1-3-3v-12Z" stroke-width="1.8"/><path d="M8 8h6M8 12h6" stroke-width="1.8" stroke-linecap="round"/></svg></span>Knowledge base</a>
+                <a class="nav-link @if(request()->routeIs('notifications.*')) active @endif" href="{{ route('notifications.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-2.5 7-2.5 7h17S18 16 18 9Z" stroke-width="1.8"/><path d="M10 20h4" stroke-width="1.8" stroke-linecap="round"/></svg></span>Notifiche <span class="nav-count" id="notification-count" @if(!$unreadNotificationCount) style="display:none" @endif>{{ $unreadNotificationCount }}</span></a>
                 @if(in_array($activeRole, ['owner', 'sales'], true))
                     <a class="nav-link @if(request()->routeIs('inbound-emails.*')) active @endif" href="{{ route('inbound-emails.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z" stroke-width="1.8"/><path d="m5 8 7 5 7-5" stroke-width="1.8" stroke-linecap="round"/></svg></span>Email da associare @if($pendingInboundCount)<span class="nav-count">{{ $pendingInboundCount }}</span>@endif</a>
                 @endif
@@ -83,6 +85,43 @@
             </main>
         </div>
     </div>
+    <script>
+    (() => {
+        const endpoint = @json(route('notifications.unread'));
+        const startedAt = Date.now();
+        const shown = new Set();
+        const count = document.getElementById('notification-count');
+        const button = document.getElementById('enable-browser-notifications');
+        const status = document.getElementById('browser-notification-status');
+        const updateButton = () => {
+            if (!button || !('Notification' in window)) return;
+            button.textContent = Notification.permission === 'granted' ? 'Notifiche browser attive' : 'Attiva notifiche browser';
+        };
+        if (button) button.addEventListener('click', async () => {
+            if (!('Notification' in window)) { if(status){status.style.display='block';status.textContent='Questo browser non supporta le notifiche.';} return; }
+            const permission = await Notification.requestPermission();
+            updateButton();
+            if(status){status.style.display='block';status.textContent=permission === 'granted' ? 'Notifiche del browser attivate.' : 'Autorizzazione alle notifiche non concessa.';}
+        });
+        const poll = async () => {
+            try {
+                const response = await fetch(endpoint, {headers:{'Accept':'application/json'},credentials:'same-origin'});
+                if (!response.ok) return;
+                const data = await response.json();
+                if (count) { count.textContent=data.count; count.style.display=data.count ? 'grid' : 'none'; }
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    data.items.forEach(item => {
+                        if (shown.has(item.id) || Date.parse(item.created_at) < startedAt) return;
+                        shown.add(item.id);
+                        const notification = new Notification(item.title, {body:item.message,tag:item.id});
+                        notification.onclick=()=>{window.focus();window.location.href=item.url;};
+                    });
+                }
+            } catch (_) {}
+        };
+        updateButton(); poll(); window.setInterval(poll, 30000);
+    })();
+    </script>
 @else
     <main class="auth-shell">@if(session('status'))<div class="notice flash">{{ session('status') }}</div>@endif @yield('content')</main>
 @endauth

@@ -13,6 +13,7 @@ use App\Models\LeadReply;
 use App\Models\Organization;
 use App\Services\Ai\GenerateLeadReply;
 use App\Services\Leads\LeadData;
+use App\Services\Notifications\NotifyConversationHandoff;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -227,6 +228,7 @@ class SyncInboundEmailReplies
                 'type' => 'conversation_handoff', 'title' => 'Conversazione passata al commerciale',
                 'data' => ['inbound_email_id' => $inbound->id, 'reason' => $exception->reason], 'occurred_at' => now(),
             ]);
+            app(NotifyConversationHandoff::class)->handle($lead, $inbound, $exception->reason);
             $stats['handoffs']++;
         } catch (Throwable $exception) {
             report($exception);

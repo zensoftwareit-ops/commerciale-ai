@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Contracts\InboundMailbox;
 use App\Data\InboundEmailMessage;
+use App\Mail\ConversationHandoffMail;
+use App\Models\CommercialNotification;
 use App\Models\InboundEmail;
 use App\Models\Lead;
 use App\Models\LeadReply;
@@ -14,6 +16,7 @@ use App\Services\Mail\SyncInboundEmailReplies;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 
 class InboundEmailSyncTest extends CommercialeAiTestCase
 {
@@ -172,7 +175,8 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
 
     public function test_a_conversation_without_a_pricing_rule_is_handed_to_a_human_after_one_automatic_turn(): void
     {
-        [$organization] = $this->organizationWithUser();
+        Mail::fake();
+        [$organization, $user] = $this->organizationWithUser();
         [$lead, $sentReply] = $this->sentReplyWithFollowUp($organization);
         app(TenantContext::class)->set($organization);
         $sentReply->update(['reply_kind' => 'general', 'delivery_mode' => 'automatic']);
@@ -191,6 +195,11 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         $this->assertSame(0, $stats['drafts']);
         $this->assertSame('needs_action', $lead->fresh()->operational_status);
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'conversation_handoff']);
+        $notification = CommercialNotification::withoutGlobalScopes()->where('lead_id', $lead->id)->firstOrFail();
+        $this->assertSame($user->id, $notification->user_id);
+        Mail::assertSent(ConversationHandoffMail::class, fn ($mail) => $mail->hasTo($user->email));
+        $this->actingAs($user)->withSession(['organization_id' => $organization->id])
+            ->get(route('notifications.index'))->assertOk()->assertSee('Intervento commerciale richiesto');
     }
 
     private function sentReplyWithFollowUp($organization): array

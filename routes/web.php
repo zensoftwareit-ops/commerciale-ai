@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\CommercialNotificationController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InboundSourceController;
 use App\Http\Controllers\InboundEmailController;
@@ -28,6 +29,11 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
+    Route::get('/notifications', [CommercialNotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread', [CommercialNotificationController::class, 'unread'])->name('notifications.unread');
+    Route::get('/notifications/{notification}/open', [CommercialNotificationController::class, 'open'])->name('notifications.open');
+    Route::patch('/notifications/{notification}/read', [CommercialNotificationController::class, 'read'])->name('notifications.read');
+    Route::post('/notifications/read-all', [CommercialNotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/create', [LeadController::class, 'create'])->middleware('role:owner,sales')->name('leads.create');
     Route::post('/leads', [LeadController::class, 'store'])->middleware('role:owner,sales')->name('leads.store');
@@ -55,3 +61,4 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::get('/knowledge/{document}/edit', [KnowledgeDocumentController::class, 'edit'])->middleware('role:owner')->name('knowledge.edit');
     Route::put('/knowledge/{document}', [KnowledgeDocumentController::class, 'update'])->middleware('role:owner')->name('knowledge.update');
 });
+
