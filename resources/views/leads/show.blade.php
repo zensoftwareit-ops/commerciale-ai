@@ -3,11 +3,18 @@
 @section('content')
 <div class="toolbar">
     <div>
-        <a href="{{ route('leads.index') }}">← Lead inbox</a>
-        <h1>{{ $lead->name }}</h1>
-        <div class="muted">{{ $lead->company }} · {{ $lead->email }} · {{ $lead->phone }}</div>
+        <a class="back-link" href="{{ route('leads.index') }}">← Torna alla Lead inbox</a>
+        <div class="lead-heading">
+            <span class="lead-avatar">{{ mb_strtoupper(mb_substr($lead->name,0,1)) }}</span>
+            <div><div class="page-kicker">Scheda lead</div><h1>{{ $lead->name }}</h1></div>
+        </div>
+        <div class="contact-line" style="margin-top:10px">
+            @if($lead->company)<span>{{ $lead->company }}</span><span class="muted">·</span>@endif
+            @if($lead->email)<a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a>@endif
+            @if($lead->phone)<span class="muted">·</span><a href="tel:{{ $lead->phone }}">{{ $lead->phone }}</a>@endif
+        </div>
     </div>
-    <span class="badge {{ $lead->temperature }}">{{ strtoupper($lead->temperature) }} · {{ $lead->score }}/100</span>
+    <span class="badge {{ $lead->temperature }}">{{ strtoupper($lead->temperature) }} · Score {{ $lead->score }}/100</span>
 </div>
 
 <div class="grid grid-2">
@@ -188,3 +195,4 @@
 </section>
 @endif
 @endsection
+
