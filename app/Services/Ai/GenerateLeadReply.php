@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Contracts\LeadReplyGenerator;
+use App\Exceptions\ConversationHandoffRequired;
 use App\Models\Activity;
 use App\Models\AiAnalysis;
 use App\Models\AiRun;
@@ -29,10 +30,25 @@ class GenerateLeadReply
 
         $settings = OrganizationSetting::query()->first();
         $quotationResult = $this->quotationBuilder->handle($lead);
+        $isInboundConversation = is_array(data_get($extraContext, 'incoming_email'));
+        $completedGeneralTurns = $lead->replies()->where('status', 'sent')->where('delivery_mode', 'automatic')
+            ->where('reply_kind', 'general')->count();
+        if ($isInboundConversation && ! $quotationResult['quotation'] && $completedGeneralTurns >= 1) {
+            throw new ConversationHandoffRequired('no_pricing_rule_after_conversation_turn');
+        }
+        $qualificationAttempts = $lead->replies()->where('status', 'sent')
+            ->whereIn('reply_kind', ['qualification', 'initial_qualification'])->count();
         $context = ['organization' => $settings?->only([
             'commercial_name', 'business_description', 'products_services', 'tone_of_voice',
             'email_signature', 'appointment_details', 'promised_response_minutes',
-        ]), 'quotation' => $quotationResult['context'], ...$extraContext];
+        ]), 'quotation' => $quotationResult['context'], ...$extraContext,
+            'conversation_history' => $this->conversationHistory($lead),
+            'conversation_policy' => [
+                'qualification_attempts' => $qualificationAttempts,
+                'maximum_qualification_attempts' => 1,
+                'must_not_ask_more_questions' => $qualificationAttempts >= 1,
+            ],
+        ];
         $run = AiRun::create([
             'organization_id' => $organizationId,
             'lead_id' => $lead->id,
@@ -59,7 +75,9 @@ class GenerateLeadReply
                     'estimated_cost' => $meta['estimated_cost'] ?? 0, 'completed_at' => now(),
                 ]);
                 $missingQuotationFields = $quotationResult['context']['missing_fields'] ?? [];
-                $replyKind = $quotationResult['quotation'] ? ($missingQuotationFields === [] ? 'quotation' : 'qualification') : 'general';
+                $replyKind = $quotationResult['quotation']
+                    ? ($missingQuotationFields === [] || data_get($quotationResult, 'context.indicative') ? 'quotation' : 'qualification')
+                    : 'general';
                 if (data_get($context, 'automation_stage') === 'initial') {
                     $replyKind = match ($replyKind) {
                         'quotation' => 'initial_quotation',
@@ -107,6 +125,20 @@ class GenerateLeadReply
             ]);
             throw $exception;
         }
+    }
+
+    private function conversationHistory(Lead $lead): array
+    {
+        $inbound = $lead->inboundEmails()->where('status', 'linked')->get()->map(fn ($email) => [
+            'direction' => 'inbound', 'at' => $email->received_at?->toIso8601String(),
+            'subject' => $email->subject, 'body' => mb_substr((string) $email->body, 0, 6000),
+        ]);
+        $outbound = $lead->replies()->where('status', 'sent')->get()->map(fn ($reply) => [
+            'direction' => 'outbound', 'at' => $reply->sent_at?->toIso8601String(),
+            'subject' => $reply->subject, 'body' => mb_substr((string) $reply->body, 0, 6000),
+        ]);
+
+        return $inbound->concat($outbound)->sortBy('at')->take(-20)->values()->all();
     }
 }
 

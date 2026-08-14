@@ -115,5 +115,37 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $this->assertSame(1, $stats['sent']);
         $this->assertSame('automatic', $reply->fresh()->delivery_mode);
     }
+
+    public function test_after_one_qualification_attempt_it_offers_an_indicative_range_without_more_questions(): void
+    {
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti', 'products_services' => 'Siti web',
+            'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale', 'email_signature' => 'Demo',
+            'conversation_automation_enabled' => true, 'auto_send_quotes_enabled' => true, 'internal_test_only' => true,
+            'automation_allowed_recipients' => ['anna@example.test'], 'max_automatic_replies' => 5, 'max_auto_quote_amount' => 3000,
+        ]);
+        PricingRule::create(['name' => 'Sito vetrina', 'keywords' => ['sito web'], 'required_fields' => ['pages'], 'minimum_price' => 1500, 'maximum_price' => 2200]);
+        $lead = app(CreateLead::class)->handle(['name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Sito web', 'source_label' => 'manual']);
+        $analysis = app(AnalyzeLead::class)->handle($lead);
+        $qualification = app(GenerateLeadReply::class)->handle($lead, $analysis);
+        $qualification->update(['status' => 'sent', 'delivery_mode' => 'automatic', 'sent_at' => now()]);
+        InboundEmail::create([
+            'lead_id' => $lead->id, 'status' => 'linked', 'match_confidence' => 'high', 'match_reason' => 'thread_id',
+            'message_hash' => hash('sha256', 'evasive-answer'), 'message_id' => 'evasive@example.test',
+            'from_address' => 'anna@example.test', 'subject' => 'Re: Preventivo', 'body' => 'Non saprei, mi dia almeno un prezzo.',
+            'received_at' => now(), 'linked_at' => now(),
+        ]);
+
+        $offer = app(GenerateLeadReply::class)->handle($lead, $analysis, null, [
+            'incoming_email' => ['message_id' => 'evasive@example.test', 'subject' => 'Re: Preventivo'],
+        ]);
+
+        $this->assertSame('quotation', $offer->reply_kind);
+        $this->assertTrue($offer->automation_eligible);
+        $this->assertStringContainsString('fascia indicativa', $offer->body);
+        $this->assertStringNotContainsString('Può indicare', $offer->body);
+    }
 }
 

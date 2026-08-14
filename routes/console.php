@@ -24,9 +24,9 @@ Artisan::command('mail:sync {--test : Verifica soltanto la connessione} {--limit
 
         $limit = $this->option('limit');
         $stats = $sync->handle($limit !== null ? (int) $limit : null);
-        $this->table(['Scansionate', 'Importate', 'Duplicate', 'Non associate', 'Automatiche', 'Bozze', 'Errori bozza'], [[
+        $this->table(['Scansionate', 'Importate', 'Duplicate', 'Non associate', 'Automatiche', 'Bozze', 'Passaggi a umano', 'Errori bozza'], [[
             $stats['scanned'], $stats['imported'], $stats['duplicates'], $stats['unmatched'],
-            $stats['automated'], $stats['drafts'], $stats['draft_errors'],
+            $stats['automated'], $stats['drafts'], $stats['handoffs'], $stats['draft_errors'],
         ]]);
 
         return Command::SUCCESS;
@@ -60,7 +60,7 @@ Artisan::command('leads:automation-status', function (RunNewLeadAutomation $auto
     }
     $this->table(array_keys($rows[0]), array_map('array_values', $rows));
     return Command::SUCCESS;
-})->purpose('Mostra perchÃ© i lead vengono inclusi o esclusi dallâ€™automazione');
+})->purpose('Mostra perché i lead vengono inclusi o esclusi dall’automazione');
 
 if (config('commerciale-ai.imap.enabled')) {
     Schedule::command('mail:sync')->everyFiveMinutes()->withoutOverlapping();

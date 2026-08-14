@@ -17,6 +17,10 @@
     <span class="badge {{ $lead->temperature }}">{{ strtoupper($lead->temperature) }} · Score {{ $lead->score }}/100</span>
 </div>
 
+@if($lead->activities->first()?->type === 'conversation_handoff')
+    <div class="warning" style="margin-bottom:16px"><strong>Intervento umano richiesto.</strong> L’automazione ha interrotto la conversazione per evitare altre domande ripetitive. Un commerciale deve ora valutare la risposta ricevuta e decidere come proseguire.</div>
+@endif
+
 <div class="grid grid-2">
     <section class="card">
         <h2>Richiesta</h2>

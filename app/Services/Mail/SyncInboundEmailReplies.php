@@ -4,6 +4,7 @@ namespace App\Services\Mail;
 
 use App\Contracts\InboundMailbox;
 use App\Data\InboundEmailMessage;
+use App\Exceptions\ConversationHandoffRequired;
 use App\Models\Activity;
 use App\Models\InboundEmail;
 use App\Models\Lead;
@@ -23,10 +24,10 @@ class SyncInboundEmailReplies
         private readonly GenerateLeadReply $replyGenerator,
     ) {}
 
-    /** @return array{scanned:int, imported:int, duplicates:int, unmatched:int, automated:int, drafts:int, draft_errors:int} */
+    /** @return array{scanned:int, imported:int, duplicates:int, unmatched:int, automated:int, drafts:int, handoffs:int, draft_errors:int} */
     public function handle(?int $limit = null): array
     {
-        $stats = ['scanned' => 0, 'imported' => 0, 'duplicates' => 0, 'unmatched' => 0, 'automated' => 0, 'drafts' => 0, 'draft_errors' => 0];
+        $stats = ['scanned' => 0, 'imported' => 0, 'duplicates' => 0, 'unmatched' => 0, 'automated' => 0, 'drafts' => 0, 'handoffs' => 0, 'draft_errors' => 0];
         $limit ??= (int) config('commerciale-ai.imap.max_messages', 50);
 
         try {
@@ -215,6 +216,18 @@ class SyncInboundEmailReplies
                 ],
             ]);
             $stats['drafts']++;
+        } catch (ConversationHandoffRequired $exception) {
+            $lead->update(['operational_status' => 'needs_action', 'next_action_at' => now(), 'last_activity_at' => now()]);
+            $lead->replies()->where('status', 'draft')->update([
+                'automation_eligible' => false,
+                'automation_blockers' => json_encode(['human_handoff_required'], JSON_THROW_ON_ERROR),
+            ]);
+            Activity::create([
+                'organization_id' => $lead->organization_id, 'lead_id' => $lead->id,
+                'type' => 'conversation_handoff', 'title' => 'Conversazione passata al commerciale',
+                'data' => ['inbound_email_id' => $inbound->id, 'reason' => $exception->reason], 'occurred_at' => now(),
+            ]);
+            $stats['handoffs']++;
         } catch (Throwable $exception) {
             report($exception);
             $stats['draft_errors']++;

@@ -28,7 +28,7 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
                 identifier: '101', messageId: 'customer-reply-1@example.test',
                 inReplyTo: $sentReply->outbound_message_id, references: [$sentReply->outbound_message_id],
                 fromAddress: 'anna@example.test', fromName: 'Anna Demo', subject: 'Re: Il suo progetto web',
-                body: 'Grazie, il budget Ã¨ 2.000 euro. Possiamo sentirci venerdÃ¬?',
+                body: 'Grazie, il budget è 2.000 euro. Possiamo sentirci venerdì?',
                 receivedAt: CarbonImmutable::now(),
             ),
         ]);
@@ -51,7 +51,7 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'email_received']);
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'follow_up_cancelled']);
         $this->actingAs($user)->withSession(['organization_id' => $organization->id])
-            ->get(route('leads.show', $lead))->assertOk()->assertSee('Grazie, il budget Ã¨ 2.000 euro.');
+            ->get(route('leads.show', $lead))->assertOk()->assertSee('Grazie, il budget è 2.000 euro.');
     }
 
     public function test_it_is_idempotent_and_links_a_thread_reply_from_a_different_sender(): void
@@ -168,6 +168,29 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
 
         $this->assertSame(1, $stats['automated']);
         $this->assertSame(['401'], $mailbox->seen);
+    }
+
+    public function test_a_conversation_without_a_pricing_rule_is_handed_to_a_human_after_one_automatic_turn(): void
+    {
+        [$organization] = $this->organizationWithUser();
+        [$lead, $sentReply] = $this->sentReplyWithFollowUp($organization);
+        app(TenantContext::class)->set($organization);
+        $sentReply->update(['reply_kind' => 'general', 'delivery_mode' => 'automatic']);
+        app(TenantContext::class)->clear();
+        $mailbox = new FakeInboundMailbox([
+            new InboundEmailMessage(
+                identifier: '501', messageId: 'handoff-501@example.test', inReplyTo: $sentReply->outbound_message_id,
+                references: [], fromAddress: 'anna@example.test', fromName: 'Anna', subject: 'Re: Informazioni',
+                body: 'Non ho altri dettagli da aggiungere.', receivedAt: CarbonImmutable::now(),
+            ),
+        ]);
+
+        $stats = (new SyncInboundEmailReplies($mailbox, app(GenerateLeadReply::class)))->handle();
+
+        $this->assertSame(1, $stats['handoffs']);
+        $this->assertSame(0, $stats['drafts']);
+        $this->assertSame('needs_action', $lead->fresh()->operational_status);
+        $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'conversation_handoff']);
     }
 
     private function sentReplyWithFollowUp($organization): array

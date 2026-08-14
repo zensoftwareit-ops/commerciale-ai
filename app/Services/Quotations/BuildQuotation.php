@@ -27,8 +27,12 @@ class BuildQuotation
         /** @var PricingRule $rule */
         $rule = $ranked[0]['rule'];
         $missing = collect($rule->required_fields ?? [])->filter(fn ($field) => blank($this->fieldValue($lead, (string) $field)))->values()->all();
+        $qualificationExhausted = $missing !== [] && $lead->replies()
+            ->where('status', 'sent')
+            ->whereIn('reply_kind', ['qualification', 'initial_qualification'])
+            ->exists();
         $blockers = $conversationBlockers;
-        if ($missing !== []) $blockers[] = 'missing_required_fields';
+        if ($missing !== [] && ! $qualificationExhausted) $blockers[] = 'missing_required_fields';
         if (! $settings?->auto_send_quotes_enabled) $blockers[] = 'auto_send_quotes_disabled';
         if ($settings?->max_auto_quote_amount === null || (float) $rule->maximum_price > (float) $settings->max_auto_quote_amount) $blockers[] = 'amount_over_limit';
 
@@ -46,6 +50,7 @@ class BuildQuotation
             'maximum_price' => (float) $rule->maximum_price, 'currency' => 'EUR', 'includes' => $rule->includes,
             'excludes' => $rule->excludes, 'valid_until' => now()->addDays($rule->validity_days)->toDateString(),
             'missing_fields' => $missing, 'confidence' => $confidence,
+            'indicative' => $qualificationExhausted,
         ], 'blockers' => $blockers, 'conversation_blockers' => $conversationBlockers];
     }
 
@@ -54,7 +59,7 @@ class BuildQuotation
         if (in_array($field, ['name', 'email', 'phone', 'company', 'requested_service'], true)) return $lead->{$field};
         $value = data_get($lead->request_data, $field);
         if (filled($value)) return $value;
-        $inboundBody = (string) $lead->inboundEmails()->first()?->body;
+        $inboundBody = $lead->inboundEmails()->oldest('received_at')->pluck('body')->filter()->implode("\n");
         $normalizedField = $this->normalize($field);
         $inboundText = $this->normalize($inboundBody);
         if (in_array($normalizedField, ['pages', 'page count', 'numero pagine'], true)
