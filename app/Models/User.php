@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -23,6 +24,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'is_super_admin',
+        'external_account_id',
     ];
 
     /**
@@ -45,6 +48,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_super_admin' => 'boolean',
         ];
     }
 
@@ -59,4 +63,10 @@ class User extends Authenticatable
 
         return $this->organizations()->whereKey($id)->first()?->pivot?->role;
     }
+
+    public function ownedLicenses(): HasMany
+    {
+        return $this->hasMany(License::class, 'owner_user_id');
+    }
 }
+

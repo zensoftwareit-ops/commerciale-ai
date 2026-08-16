@@ -14,6 +14,7 @@ use App\Models\PromptPolicy;
 use App\Models\QualificationProfile;
 use App\Models\UsageRecord;
 use App\Support\Tenancy\TenantContext;
+use App\Services\Licensing\LicenseUsageGuard;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -23,10 +24,12 @@ class AnalyzeLead
         private readonly LeadAnalyzer $analyzer,
         private readonly AnalysisOutputValidator $validator,
         private readonly RuleScorer $ruleScorer,
+        private readonly LicenseUsageGuard $licenseGuard,
     ) {}
 
     public function handle(Lead $lead, ?int $actorId = null): AiAnalysis
     {
+        $this->licenseGuard->assertAiCapacity();
         $organizationId = app(TenantContext::class)->requireOrganization()->id;
         $settings = OrganizationSetting::query()->first();
         $profile = QualificationProfile::query()->where('is_active', true)->first();
@@ -104,3 +107,4 @@ class AnalyzeLead
         }
     }
 }
+

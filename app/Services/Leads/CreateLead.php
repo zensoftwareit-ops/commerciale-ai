@@ -6,13 +6,17 @@ use App\Models\Activity;
 use App\Models\Lead;
 use App\Models\PipelineStage;
 use App\Support\Tenancy\TenantContext;
+use App\Services\Licensing\LicenseUsageGuard;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
 class CreateLead
 {
+    public function __construct(private readonly LicenseUsageGuard $licenseGuard) {}
+
     public function handle(array $data, ?int $actorId = null): Lead
     {
+        $this->licenseGuard->assertLeadCapacity();
         return DB::transaction(function () use ($data, $actorId): Lead {
             $organizationId = app(TenantContext::class)->requireOrganization()->id;
             $stage = PipelineStage::query()->where('slug', 'new')->firstOrFail();
@@ -51,3 +55,4 @@ class CreateLead
         });
     }
 }
+

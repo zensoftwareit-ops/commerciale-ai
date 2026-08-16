@@ -1,0 +1,8 @@
+@extends('layouts.app')
+@section('title','Utenti · Commerciale AI')
+@section('content')
+<div class="toolbar"><div><div class="page-kicker">Organizzazione</div><h1>Utenti</h1><p class="muted">L’owner è il titolare dell’abbonamento. Gli altri accessi restano legati alla sua organizzazione.</p></div><span class="badge">{{ $members->count() }} / {{ $license?->plan->seat_limit ?? '∞' }}</span></div>
+<section class="card"><h2>Accessi attivi</h2><div class="table-wrap"><table><thead><tr><th>Utente</th><th>Ruolo</th><th>Operazioni</th></tr></thead><tbody>@foreach($members as $member)<tr><td><strong>{{ $member->name }}</strong><br><span class="muted">{{ $member->email }}</span></td><td><span class="badge">{{ $member->pivot->role }}</span></td><td>@if($member->pivot->role!=='owner')<form method="post" action="{{ route('settings.users.destroy',$member) }}" onsubmit="return confirm('Rimuovere questo accesso?')">@csrf @method('delete')<button class="btn btn-danger">Rimuovi</button></form>@else<span class="muted">Titolare licenza</span>@endif</td></tr>@endforeach</tbody></table></div></section>
+<form class="card" style="margin-top:16px" method="post" action="{{ route('settings.users.store') }}">@csrf<h2>Aggiungi sottoutente</h2><div class="grid grid-2"><div><label>Nome</label><input name="name" required></div><div><label>Email</label><input type="email" name="email" required></div><div><label>Ruolo</label><select name="role"><option value="sales">Commerciale</option><option value="viewer">Solo lettura</option></select></div></div>@foreach($errors->all() as $error)<div class="error">{{ $error }}</div>@endforeach<button class="btn" style="margin-top:16px">Aggiungi utente</button></form>
+@endsection
+

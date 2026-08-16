@@ -22,7 +22,12 @@ class AuthController extends Controller
         }
         $request->session()->regenerate();
 
-        return redirect()->intended(route('leads.index'));
+        $user = $request->user();
+        $destination = $user->is_super_admin && ! $user->organizations()->exists()
+            ? route('admin.licensing')
+            : route('leads.index');
+
+        return redirect()->intended($destination);
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -34,3 +39,4 @@ class AuthController extends Controller
         return redirect()->route('login');
     }
 }
+

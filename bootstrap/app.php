@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Middleware\RequireRole;
+use App\Http\Middleware\RequireSuperAdmin;
+use App\Http\Middleware\AuthenticateBillingClient;
+use App\Http\Middleware\RequireActiveLicense;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -17,8 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => ResolveTenant::class,
             'role' => RequireRole::class,
+            'superadmin' => RequireSuperAdmin::class,
+            'billing.client' => AuthenticateBillingClient::class,
+            'license' => RequireActiveLicense::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
+

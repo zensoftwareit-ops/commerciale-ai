@@ -2,6 +2,7 @@
 
 use App\Contracts\InboundMailbox;
 use App\Models\MailboxAccount;
+use App\Models\User;
 use App\Services\Mail\WebklexInboundMailbox;
 use App\Services\Mail\SyncInboundEmailReplies;
 use App\Services\Mail\RunConversationAutomation;
@@ -14,6 +15,14 @@ use Symfony\Component\Console\Command\Command;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('admin:grant {email}', function (string $email): int {
+    $user = User::query()->where('email', mb_strtolower(trim($email)))->first();
+    if (! $user) { $this->error('Utente non trovato.'); return Command::FAILURE; }
+    $user->update(['is_super_admin' => true]);
+    $this->info('Accesso Super Admin abilitato per '.$user->email.'.');
+    return Command::SUCCESS;
+})->purpose('Abilita un utente esistente al pannello licenze');
 
 Artisan::command('mail:sync {--test : Verifica soltanto la connessione} {--limit= : Numero massimo di messaggi}', function (SyncInboundEmailReplies $sync, InboundMailbox $mailbox): int {
     try {

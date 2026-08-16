@@ -13,7 +13,7 @@ class Organization extends Model
 {
     use HasFactory, HasUuid;
 
-    protected $fillable = ['name', 'slug', 'timezone', 'locale'];
+    protected $fillable = ['name', 'slug', 'billing_account_ref', 'timezone', 'locale'];
 
     public function users(): BelongsToMany
     {
@@ -33,6 +33,17 @@ class Organization extends Model
     public function mailboxes(): HasMany
     {
         return $this->hasMany(MailboxAccount::class);
+    }
+
+    public function licenses(): HasMany
+    {
+        return $this->hasMany(License::class);
+    }
+
+    public function activeLicense(): ?License
+    {
+        return $this->licenses()->with('plan')->latest('created_at')->get()
+            ->first(fn (License $license): bool => $license->isUsable());
     }
 }
 

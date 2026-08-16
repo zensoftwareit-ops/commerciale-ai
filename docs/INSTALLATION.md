@@ -322,6 +322,13 @@ In quella fase la REST API di Resend verrà usata per creare i domini dei tenant
 mostrare SPF/DKIM e aggiornarne lo stato; il trasporto delle email resterà separato
 da questa procedura amministrativa.
 
+### Modulo licenze e WordPress
+
+Il modulo licenze viene installato con le normali migrazioni ma non blocca il pilota:
+`LICENSE_ENFORCEMENT_ENABLED` è `false` per impostazione predefinita. La procedura
+completa per Super Admin, pacchetti, Stripe e plugin WordPress è descritta in
+[`BILLING-AND-LICENSES.md`](BILLING-AND-LICENSES.md).
+
 ## 6. Posta in ingresso IMAP
 
 Per importare le risposte dei lead, accedere come owner e aprire **Caselle email**. Inserire nome, host, porta, cifratura, utente, password e cartella IMAP, quindi premere **Verifica connessione**. È possibile collegare più caselle alla stessa organizzazione. Le password sono cifrate nel database con `APP_KEY` e non vengono mai mostrate nell'interfaccia.

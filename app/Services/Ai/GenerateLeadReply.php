@@ -12,6 +12,7 @@ use App\Models\LeadReply;
 use App\Models\OrganizationSetting;
 use App\Models\UsageRecord;
 use App\Services\Quotations\BuildQuotation;
+use App\Services\Licensing\LicenseUsageGuard;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -19,10 +20,11 @@ use Throwable;
 
 class GenerateLeadReply
 {
-    public function __construct(private readonly LeadReplyGenerator $generator, private readonly BuildQuotation $quotationBuilder) {}
+    public function __construct(private readonly LeadReplyGenerator $generator, private readonly BuildQuotation $quotationBuilder, private readonly LicenseUsageGuard $licenseGuard) {}
 
     public function handle(Lead $lead, AiAnalysis $analysis, ?int $actorId = null, array $extraContext = []): LeadReply
     {
+        $this->licenseGuard->assertAiCapacity();
         $organizationId = app(TenantContext::class)->requireOrganization()->id;
         if (! filled($lead->email)) {
             throw ValidationException::withMessages(['reply' => 'Il lead non ha un indirizzo email valido.']);

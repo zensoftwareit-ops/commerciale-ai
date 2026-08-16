@@ -68,8 +68,10 @@
                     <a class="nav-link @if(request()->routeIs('settings.organization*') || request()->routeIs('settings.pricing-rules.*')) active @endif" href="{{ route('settings.organization') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke-width="1.8"/><path d="M19 13.5v-3l-2-.7-.7-1.6.9-2-2.1-2.1-2 .9-1.6-.7-.7-2h-3l-.7 2-1.6.7-2-.9-2.1 2.1.9 2-.7 1.6-2 .7v3l2 .7.7 1.6-.9 2 2.1 2.1 2-.9 1.6.7.7 2h3l.7-2 1.6-.7 2 .9 2.1-2.1-.9-2 .7-1.6 2-.7Z" stroke-width="1.5"/></svg></span>Azienda e AI</a>
                     <a class="nav-link @if(request()->routeIs('settings.sources*')) active @endif" href="{{ route('settings.sources') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M8 12h8M12 8v8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="8.5" stroke-width="1.8"/></svg></span>Sorgenti lead</a>
                     <a class="nav-link @if(request()->routeIs('settings.mailboxes.*')) active @endif" href="{{ route('settings.mailboxes.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z" stroke-width="1.8"/><path d="m5 8 7 5 7-5" stroke-width="1.8" stroke-linecap="round"/></svg></span>Caselle email</a>
+                    <a class="nav-link @if(request()->routeIs('settings.users.*')) active @endif" href="{{ route('settings.users.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" stroke-width="1.8"/><path d="M3.5 19c.5-4 2.5-6 5.5-6s5 2 5.5 6M16 8.5a2.5 2.5 0 0 1 0 5M16 15c2.5.2 4 1.6 4.5 4" stroke-width="1.8" stroke-linecap="round"/></svg></span>Utenti</a>
                 </nav>
             @endif
+            @if(auth()->user()->is_super_admin)<div class="nav-label">Piattaforma</div><nav class="nav"><a class="nav-link" href="{{ route('admin.licensing') }}">Pannello licenze</a></nav>@endif
             <div class="sidebar-footer">
                 <div class="user-card">
                     <span class="avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name,0,1)) }}</span>

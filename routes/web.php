@@ -11,8 +11,12 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadReplyController;
 use App\Http\Controllers\MailboxAccountController;
 use App\Http\Controllers\OrganizationSettingsController;
+use App\Http\Controllers\OrganizationUserController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PricingRuleController;
+use App\Http\Controllers\Admin\LicensingDashboardController;
+use App\Http\Controllers\Admin\LicensePlanController as AdminLicensePlanController;
+use App\Http\Controllers\Admin\LicenseController as AdminLicenseController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/leads');
@@ -26,8 +30,16 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/reset-password', [PasswordController::class, 'update'])->name('password.update');
 });
 
-Route::middleware(['auth', 'tenant'])->group(function (): void {
-    Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
+Route::middleware('auth')->post('/logout', [AuthController::class, 'destroy'])->name('logout');
+Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->group(function (): void {
+    Route::get('/licensing', LicensingDashboardController::class)->name('licensing');
+    Route::post('/plans', [AdminLicensePlanController::class, 'store'])->name('plans.store');
+    Route::put('/plans/{plan}', [AdminLicensePlanController::class, 'update'])->name('plans.update');
+    Route::post('/licenses', [AdminLicenseController::class, 'store'])->name('licenses.store');
+    Route::put('/licenses/{license}', [AdminLicenseController::class, 'update'])->name('licenses.update');
+});
+
+Route::middleware(['auth', 'tenant', 'license'])->group(function (): void {
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::get('/notifications', [CommercialNotificationController::class, 'index'])->name('notifications.index');
@@ -50,6 +62,9 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::post('/leads/{lead}/replies/{reply}/send', [LeadReplyController::class, 'send'])->middleware('role:owner,sales')->name('replies.send');
     Route::get('/settings/organization', [OrganizationSettingsController::class, 'edit'])->middleware('role:owner')->name('settings.organization');
     Route::put('/settings/organization', [OrganizationSettingsController::class, 'update'])->middleware('role:owner')->name('settings.organization.update');
+    Route::get('/settings/users', [OrganizationUserController::class, 'index'])->middleware('role:owner')->name('settings.users.index');
+    Route::post('/settings/users', [OrganizationUserController::class, 'store'])->middleware('role:owner')->name('settings.users.store');
+    Route::delete('/settings/users/{user}', [OrganizationUserController::class, 'destroy'])->middleware('role:owner')->name('settings.users.destroy');
     Route::get('/settings/mailboxes', [MailboxAccountController::class, 'index'])->middleware('role:owner')->name('settings.mailboxes.index');
     Route::post('/settings/mailboxes', [MailboxAccountController::class, 'store'])->middleware('role:owner')->name('settings.mailboxes.store');
     Route::put('/settings/mailboxes/{mailbox}', [MailboxAccountController::class, 'update'])->middleware('role:owner')->name('settings.mailboxes.update');

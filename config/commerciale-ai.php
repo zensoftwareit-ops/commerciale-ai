@@ -18,5 +18,9 @@ return [
     'automation' => [
         'external_send_enabled' => (bool) env('AUTOMATION_EXTERNAL_SEND_ENABLED', false),
     ],
+    'billing' => [
+        'integration_key' => env('BILLING_INTEGRATION_KEY'),
+        'enforcement_enabled' => (bool) env('LICENSE_ENFORCEMENT_ENABLED', false),
+    ],
 ];
 
