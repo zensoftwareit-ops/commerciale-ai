@@ -6,6 +6,7 @@ use App\Models\License;
 use App\Models\LicenseEvent;
 use App\Models\LicensePlan;
 use App\Models\Organization;
+use App\Models\PipelineStage;
 use App\Models\User;
 use App\Services\Leads\CreateLead;
 use App\Support\Tenancy\TenantContext;
@@ -19,7 +20,9 @@ class LicensingTest extends CommercialeAiTestCase
 
     public function test_billing_api_provisions_an_owner_organization_and_license_idempotently(): void
     {
-        Notification::fake(); config()->set('commerciale-ai.billing.integration_key', 'test-billing-key');
+        Notification::fake();
+        config()->set('commerciale-ai.billing.self_service_enabled', true);
+        config()->set('commerciale-ai.billing.integration_key', 'test-billing-key');
         LicensePlan::create(['name' => 'Professional', 'slug' => 'professional', 'annual_price_cents' => 99000, 'seat_limit' => 3, 'stripe_price_id' => 'price_test_pro', 'is_active' => true]);
         $payload = ['event_id' => 'evt_test_1', 'event_type' => 'checkout.session.completed', 'external_account_id' => 'wp:site:42', 'email' => 'owner@example.test', 'name' => 'Owner Demo', 'company' => 'Demo Srl', 'plan_slug' => 'professional', 'stripe_price_id' => 'price_test_pro', 'stripe_customer_id' => 'cus_test', 'stripe_subscription_id' => 'sub_test', 'status' => 'active', 'current_period_ends_at' => now()->addYear()->toIso8601String()];
 
@@ -37,8 +40,51 @@ class LicensingTest extends CommercialeAiTestCase
 
     public function test_billing_api_rejects_an_invalid_key(): void
     {
+        config()->set('commerciale-ai.billing.self_service_enabled', true);
         config()->set('commerciale-ai.billing.integration_key', 'correct-key');
         $this->withToken('wrong-key')->getJson('/api/v1/billing/plans')->assertUnauthorized();
+    }
+
+    public function test_self_service_billing_api_is_hidden_during_manual_phase(): void
+    {
+        config()->set('commerciale-ai.billing.self_service_enabled', false);
+        config()->set('commerciale-ai.billing.integration_key', 'correct-key');
+
+        $this->withToken('correct-key')->getJson('/api/v1/billing/plans')->assertNotFound();
+    }
+
+    public function test_super_admin_can_register_a_new_customer_and_activate_a_license(): void
+    {
+        Notification::fake();
+        [, $admin] = $this->organizationWithUser();
+        $admin->update(['is_super_admin' => true]);
+        $plan = LicensePlan::create([
+            'name' => 'Professional',
+            'slug' => 'professional',
+            'annual_price_cents' => 99000,
+            'seat_limit' => 3,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin->fresh())->post(route('admin.licenses.store'), [
+            'company_name' => 'Nuovo Cliente Srl',
+            'owner_name' => 'Mario Rossi',
+            'owner_email' => 'mario@nuovo-cliente.test',
+            'license_plan_id' => $plan->id,
+            'status' => 'active',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $owner = User::query()->where('email', 'mario@nuovo-cliente.test')->firstOrFail();
+        $organization = Organization::query()->where('name', 'Nuovo Cliente Srl')->firstOrFail();
+        $license = License::query()->where('organization_id', $organization->id)->firstOrFail();
+
+        $this->assertSame('owner', $owner->roleFor($organization));
+        $this->assertSame($owner->id, $license->owner_user_id);
+        $this->assertSame('manual', $license->source);
+        $this->assertSame('active', $license->status);
+        $this->assertNotNull($license->current_period_ends_at);
+        $this->assertDatabaseHas('organization_settings', ['organization_id' => $organization->id]);
+        $this->assertSame(8, PipelineStage::query()->where('organization_id', $organization->id)->count());
     }
 
     public function test_only_super_admin_can_open_licensing_panel(): void
@@ -69,4 +115,3 @@ class LicensingTest extends CommercialeAiTestCase
         $this->assertDatabaseMissing('users', ['email' => 'sub@example.test']);
     }
 }
-

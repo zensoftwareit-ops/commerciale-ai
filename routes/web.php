@@ -36,6 +36,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->gro
     Route::post('/plans', [AdminLicensePlanController::class, 'store'])->name('plans.store');
     Route::put('/plans/{plan}', [AdminLicensePlanController::class, 'update'])->name('plans.update');
     Route::post('/licenses', [AdminLicenseController::class, 'store'])->name('licenses.store');
+    Route::post('/licenses/existing', [AdminLicenseController::class, 'storeExisting'])->name('licenses.existing.store');
     Route::put('/licenses/{license}', [AdminLicenseController::class, 'update'])->name('licenses.update');
 });
 
@@ -82,4 +83,3 @@ Route::middleware(['auth', 'tenant', 'license'])->group(function (): void {
     Route::get('/knowledge/{document}/edit', [KnowledgeDocumentController::class, 'edit'])->middleware('role:owner')->name('knowledge.edit');
     Route::put('/knowledge/{document}', [KnowledgeDocumentController::class, 'update'])->middleware('role:owner')->name('knowledge.update');
 });
-

@@ -1,77 +1,84 @@
-# Billing, licenze e area cliente WordPress
+# Clienti, licenze e futura vendita self-service
 
-## Responsabilità
+Il progetto è diviso in due fasi indipendenti. La prima è già utilizzabile senza
+WordPress, Stripe o API di billing. La seconda rimane disattivata fino alla messa
+in vendita pubblica.
 
-- **Commerciale AI** conserva pacchetti, licenze, owner, organizzazioni, limiti e
-  cronologia degli eventi.
-- **Stripe** è la fonte dello stato economico dell'abbonamento.
-- **WordPress** ospita registrazione, listino, area cliente, Checkout e collegamento
-  al Customer Portal; non può generare una licenza senza un webhook Stripe valido.
+## Step 1 — attivazione manuale dal pannello Super Admin
 
-## Pacchetti
+Il Super Admin configura fino a tre pacchetti e registra personalmente ogni nuovo
+cliente. Dal modulo **Registra un nuovo cliente** vengono creati in una sola
+operazione:
 
-Il Super Admin configura al massimo tre pacchetti. Per ognuno sono disponibili:
-prezzo annuale, Stripe Price ID, utenti inclusi (owner compreso), limite lead,
-budget token AI, funzioni e stato pubblicabile. Prezzi e limiti non sono codificati
-nel plugin: WordPress li legge dall'API.
+1. l'account dell'utente owner;
+2. l'organizzazione del cliente;
+3. pipeline e impostazioni iniziali;
+4. la licenza annuale del pacchetto selezionato;
+5. l'email con il link per impostare la password.
 
-## Provisioning
+Se l'invio dell'email non riesce, il cliente può usare **Password dimenticata**
+nella pagina di login dopo che la configurazione SMTP è stata verificata.
 
-Il webhook Stripe firmato arriva al plugin WordPress. Il plugin recupera lo stato
-dell'abbonamento e chiama `POST /api/v1/billing/provision` con Bearer token. Ogni
-evento usa lo Stripe Event ID come chiave idempotente. Il software:
+Per clienti già presenti è disponibile una sezione secondaria che assegna una
+nuova licenza a un'organizzazione e al relativo owner esistenti.
 
-1. riconcilia il pacchetto dallo Stripe Price ID;
-2. crea o collega l'utente owner;
-3. crea l'organizzazione e le fasi iniziali;
-4. emette o aggiorna la licenza;
-5. invia all'owner il link per impostare la password al primo acquisto.
+### Attivazione dello Step 1
 
-Gli stati `active` e `trialing` consentono l'uso. La cancellazione a fine periodo
-mantiene l'accesso fino alla scadenza comunicata da Stripe. `past_due`, `unpaid`,
-`canceled`, `paused` e `suspended` non sono licenze utilizzabili.
-
-## Sicurezza
-
-- usare una `BILLING_INTEGRATION_KEY` casuale di almeno 32 byte;
-- conservarla soltanto nel `.env` del software e nelle opzioni protette di WordPress;
-- non inserire chiavi Stripe nel repository;
-- configurare il webhook Stripe con signing secret e tolleranza temporale;
-- non attivare `LICENSE_ENFORCEMENT_ENABLED` finché pilota e licenze manuali non sono
-  stati verificati;
-- ruotare la chiave di integrazione se il sito WordPress viene compromesso.
-
-## Sottoutenti
-
-Solo l'owner acquistante accede all'area cliente WordPress. Nel software può aprire
-**Utenti** e aggiungere commerciali o viewer. Tutte le membership appartengono alla
-stessa organizzazione e il conteggio comprende l'owner. L'owner della licenza non può
-essere rimosso da un sottoutente.
-
-Con enforcement attivo vengono applicati anche il limite mensile di nuovi lead e il
-budget mensile di token AI. I conteggi ripartono all'inizio del mese nel fuso orario
-dell'applicazione.
-
-## Attivazione
-
-Sul software:
+Nel `.env` mantenere:
 
 ```ini
-BILLING_INTEGRATION_KEY=SEGRETO_CASUALE_CONDIVISO_CON_WORDPRESS
+BILLING_SELF_SERVICE_ENABLED=false
+BILLING_INTEGRATION_KEY=
 LICENSE_ENFORCEMENT_ENABLED=false
 ```
 
-Migrare il database e concedere il Super Admin a un utente esistente:
+Poi eseguire:
 
 ```bash
 php artisan migrate --force
 php artisan admin:grant email@azienda.it
+php artisan optimize:clear
+php artisan config:cache
 ```
 
-Accedere a `/admin/licensing`, configurare i tre pacchetti e copiare per ciascuno lo
-Stripe Price ID annuale. Installare poi `wordpress/commerciale-ai-client` come plugin
-ZIP e seguire il relativo README.
+Accedere a `/admin/licensing`, creare i pacchetti e usare il modulo di registrazione
+cliente. `LICENSE_ENFORCEMENT_ENABLED` può restare `false` durante il pilota; dovrà
+essere portato a `true` soltanto quando ogni organizzazione da mantenere operativa
+avrà una licenza valida.
 
-Abilitare `LICENSE_ENFORCEMENT_ENABLED=true` soltanto quando ogni organizzazione che
-deve restare operativa possiede una licenza attiva.
+Per ogni pacchetto sono configurabili prezzo annuale, utenti inclusi (owner
+compreso), limite mensile lead, budget mensile token AI e funzioni disponibili.
+Lo Stripe Price ID può restare vuoto nello Step 1.
 
+## Step 2 — vendita self-service WordPress e Stripe
+
+Questa fase comprenderà registrazione e area cliente WordPress, scelta del
+pacchetto, Stripe Checkout, Customer Portal, cancellazione dell'abbonamento e
+provisioning automatico della licenza. Solo l'owner acquistante accederà all'area
+cliente WordPress; gli eventuali sottoutenti inclusi nel pacchetto resteranno legati
+alla sua organizzazione e verranno gestiti nel software.
+
+Le API `/api/v1/billing/*` sono oggi nascoste con risposta HTTP 404. Quando lo Step 2
+sarà pronto, si potranno esporre impostando una chiave condivisa robusta e attivando
+esplicitamente il relativo interruttore:
+
+```ini
+BILLING_SELF_SERVICE_ENABLED=true
+BILLING_INTEGRATION_KEY=SEGRETO_CASUALE_DI_ALMENO_32_BYTE
+```
+
+Il webhook Stripe firmato arriverà al plugin WordPress, che riconcilierà il pagamento
+con il software tramite API idempotenti. Stripe sarà la fonte dello stato economico;
+Commerciale AI conserverà licenze, organizzazioni, owner, limiti e cronologia degli
+eventi.
+
+Gli stati `active` e `trialing` consentono l'uso. Gli stati `past_due`, `unpaid`,
+`canceled`, `paused` e `suspended` non rendono utilizzabile una licenza quando
+l'enforcement è attivo.
+
+## Controllo dei consumi
+
+Il conteggio dei posti comprende l'owner. I limiti mensili di lead e token AI
+ripartono all'inizio del mese. Il costo effettivo delle API OpenAI va monitorato e
+deve essere incorporato nel prezzo e nei margini dei tre pacchetti prima del lancio
+commerciale.

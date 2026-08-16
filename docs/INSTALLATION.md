@@ -322,7 +322,21 @@ In quella fase la REST API di Resend verrà usata per creare i domini dei tenant
 mostrare SPF/DKIM e aggiornarne lo stato; il trasporto delle email resterà separato
 da questa procedura amministrativa.
 
-### Modulo licenze e WordPress
+### Modulo licenze: Step 1 manuale
+
+Per la prima fase non servono WordPress, Stripe o una chiave di integrazione.
+Il Super Admin registra il cliente, crea owner e organizzazione e attiva la licenza
+da `/admin/licensing`. Nel `.env` mantenere:
+
+```ini
+BILLING_SELF_SERVICE_ENABLED=false
+BILLING_INTEGRATION_KEY=
+LICENSE_ENFORCEMENT_ENABLED=false
+```
+
+Concedere l'accesso amministrativo con
+`php artisan admin:grant email@azienda.it`. Lo Step 2 con WordPress e Stripe resta
+inattivo fino alla vendita self-service.
 
 Il modulo licenze viene installato con le normali migrazioni ma non blocca il pilota:
 `LICENSE_ENFORCEMENT_ENABLED` è `false` per impostazione predefinita. La procedura
@@ -427,4 +441,3 @@ Il worker delle code non è indispensabile per i flussi attuali. Quando saranno 
 - **Connessione IMAP fallita:** controllare host, porta, cifratura, credenziali e certificato con `php artisan mail:sync --test`.
 - **Risposta non visibile nel lead:** controllare la pagina **Email da associare**. Se il messaggio non contiene riferimenti alla conversazione e il mittente non è già noto, richiede una verifica manuale.
 - **Webhook 401/403:** verificare il token dell'endpoint e che il dominio sorgente sia tra quelli consentiti.
-

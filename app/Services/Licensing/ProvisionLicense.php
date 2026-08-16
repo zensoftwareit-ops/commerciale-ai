@@ -6,8 +6,6 @@ use App\Models\License;
 use App\Models\LicenseEvent;
 use App\Models\LicensePlan;
 use App\Models\Organization;
-use App\Models\OrganizationSetting;
-use App\Models\PipelineStage;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
@@ -16,6 +14,8 @@ use RuntimeException;
 
 class ProvisionLicense
 {
+    public function __construct(private readonly OrganizationProvisioner $organizations) {}
+
     /** @return array{license:License,account_created:bool,reset_link_sent:bool} */
     public function handle(array $data): array
     {
@@ -47,14 +47,11 @@ class ProvisionLicense
 
             $organization = Organization::query()->where('billing_account_ref', $data['external_account_id'])->first();
             if (! $organization) {
-                $organization = Organization::create([
-                    'name' => $data['company'] ?: $data['name'],
-                    'slug' => $this->uniqueSlug($data['company'] ?: $data['name']),
-                    'billing_account_ref' => $data['external_account_id'],
-                    'timezone' => 'Europe/Rome', 'locale' => 'it',
-                ]);
+                $organization = $this->organizations->create(
+                    $data['company'] ?: $data['name'],
+                    $data['external_account_id'],
+                );
                 $organization->users()->attach($user, ['role' => 'owner']);
-                $this->initializeOrganization($organization, $data['company'] ?: $data['name']);
             } else {
                 $organization->users()->syncWithoutDetaching([$user->id => ['role' => 'owner']]);
             }
@@ -82,25 +79,9 @@ class ProvisionLicense
         return ['license' => $license, 'account_created' => $accountCreated, 'reset_link_sent' => $resetSent];
     }
 
-    private function initializeOrganization(Organization $organization, string $name): void
-    {
-        foreach ([['Nuovo', 'new', 'open'], ['Da valutare', 'to_review', 'open'], ['Qualificazione', 'qualification', 'open'], ['Qualificato', 'qualified', 'open'], ['Proposta', 'proposal', 'open'], ['Negoziazione', 'negotiation', 'open'], ['Vinto', 'won', 'won'], ['Perso', 'lost', 'lost']] as $position => [$label, $slug, $category]) {
-            PipelineStage::create(['organization_id' => $organization->id, 'name' => $label, 'slug' => $slug, 'system_category' => $category, 'position' => $position + 1]);
-        }
-        OrganizationSetting::create(['organization_id' => $organization->id, 'commercial_name' => $name, 'completeness' => 0]);
-    }
-
-    private function uniqueSlug(string $name): string
-    {
-        $base = Str::slug($name) ?: 'azienda';
-        do $slug = $base.'-'.Str::lower(Str::random(6)); while (Organization::query()->where('slug', $slug)->exists());
-        return $slug;
-    }
-
     private function newKey(): string
     {
         do $key = 'CAI-'.Str::upper(Str::random(8).'-'.Str::random(8).'-'.Str::random(8)); while (License::query()->where('key', $key)->exists());
         return $key;
     }
 }
-

@@ -91,10 +91,10 @@ Durante il pilota l'invio usa un unico SMTP transazionale configurato sul server
 trasporto SMTP di Resend è già predisposto ma resta disattivato fino alla futura fase
 SaaS, quando verrà aggiunto anche l'onboarding automatico SPF/DKIM per dominio.
 
-Il modulo commerciale include inoltre un pannello Super Admin per tre pacchetti e
-licenze, provisioning idempotente via API, limiti utenti per organizzazione e un
-plugin WordPress per registrazione, Stripe Checkout e Customer Portal. Vedi
-[billing e licenze](docs/BILLING-AND-LICENSES.md).
+Il modulo commerciale include un pannello Super Admin per registrare manualmente
+clienti, owner e licenze su tre pacchetti. La futura vendita self-service con plugin
+WordPress e Stripe è separata e resta disattivata fino allo Step 2. Vedi
+[clienti e licenze](docs/BILLING-AND-LICENSES.md).
 
 Il listino strutturato genera fasce di preventivo deterministiche e versionate. L'AI può presentare la fascia ma non modificarla; quando mancano dati prepara al massimo due domande mirate. L'automazione via cron e l'invio automatico sono disattivati per impostazione predefinita; durante il collaudo possono operare esclusivamente sugli indirizzi interni autorizzati e solo se non esiste alcun blocco di sicurezza. Il numero massimo di interventi automatici per lead impedisce conversazioni senza fine.
 
@@ -121,4 +121,3 @@ vendor/bin/pint --test
 ```
 
 Vedi [docs/INSTALLATION.md](docs/INSTALLATION.md), [docs/INSTANCE-PREVENTIVOSITOWEB.md](docs/INSTANCE-PREVENTIVOSITOWEB.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).
-
