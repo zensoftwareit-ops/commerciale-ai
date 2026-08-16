@@ -299,6 +299,29 @@ Dopo la modifica eseguire:
 
 Verificare prima con un reset password di prova, poi con un lead di test: analizzarlo, salvare la bozza e premere **Approva e invia**. Non inserire credenziali SMTP nel repository.
 
+#### Strategia SMTP del pilota e predisposizione Resend
+
+Per il pilota e per il primo gruppo ristretto di clienti l'invio resta monolitico:
+un unico account SMTP transazionale configurato sul server con `MAIL_MAILER=smtp`.
+I domini mittenti, SPF e DKIM vengono configurati manualmente presso il provider.
+
+Il progetto include anche il mailer `resend_smtp`, lasciato inattivo e senza dipendenze
+Composer aggiuntive. Non abilitarlo durante il pilota. Quando inizierà la vendita
+self-service, dopo avere verificato almeno un dominio su Resend, il passaggio potrà
+essere effettuato impostando:
+
+```ini
+MAIL_MAILER=resend_smtp
+RESEND_API_KEY=re_CHIAVE_SERVER
+RESEND_DOMAIN_AUTOMATION_ENABLED=false
+```
+
+La chiave resta globale e solo sul server. `RESEND_DOMAIN_AUTOMATION_ENABLED` deve
+rimanere `false` finché il pannello di onboarding DNS non sarà stato implementato.
+In quella fase la REST API di Resend verrà usata per creare i domini dei tenant,
+mostrare SPF/DKIM e aggiornarne lo stato; il trasporto delle email resterà separato
+da questa procedura amministrativa.
+
 ## 6. Posta in ingresso IMAP
 
 Per importare le risposte dei lead, accedere come owner e aprire **Caselle email**. Inserire nome, host, porta, cifratura, utente, password e cartella IMAP, quindi premere **Verifica connessione**. È possibile collegare più caselle alla stessa organizzazione. Le password sono cifrate nel database con `APP_KEY` e non vengono mai mostrate nell'interfaccia.

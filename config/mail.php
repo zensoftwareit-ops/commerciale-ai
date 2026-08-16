@@ -49,6 +49,22 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        /*
+         * Trasporto predisposto per la futura fase SaaS. Usa il relay SMTP di
+         * Resend, quindi non richiede pacchetti Composer aggiuntivi. Finché
+         * MAIL_MAILER resta "smtp" questa configurazione non viene utilizzata.
+         */
+        'resend_smtp' => [
+            'transport' => 'smtp',
+            'scheme' => env('RESEND_SMTP_SCHEME', 'smtps'),
+            'host' => env('RESEND_SMTP_HOST', 'smtp.resend.com'),
+            'port' => (int) env('RESEND_SMTP_PORT', 465),
+            'username' => env('RESEND_SMTP_USERNAME', 'resend'),
+            'password' => env('RESEND_API_KEY'),
+            'timeout' => (int) env('RESEND_SMTP_TIMEOUT', 30),
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
@@ -116,3 +132,4 @@ return [
     ],
 
 ];
+

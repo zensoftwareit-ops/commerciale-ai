@@ -20,6 +20,9 @@ return [
 
     'resend' => [
         'key' => env('RESEND_API_KEY'),
+        'api_url' => env('RESEND_API_URL', 'https://api.resend.com'),
+        // Rimane false finché non verrà sviluppato l'onboarding self-service dei domini.
+        'domain_automation_enabled' => (bool) env('RESEND_DOMAIN_AUTOMATION_ENABLED', false),
     ],
 
     'ses' => [
@@ -36,3 +39,4 @@ return [
     ],
 
 ];
+
