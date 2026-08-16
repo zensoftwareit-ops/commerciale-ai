@@ -5,6 +5,7 @@ namespace App\Services\Mail;
 use App\Contracts\InboundMailbox;
 use App\Data\InboundEmailMessage;
 use Carbon\CarbonImmutable;
+use App\Models\MailboxAccount;
 use RuntimeException;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\ClientManager;
@@ -13,9 +14,18 @@ use Webklex\PHPIMAP\Message;
 class WebklexInboundMailbox implements InboundMailbox
 {
     private ?Client $client = null;
+    private ?MailboxAccount $account = null;
 
     /** @var array<string, Message> */
     private array $messages = [];
+
+    public function forAccount(MailboxAccount $account): self
+    {
+        $this->close();
+        $this->account = $account;
+
+        return $this;
+    }
 
     public function testConnection(): void
     {
@@ -25,7 +35,7 @@ class WebklexInboundMailbox implements InboundMailbox
 
     public function recent(int $limit): iterable
     {
-        $folder = $this->connect()->getFolder((string) config('commerciale-ai.imap.folder', 'INBOX'));
+        $folder = $this->connect()->getFolder((string) $this->account?->folder);
         if (! $folder) {
             throw new RuntimeException('Cartella IMAP non trovata.');
         }
@@ -78,20 +88,18 @@ class WebklexInboundMailbox implements InboundMailbox
         if ($this->client) {
             return $this->client;
         }
-        if (! config('commerciale-ai.imap.enabled')) {
-            throw new RuntimeException('Sincronizzazione IMAP non abilitata.');
-        }
+        if (! $this->account) throw new RuntimeException('Nessuna casella IMAP selezionata.');
 
         $manager = new ClientManager([]);
         $this->client = $manager->make([
-            'host' => config('commerciale-ai.imap.host'),
-            'port' => (int) config('commerciale-ai.imap.port', 993),
-            'encryption' => config('commerciale-ai.imap.encryption', 'ssl'),
-            'validate_cert' => (bool) config('commerciale-ai.imap.validate_cert', true),
-            'username' => config('commerciale-ai.imap.username'),
-            'password' => config('commerciale-ai.imap.password'),
+            'host' => $this->account->host,
+            'port' => (int) $this->account->port,
+            'encryption' => $this->account->encryption ?: false,
+            'validate_cert' => (bool) $this->account->validate_cert,
+            'username' => $this->account->username,
+            'password' => $this->account->password,
             'protocol' => 'imap',
-            'authentication' => config('commerciale-ai.imap.authentication'),
+            'authentication' => $this->account->authentication,
             'timeout' => (int) config('commerciale-ai.imap.timeout', 30),
         ]);
         $this->client->connect();

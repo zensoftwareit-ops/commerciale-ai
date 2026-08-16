@@ -9,6 +9,7 @@ use App\Models\CommercialNotification;
 use App\Models\InboundEmail;
 use App\Models\Lead;
 use App\Models\LeadReply;
+use App\Models\MailboxAccount;
 use App\Services\Ai\AnalyzeLead;
 use App\Services\Ai\GenerateLeadReply;
 use App\Services\Leads\CreateLead;
@@ -200,6 +201,33 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         Mail::assertSent(ConversationHandoffMail::class, fn ($mail) => $mail->hasTo($user->email));
         $this->actingAs($user)->withSession(['organization_id' => $organization->id])
             ->get(route('notifications.index'))->assertOk()->assertSee('Intervento commerciale richiesto');
+    }
+
+    public function test_a_mailbox_can_only_match_leads_from_its_organization(): void
+    {
+        [$organizationA] = $this->organizationWithUser();
+        [$organizationB] = $this->organizationWithUser();
+        [, $replyB] = $this->sentReplyWithFollowUp($organizationB);
+        app(TenantContext::class)->set($organizationA);
+        MailboxAccount::create([
+            'name' => 'Inbox A', 'host' => 'imap-a.example.test', 'port' => 993, 'encryption' => 'ssl',
+            'validate_cert' => true, 'username' => 'a@example.test', 'password' => 'secret', 'folder' => 'INBOX', 'is_active' => true,
+        ]);
+        app(TenantContext::class)->clear();
+        $mailbox = new FakeInboundMailbox([
+            new InboundEmailMessage(
+                identifier: '601', messageId: 'tenant-isolation@example.test', inReplyTo: $replyB->outbound_message_id,
+                references: [], fromAddress: 'anna@example.test', fromName: 'Anna', subject: 'Re: richiesta',
+                body: 'Questa risposta appartiene al tenant B.', receivedAt: CarbonImmutable::now(),
+            ),
+        ]);
+
+        $stats = (new SyncInboundEmailReplies($mailbox, app(GenerateLeadReply::class)))->handle();
+
+        $this->assertSame(1, $stats['unmatched']);
+        $pending = InboundEmail::withoutGlobalScopes()->where('message_id', 'tenant-isolation@example.test')->firstOrFail();
+        $this->assertSame($organizationA->id, $pending->organization_id);
+        $this->assertNull($pending->lead_id);
     }
 
     private function sentReplyWithFollowUp($organization): array

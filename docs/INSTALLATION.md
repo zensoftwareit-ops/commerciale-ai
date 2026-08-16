@@ -40,14 +40,10 @@ Su Windows PowerShell, sostituire `cp .env.example .env` con:
 Copy-Item .env.example .env
 ```
 
-Aprire `http://127.0.0.1:8000`. Le credenziali iniziali create dal seed sono:
-
-```text
-Email: demo@commerciale-ai.test
-Password: CommercialeAI!2026
-```
-
-Cambiare subito la password dalla pagina **Account**. Queste credenziali sono pubbliche e servono esclusivamente al primo accesso.
+Aprire `http://127.0.0.1:8000`. Il seed crea un account dimostrativo per il solo
+sviluppo locale. Prima di rendere raggiungibile l'applicazione, impostare una
+password univoca e robusta dalla pagina **Account**. Non conservare credenziali
+iniziali nella documentazione o nel repository.
 
 ## 3. Installazione su server
 
@@ -158,14 +154,10 @@ Dalla radice del progetto:
 /opt/plesk/php/8.3/bin/php artisan migrate --seed --force
 ```
 
-Il seed crea l'organizzazione iniziale, la pipeline, una knowledge base dimostrativa e l'utente:
-
-```text
-Email: demo@commerciale-ai.test
-Password: CommercialeAI!2026
-```
-
-La password è pubblica: cambiarla dalla pagina **Account** subito dopo il primo accesso.
+Il seed crea l'organizzazione iniziale, la pipeline, una knowledge base dimostrativa
+e l'utente iniziale. Prima di rendere pubblico il dominio, impostare per l'utente una
+password univoca e robusta dalla pagina **Account**. Non usare credenziali note o
+documentate in un ambiente di produzione.
 
 #### 6. Configurare il document root
 
@@ -309,30 +301,11 @@ Verificare prima con un reset password di prova, poi con un lead di test: analiz
 
 ## 6. Posta in ingresso IMAP
 
-Per importare le risposte dei lead, usare la stessa casella configurata come `MAIL_FROM_ADDRESS` oppure una casella che riceva le relative risposte. Il client è installato tramite Composer e non richiede l'estensione PHP `imap`.
+Per importare le risposte dei lead, accedere come owner e aprire **Caselle email**. Inserire nome, host, porta, cifratura, utente, password e cartella IMAP, quindi premere **Verifica connessione**. È possibile collegare più caselle alla stessa organizzazione. Le password sono cifrate nel database con `APP_KEY` e non vengono mai mostrate nell'interfaccia.
 
-Configurazione tipica con IMAP su SSL:
-
-```dotenv
-IMAP_ENABLED=true
-IMAP_HOST=mail.example.it
-IMAP_PORT=993
-IMAP_ENCRYPTION=ssl
-IMAP_VALIDATE_CERT=true
-IMAP_USERNAME=commerciale@example.it
-IMAP_PASSWORD="PASSWORD_CASELLA"
-IMAP_AUTHENTICATION=null
-IMAP_FOLDER=INBOX
-IMAP_TIMEOUT=30
-IMAP_SYNC_SINCE_DAYS=14
-IMAP_MAX_MESSAGES=50
-```
-
-Usare host, porta e cifratura indicati dal fornitore della casella. Non disabilitare la validazione del certificato in produzione. Dopo la modifica:
+Usare i parametri indicati dal fornitore e non disabilitare la verifica del certificato in produzione. Dopo aver salvato almeno una casella attiva:
 
 ```bash
-/opt/plesk/php/8.3/bin/php artisan optimize:clear
-/opt/plesk/php/8.3/bin/php artisan config:cache
 /opt/plesk/php/8.3/bin/php artisan mail:sync --test
 /opt/plesk/php/8.3/bin/php artisan mail:sync
 ```
@@ -356,6 +329,14 @@ Il comando eseguito dallo scheduler è:
 ```bash
 /opt/plesk/php/8.3/bin/php artisan conversations:automate
 ```
+
+Per il flusso iniziale completo lo scheduler esegue anche:
+
+```bash
+/opt/plesk/php/8.3/bin/php artisan leads:automate-new
+```
+
+Quando nel pannello sono abilitate **Analizza automaticamente i nuovi lead** e **Invia automaticamente la prima email**, il comando analizza e contatta soltanto lead creati dopo l'attivazione. In modalità test interno considera esclusivamente gli indirizzi presenti nella lista consentita. In caso di errore riprova al massimo tre volte riutilizzando analisi e bozza già create.
 
 Quando mancano dati obbligatori può inviare soltanto una domanda di qualificazione, con massimo due quesiti. Non invia automaticamente un preventivo se: la regola è ambigua, mancano dati, la fascia supera il limite, il mittente richiede verifica, è stato raggiunto il numero massimo di risposte, il destinatario non è nella lista interna oppure l'invio preventivi è spento. Per un test controllato lanciare manualmente il comando e verificare i conteggi prima di affidarlo al cron.
 
@@ -416,3 +397,4 @@ Il worker delle code non è indispensabile per i flussi attuali. Quando saranno 
 - **Connessione IMAP fallita:** controllare host, porta, cifratura, credenziali e certificato con `php artisan mail:sync --test`.
 - **Risposta non visibile nel lead:** controllare la pagina **Email da associare**. Se il messaggio non contiene riferimenti alla conversazione e il mittente non è già noto, richiede una verifica manuale.
 - **Webhook 401/403:** verificare il token dell'endpoint e che il dominio sorgente sia tra quelli consentiti.
+

@@ -1,6 +1,8 @@
 <?php
 
 use App\Contracts\InboundMailbox;
+use App\Models\MailboxAccount;
+use App\Services\Mail\WebklexInboundMailbox;
 use App\Services\Mail\SyncInboundEmailReplies;
 use App\Services\Mail\RunConversationAutomation;
 use App\Services\Leads\RunNewLeadAutomation;
@@ -16,16 +18,33 @@ Artisan::command('inspire', function () {
 Artisan::command('mail:sync {--test : Verifica soltanto la connessione} {--limit= : Numero massimo di messaggi}', function (SyncInboundEmailReplies $sync, InboundMailbox $mailbox): int {
     try {
         if ($this->option('test')) {
-            $mailbox->testConnection();
-            $this->info('Connessione IMAP riuscita.');
-
-            return Command::SUCCESS;
+            $accounts = MailboxAccount::withoutGlobalScopes()->where('is_active', true)->get();
+            if ($accounts->isEmpty()) {
+                $this->warn('Nessuna casella IMAP attiva. Configurala dal pannello Caselle email.');
+                return Command::SUCCESS;
+            }
+            $failed = 0;
+            foreach ($accounts as $account) {
+                try {
+                    if ($mailbox instanceof WebklexInboundMailbox) $mailbox->forAccount($account);
+                    $mailbox->testConnection();
+                    $account->update(['last_tested_at' => now(), 'last_error' => null]);
+                    $this->info($account->name.': connessione riuscita.');
+                } catch (Throwable $exception) {
+                    $failed++;
+                    $account->update(['last_tested_at' => now(), 'last_error' => mb_substr($exception->getMessage(), 0, 2000)]);
+                    $this->error($account->name.': '.$exception->getMessage());
+                } finally {
+                    $mailbox->close();
+                }
+            }
+            return $failed ? Command::FAILURE : Command::SUCCESS;
         }
 
         $limit = $this->option('limit');
         $stats = $sync->handle($limit !== null ? (int) $limit : null);
-        $this->table(['Scansionate', 'Importate', 'Duplicate', 'Non associate', 'Automatiche', 'Bozze', 'Passaggi a umano', 'Errori bozza'], [[
-            $stats['scanned'], $stats['imported'], $stats['duplicates'], $stats['unmatched'],
+        $this->table(['Caselle', 'Errori casella', 'Scansionate', 'Importate', 'Duplicate', 'Non associate', 'Automatiche', 'Bozze', 'Passaggi a umano', 'Errori bozza'], [[
+            $stats['mailboxes'], $stats['mailbox_errors'], $stats['scanned'], $stats['imported'], $stats['duplicates'], $stats['unmatched'],
             $stats['automated'], $stats['drafts'], $stats['handoffs'], $stats['draft_errors'],
         ]]);
 
@@ -62,9 +81,7 @@ Artisan::command('leads:automation-status', function (RunNewLeadAutomation $auto
     return Command::SUCCESS;
 })->purpose('Mostra perché i lead vengono inclusi o esclusi dall’automazione');
 
-if (config('commerciale-ai.imap.enabled')) {
-    Schedule::command('mail:sync')->everyFiveMinutes()->withoutOverlapping();
-}
+Schedule::command('mail:sync')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('conversations:automate')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('leads:automate-new')->everyFiveMinutes()->withoutOverlapping();
 

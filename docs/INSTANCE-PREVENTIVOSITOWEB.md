@@ -220,7 +220,7 @@ Il pilota può ricevere lead reali quando:
 
 ## 10. Email e risposte
 
-Configurare SMTP e IMAP sulla stessa casella commerciale. Dopo l'invio di una bozza approvata, rispondere dal recapito del lead e avviare:
+Configurare SMTP sul server e collegare dal pannello **Caselle email** la casella IMAP che riceve le risposte. Dopo l'invio di una bozza approvata, rispondere dal recapito del lead e avviare:
 
 ```bash
 php artisan mail:sync
@@ -231,3 +231,19 @@ La risposta deve comparire nella scheda, il follow-up pendente deve essere annul
 ## 11. Funzioni non ancora incluse
 
 Questa configurazione copre acquisizione, deduplicazione, analisi, scoring, bozze approvate, invio email e acquisizione delle risposte. Non sono ancora incluse la gestione utenti dal pannello, gli appuntamenti, le sequenze automatiche di follow-up e la fatturazione/licenza. Ogni comunicazione verso il cliente richiede ancora approvazione umana.
+
+## 12. Collaudo interno del preventivatore
+
+In **Azienda > Listino strutturato** creare inizialmente poche fasce non sovrapposte, ad esempio sito vetrina, sito aziendale ed e-commerce. Per ogni fascia inserire parole chiave specifiche e i nomi esatti dei campi indispensabili ricevuti dal form, come `pages`, `languages` o `ecommerce`.
+
+Durante il collaudo:
+
+1. lasciare `AUTOMATION_EXTERNAL_SEND_ENABLED=false` nel `.env`;
+2. selezionare la modalità test interno;
+3. inserire nella lista consentita soltanto caselle controllate da Zen Software;
+4. impostare massimo 2 risposte automatiche e una soglia economica bassa;
+5. abilitare prima l'automazione delle conversazioni, verificando le domande generate;
+6. abilitare l'invio dei preventivi soltanto dopo aver verificato manualmente tutte le fasce.
+
+Il sistema conserva ogni versione della stima e mostra nella scheda lead i motivi che bloccano l'invio automatico.
+

@@ -12,7 +12,7 @@ class InboundEmail extends Model
     use BelongsToOrganization, HasUuid;
 
     protected $fillable = [
-        'organization_id', 'lead_id', 'lead_reply_id', 'status', 'match_confidence',
+        'organization_id', 'mailbox_account_id', 'lead_id', 'lead_reply_id', 'status', 'match_confidence',
         'match_reason', 'sender_differs', 'message_hash', 'message_id', 'in_reply_to',
         'imap_uid', 'from_address', 'from_name', 'subject', 'body', 'received_at',
         'linked_by', 'linked_at',
@@ -28,6 +28,11 @@ class InboundEmail extends Model
         return $this->belongsTo(Lead::class);
     }
 
+    public function mailbox(): BelongsTo
+    {
+        return $this->belongsTo(MailboxAccount::class, 'mailbox_account_id');
+    }
+
     public function reply(): BelongsTo
     {
         return $this->belongsTo(LeadReply::class, 'lead_reply_id');
@@ -38,3 +43,4 @@ class InboundEmail extends Model
         return $this->belongsTo(User::class, 'linked_by');
     }
 }
+

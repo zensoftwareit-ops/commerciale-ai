@@ -10,6 +10,7 @@ use App\Models\InboundEmail;
 use App\Models\Lead;
 use App\Models\LeadContact;
 use App\Models\LeadReply;
+use App\Models\MailboxAccount;
 use App\Models\Organization;
 use App\Services\Ai\GenerateLeadReply;
 use App\Services\Leads\LeadData;
@@ -20,17 +21,54 @@ use Throwable;
 
 class SyncInboundEmailReplies
 {
+    private ?MailboxAccount $currentMailbox = null;
+
     public function __construct(
         private readonly InboundMailbox $mailbox,
         private readonly GenerateLeadReply $replyGenerator,
     ) {}
 
-    /** @return array{scanned:int, imported:int, duplicates:int, unmatched:int, automated:int, drafts:int, handoffs:int, draft_errors:int} */
+    /** @return array{mailboxes:int,mailbox_errors:int,scanned:int,imported:int,duplicates:int,unmatched:int,automated:int,drafts:int,handoffs:int,draft_errors:int} */
     public function handle(?int $limit = null): array
     {
-        $stats = ['scanned' => 0, 'imported' => 0, 'duplicates' => 0, 'unmatched' => 0, 'automated' => 0, 'drafts' => 0, 'handoffs' => 0, 'draft_errors' => 0];
+        $stats = ['mailboxes' => 0, 'mailbox_errors' => 0, 'scanned' => 0, 'imported' => 0, 'duplicates' => 0, 'unmatched' => 0, 'automated' => 0, 'drafts' => 0, 'handoffs' => 0, 'draft_errors' => 0];
         $limit ??= (int) config('commerciale-ai.imap.max_messages', 50);
+        $mailboxes = MailboxAccount::withoutGlobalScopes()->where('is_active', true)->get();
 
+        if ($mailboxes->isEmpty()) {
+            if ($this->mailbox instanceof WebklexInboundMailbox) return $stats;
+            $this->processMessages($limit, $stats);
+
+            return $stats;
+        }
+
+        foreach ($mailboxes as $mailboxAccount) {
+            $organization = Organization::query()->find($mailboxAccount->organization_id);
+            if (! $organization) continue;
+            $stats['mailboxes']++;
+            app(TenantContext::class)->set($organization);
+            $this->currentMailbox = $mailboxAccount;
+            try {
+                if ($this->mailbox instanceof WebklexInboundMailbox) $this->mailbox->forAccount($mailboxAccount);
+                $this->processMessages($limit, $stats);
+                $mailboxAccount->update(['last_synced_at' => now(), 'last_error' => null]);
+            } catch (Throwable $exception) {
+                report($exception);
+                $stats['mailbox_errors']++;
+                $mailboxAccount->update(['last_synced_at' => now(), 'last_error' => mb_substr($exception->getMessage(), 0, 2000)]);
+            } finally {
+                $this->mailbox->close();
+                $this->currentMailbox = null;
+                app(TenantContext::class)->clear();
+            }
+        }
+
+        return $stats;
+    }
+
+    /** @param array<string,int> $stats */
+    private function processMessages(int $limit, array &$stats): void
+    {
         try {
             foreach ($this->mailbox->recent(max(1, min($limit, 200))) as $message) {
                 $stats['scanned']++;
@@ -57,7 +95,7 @@ class SyncInboundEmailReplies
                         try {
                             $this->storePending($message, $messageHash);
                         } finally {
-                            app(TenantContext::class)->clear();
+                            $this->restoreMailboxTenant($organization);
                         }
                     }
                     $this->mailbox->markSeen($message->identifier);
@@ -74,28 +112,28 @@ class SyncInboundEmailReplies
                     $this->prepareDraft($inbound, $lead, $stats);
                     $this->mailbox->markSeen($message->identifier);
                 } finally {
-                    app(TenantContext::class)->clear();
+                    $this->restoreMailboxTenant($organization);
                 }
             }
         } finally {
             $this->mailbox->close();
         }
-
-        return $stats;
     }
 
     /** @return array{lead:Lead|null,reply:LeadReply|null,thread_reply:LeadReply|null,confidence:?string,reason:?string,sender_differs:bool} */
     private function match(InboundEmailMessage $message): array
     {
+        $organizationId = app(TenantContext::class)->id();
         $from = LeadData::normalizeEmail($message->fromAddress);
         $threadIds = array_values(array_unique(array_filter([$message->inReplyTo, ...$message->references])));
         $threadReply = null;
         if ($threadIds !== []) {
             $threadReply = LeadReply::withoutGlobalScopes()
+                ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
                 ->where('status', 'sent')->whereIn('outbound_message_id', $threadIds)
                 ->latest('sent_at')->first();
             if ($threadReply) {
-                $lead = Lead::withoutGlobalScopes()->find($threadReply->lead_id);
+                $lead = Lead::withoutGlobalScopes()->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))->find($threadReply->lead_id);
                 if ($lead) {
                     $senderDiffers = ! hash_equals((string) $lead->email_normalized, (string) $from);
 
@@ -108,22 +146,26 @@ class SyncInboundEmailReplies
         }
 
         $leads = Lead::withoutGlobalScopes()
+            ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
             ->where('email_normalized', $from)
             ->whereHas('replies', fn ($query) => $query->where('status', 'sent'))
             ->limit(2)->get();
         if ($leads->count() !== 1) {
             $contactLeadIds = LeadContact::withoutGlobalScopes()
+                ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
                 ->where('email_normalized', $from)
                 ->limit(2)
                 ->pluck('lead_id')
                 ->unique();
             if ($contactLeadIds->count() === 1) {
                 $contactLead = Lead::withoutGlobalScopes()
+                    ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
                     ->whereKey($contactLeadIds->first())
                     ->whereHas('replies', fn ($query) => $query->where('status', 'sent'))
                     ->first();
                 if ($contactLead) {
                     $contactReply = LeadReply::withoutGlobalScopes()
+                        ->when($organizationId, fn ($query) => $query->where('organization_id', $organizationId))
                         ->where('lead_id', $contactLead->id)
                         ->where('status', 'sent')
                         ->latest('sent_at')
@@ -153,7 +195,7 @@ class SyncInboundEmailReplies
         return DB::transaction(function () use ($message, $messageHash, $lead, $sentReply, $match): InboundEmail {
             $hadFollowUp = $lead->next_action_at !== null || ($sentReply?->follow_up_at !== null && $sentReply?->follow_up_cancelled_at === null);
             $inbound = InboundEmail::create([
-                'organization_id' => $lead->organization_id, 'lead_id' => $lead->id,
+                'organization_id' => $lead->organization_id, 'mailbox_account_id' => $this->currentMailbox?->id, 'lead_id' => $lead->id,
                 'lead_reply_id' => $sentReply?->id, 'status' => 'linked',
                 'match_confidence' => $match['confidence'], 'match_reason' => $match['reason'],
                 'sender_differs' => $match['sender_differs'], 'message_hash' => $messageHash,
@@ -192,6 +234,7 @@ class SyncInboundEmailReplies
     {
         return InboundEmail::create([
             'organization_id' => app(TenantContext::class)->requireOrganization()->id,
+            'mailbox_account_id' => $this->currentMailbox?->id,
             'status' => 'pending', 'message_hash' => $messageHash, 'message_id' => $message->messageId,
             'in_reply_to' => $message->inReplyTo, 'imap_uid' => $message->identifier,
             'from_address' => $message->fromAddress, 'from_name' => $message->fromName,
@@ -243,6 +286,7 @@ class SyncInboundEmailReplies
 
     private function organizationForPending(?LeadReply $threadReply): ?Organization
     {
+        if ($organization = app(TenantContext::class)->organization()) return $organization;
         if ($threadReply) {
             return Organization::query()->find($threadReply->organization_id);
         }
@@ -252,12 +296,18 @@ class SyncInboundEmailReplies
         return $organizations->count() === 1 ? $organizations->first() : null;
     }
 
+    private function restoreMailboxTenant(Organization $organization): void
+    {
+        if ($this->currentMailbox) app(TenantContext::class)->set($organization);
+        else app(TenantContext::class)->clear();
+    }
+
     private function messageHash(InboundEmailMessage $message): string
     {
-        $identity = $message->messageId ?: implode('|', [
-            config('commerciale-ai.imap.username'), $message->identifier, $message->fromAddress,
-            $message->receivedAt->toIso8601String(), $message->subject,
-        ]);
+        $mailbox = $this->currentMailbox?->id ?? 'test-mailbox';
+        $identity = $message->messageId
+            ? $mailbox.'|'.$message->messageId
+            : implode('|', [$mailbox, $message->identifier, $message->fromAddress, $message->receivedAt->toIso8601String(), $message->subject]);
 
         return hash('sha256', mb_strtolower(trim($identity)));
     }

@@ -29,4 +29,10 @@ class Organization extends Model
     {
         return $this->hasOne(OrganizationSetting::class);
     }
+
+    public function mailboxes(): HasMany
+    {
+        return $this->hasMany(MailboxAccount::class);
+    }
 }
+

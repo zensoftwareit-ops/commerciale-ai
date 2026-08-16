@@ -2,6 +2,8 @@
 
 Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base, analisi strutturata, risposte email con approvazione umana e sincronizzazione IMAP.
 
+Il proprietario dell'istanza può eliminare definitivamente un lead dalla relativa scheda, insieme a tutti i dati collegati. L'operazione richiede la conferma testuale `ELIMINA` e non è disponibile agli utenti sales.
+
 ## Requisiti
 
 - PHP 8.3 o superiore
@@ -41,14 +43,13 @@ composer run setup
 
 Aprire `http://localhost:8000`.
 
-Credenziali demo, esclusivamente locali:
-
-- email: `demo@commerciale-ai.test`
-- password: `CommercialeAI!2026`
+Il seed crea un account dimostrativo esclusivamente locale. Prima di esporre
+l'applicazione, impostare una password univoca e robusta dalla pagina **Account**;
+non pubblicare credenziali nel repository.
 
 ## Processi in background
 
-Code e cache usano il database. La sincronizzazione IMAP viene programmata ogni cinque minuti quando `IMAP_ENABLED=true`. In produzione avviare lo scheduler Laravel:
+Code e cache usano il database. Le caselle IMAP si configurano dal pannello **Caselle email** e vengono sincronizzate ogni cinque minuti. In produzione avviare lo scheduler Laravel:
 
 ```bash
 php artisan schedule:work
@@ -84,9 +85,11 @@ Ogni risultato viene validato, combinato con regole dichiarate e registrato con 
 
 Dopo l'analisi viene generata una bozza email modificabile. Un operatore deve salvarla, approvarla e inviarla; l'applicazione non invia autonomamente messaggi al cliente. È possibile associare una data di follow-up, registrata come prossima azione e nella timeline del lead.
 
-Con IMAP attivo, le risposte riconosciute vengono importate, mostrate nella scheda del lead e contrassegnate come lette nella casella. Il follow-up pendente viene annullato e viene preparata una nuova bozza da approvare. Un riferimento certo alla conversazione consente l'associazione anche da un indirizzo diverso, mostrando un avviso all'operatore. I messaggi incerti entrano nella pagina **Email da associare** e non vengono mai collegati automaticamente; dopo la verifica è possibile associarli a un lead e memorizzare il mittente come contatto secondario.
+Con una casella IMAP attiva, le risposte riconosciute vengono importate, mostrate nella scheda del lead e contrassegnate come lette. Le credenziali sono cifrate nel database e ogni casella può accedere esclusivamente ai lead della propria organizzazione.
 
 Il listino strutturato genera fasce di preventivo deterministiche e versionate. L'AI può presentare la fascia ma non modificarla; quando mancano dati prepara al massimo due domande mirate. L'automazione via cron e l'invio automatico sono disattivati per impostazione predefinita; durante il collaudo possono operare esclusivamente sugli indirizzi interni autorizzati e solo se non esiste alcun blocco di sicurezza. Il numero massimo di interventi automatici per lead impedisce conversazioni senza fine.
+
+Il flusso iniziale può essere automatizzato integralmente: i nuovi lead vengono analizzati, ricevono una bozza iniziale e, se autorizzati dalla modalità interna, la prima email viene inviata dal cron. L'attivazione non coinvolge lead storici e ogni errore tecnico è limitato a tre tentativi.
 
 ## Preparazione del pilota
 
@@ -109,3 +112,4 @@ vendor/bin/pint --test
 ```
 
 Vedi [docs/INSTALLATION.md](docs/INSTALLATION.md), [docs/INSTANCE-PREVENTIVOSITOWEB.md](docs/INSTANCE-PREVENTIVOSITOWEB.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).
+
