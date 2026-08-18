@@ -31,17 +31,12 @@ class RunNewLeadAutomation
                 $settings = OrganizationSetting::query()->first();
                 if (! $settings?->auto_analyze_new_leads || ! $settings->conversation_automation_enabled) continue;
                 $stats['organizations']++;
-                $allowed = collect($settings->automation_allowed_recipients ?? [])->map(fn ($email) => mb_strtolower(trim((string) $email)))->filter();
-                $internalOnly = $settings->internal_test_only || ! config('commerciale-ai.automation.external_send_enabled');
-                if ($internalOnly && $allowed->isEmpty()) continue;
-
                 $leads = Lead::query()
                     ->whereNotNull('email_normalized')
                     ->whereNull('initial_automation_completed_at')
                     ->where('initial_automation_attempts', '<', 3)
                     ->when($leadId, fn ($query) => $query->whereKey($leadId))
                     ->when(! $leadId, fn ($query) => $query->where('created_at', '>=', $settings->new_lead_automation_started_at ?? now()))
-                    ->when($internalOnly, fn ($query) => $query->whereIn('email_normalized', $allowed->all()))
                     ->oldest()->limit(max(1, min($limit, 100)))->get();
 
                 foreach ($leads as $lead) {
@@ -117,8 +112,7 @@ class RunNewLeadAutomation
                     'failed_3x' => (clone $base)->whereNull('initial_automation_completed_at')->where('initial_automation_attempts', '>=', 3)->count(),
                     'eligible_now' => $settings?->auto_analyze_new_leads && $settings?->conversation_automation_enabled && $startedAt
                         ? (clone $base)->whereNotNull('email_normalized')->whereNull('initial_automation_completed_at')
-                            ->where('initial_automation_attempts', '<', 3)->where('created_at', '>=', $startedAt)
-                            ->when($internalOnly, fn ($query) => $query->whereIn('email_normalized', $allowed->all()))->count()
+                            ->where('initial_automation_attempts', '<', 3)->where('created_at', '>=', $startedAt)->count()
                         : 0,
                 ];
             } finally {
@@ -137,7 +131,11 @@ class RunNewLeadAutomation
         }
         $blockers = $blockers->values()->all();
         if (! $settings->auto_send_initial_email) $blockers[] = 'auto_send_initial_email_disabled';
-        if (! $settings->internal_test_only && ! config('commerciale-ai.automation.external_send_enabled')) $blockers[] = 'external_send_disabled_on_server';
+        $allowed = collect($settings->automation_allowed_recipients ?? [])
+            ->map(fn ($email) => mb_strtolower(trim((string) $email)))
+            ->filter();
+        $internalOnly = $settings->internal_test_only || ! config('commerciale-ai.automation.external_send_enabled');
+        if ($internalOnly && ! $allowed->contains($reply->lead->email_normalized)) $blockers[] = 'recipient_not_allowed';
         $reply->update([
             'automation_blockers' => array_values(array_unique($blockers)),
             'automation_eligible' => $blockers === [],

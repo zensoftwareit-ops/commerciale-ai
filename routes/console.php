@@ -9,7 +9,7 @@ use App\Services\Mail\RunConversationAutomation;
 use App\Services\Leads\RunNewLeadAutomation;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\Console\Command\Command;
 
 Artisan::command('inspire', function () {
@@ -90,7 +90,58 @@ Artisan::command('leads:automation-status', function (RunNewLeadAutomation $auto
     return Command::SUCCESS;
 })->purpose('Mostra perché i lead vengono inclusi o esclusi dall’automazione');
 
-Schedule::command('mail:sync')->everyFiveMinutes()->withoutOverlapping();
-Schedule::command('conversations:automate')->everyFiveMinutes()->withoutOverlapping();
-Schedule::command('leads:automate-new')->everyFiveMinutes()->withoutOverlapping();
+Artisan::command('commerciale:run {--limit=25} {--mail-limit= : Numero massimo di messaggi per casella}', function (
+    RunNewLeadAutomation $newLeads,
+    SyncInboundEmailReplies $mailSync,
+    RunConversationAutomation $conversations,
+): int {
+    $lock = Cache::lock('commerciale-ai:direct-cron', 300);
+    if (! $lock->get()) {
+        $this->warn('Un altro ciclo di automazione è ancora in esecuzione.');
+        return Command::SUCCESS;
+    }
 
+    $failed = 0;
+    try {
+        try {
+            $leadStats = $newLeads->handle((int) $this->option('limit'));
+            $this->info('Nuovi lead');
+            $this->table(['Organizzazioni', 'Candidati', 'Analizzati', 'Bozze', 'Inviati', 'Falliti'], [array_values($leadStats)]);
+            $failed += $leadStats['failed'];
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->error('Nuovi lead: '.$exception->getMessage());
+            $failed++;
+        }
+
+        try {
+            $mailLimit = $this->option('mail-limit');
+            $mailStats = $mailSync->handle($mailLimit !== null ? (int) $mailLimit : null);
+            $this->info('Posta in ingresso');
+            $this->table(['Caselle', 'Errori casella', 'Scansionate', 'Importate', 'Duplicate', 'Non associate', 'Automatiche', 'Bozze', 'Passaggi a umano', 'Errori bozza'], [[
+                $mailStats['mailboxes'], $mailStats['mailbox_errors'], $mailStats['scanned'], $mailStats['imported'], $mailStats['duplicates'],
+                $mailStats['unmatched'], $mailStats['automated'], $mailStats['drafts'], $mailStats['handoffs'], $mailStats['draft_errors'],
+            ]]);
+            $failed += $mailStats['mailbox_errors'] + $mailStats['draft_errors'];
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->error('Posta in ingresso: '.$exception->getMessage());
+            $failed++;
+        }
+
+        try {
+            $conversationStats = $conversations->handle((int) $this->option('limit'));
+            $this->info('Conversazioni');
+            $this->table(['Organizzazioni', 'Candidate', 'Inviate', 'Fallite'], [array_values($conversationStats)]);
+            $failed += $conversationStats['failed'];
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->error('Conversazioni: '.$exception->getMessage());
+            $failed++;
+        }
+    } finally {
+        $lock->release();
+    }
+
+    return $failed > 0 ? Command::FAILURE : Command::SUCCESS;
+})->purpose('Esegue direttamente tutte le automazioni senza usare lo scheduler Laravel');

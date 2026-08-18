@@ -356,31 +356,39 @@ Usare i parametri indicati dal fornitore e non disabilitare la verifica del cert
 
 Il comando mostra soltanto i conteggi. Le risposte con un riferimento certo a una conversazione inviata vengono associate anche quando il cliente usa una casella diversa; nella scheda del lead compare un avviso e la bozza resta indirizzata all'email principale. Gli indirizzi secondari già confermati vengono riconosciuti. I messaggi senza prove sufficienti vengono conservati nella pagina **Email da associare**, dove un operatore può scegliere il lead e, facoltativamente, salvare il mittente come contatto secondario.
 
-In **Plesk > Siti Web e Domini > Attività pianificate**, creare un'attività ogni cinque minuti eseguita dalla radice del progetto:
+In **Plesk > Siti Web e Domini > Attività pianificate**, creare un'unica attività
+diretta ogni minuto, eseguita dalla radice del progetto:
 
 ```bash
-/opt/plesk/php/8.3/bin/php /PERCORSO/ASSOLUTO/DEL/PROGETTO/artisan mail:sync
+cd /PERCORSO/ASSOLUTO/DEL/PROGETTO && /opt/plesk/php/8.3/bin/php artisan commerciale:run
 ```
 
-In alternativa, sui server che usano lo scheduler Laravel, eseguire `php artisan schedule:run` ogni minuto.
+Non configurare `schedule:run`: il comando diretto esegue nuovi lead, sincronizzazione
+IMAP e conversazioni nello stesso ciclo. Un lock di cinque minuti evita
+sovrapposizioni se un'esecuzione precedente è ancora in corso.
 
 ### Automazione preventivi (solo collaudo interno)
 
 In **Azienda** configurare prima il listino strutturato. Ogni regola richiede parole chiave, fascia minima/massima ed eventuali campi obbligatori del payload. Poi inserire gli indirizzi di prova nella lista interna e mantenere selezionato **Limita l'automazione ai destinatari interni autorizzati**.
 
-Il comando eseguito dallo scheduler è:
+Per una verifica manuale delle sole conversazioni è ancora disponibile:
 
 ```bash
 /opt/plesk/php/8.3/bin/php artisan conversations:automate
 ```
 
-Per il flusso iniziale completo lo scheduler esegue anche:
+Per una verifica manuale dei soli nuovi lead è ancora disponibile:
 
 ```bash
 /opt/plesk/php/8.3/bin/php artisan leads:automate-new
 ```
 
-Quando nel pannello sono abilitate **Analizza automaticamente i nuovi lead** e **Invia automaticamente la prima email**, il comando analizza e contatta soltanto lead creati dopo l'attivazione. In modalità test interno considera esclusivamente gli indirizzi presenti nella lista consentita. In caso di errore riprova al massimo tre volte riutilizzando analisi e bozza già create.
+Quando nel pannello è abilitato **Analizza automaticamente i nuovi lead**, il
+comando analizza tutti i lead creati dopo l'attivazione e prepara la bozza iniziale.
+La modalità test interno e la lista consentita limitano soltanto l'invio: le bozze
+verso destinatari non autorizzati restano disponibili per l'approvazione manuale.
+In caso di errore il sistema riprova al massimo tre volte riutilizzando analisi e
+bozza già create.
 
 Quando mancano dati obbligatori può inviare soltanto una domanda di qualificazione, con massimo due quesiti. Non invia automaticamente un preventivo se: la regola è ambigua, mancano dati, la fascia supera il limite, il mittente richiede verifica, è stato raggiunto il numero massimo di risposte, il destinatario non è nella lista interna oppure l'invio preventivi è spento. Per un test controllato lanciare manualmente il comando e verificare i conteggi prima di affidarlo al cron.
 

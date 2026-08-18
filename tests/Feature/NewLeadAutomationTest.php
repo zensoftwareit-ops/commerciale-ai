@@ -15,7 +15,7 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
 {
     use RefreshDatabase;
 
-    public function test_it_analyzes_and_sends_the_first_email_only_to_internal_allowed_leads(): void
+    public function test_it_analyzes_all_new_leads_but_sends_only_to_internal_allowed_leads(): void
     {
         config()->set('mail.default', 'smtp');
         Mail::fake();
@@ -35,11 +35,17 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
 
         $stats = app(RunNewLeadAutomation::class)->handle();
 
-        $this->assertSame(1, $stats['candidates']);
-        $this->assertSame(1, $stats['analyzed']);
+        $this->assertSame(2, $stats['candidates']);
+        $this->assertSame(2, $stats['analyzed']);
+        $this->assertSame(2, $stats['drafted']);
         $this->assertSame(1, $stats['sent']);
         $this->assertNotNull($internal->fresh()->initial_automation_completed_at);
-        $this->assertNull($external->fresh()->initial_automation_completed_at);
+        $this->assertNotNull($external->fresh()->initial_automation_completed_at);
+        $this->assertDatabaseHas('lead_replies', [
+            'lead_id' => $external->id,
+            'status' => 'draft',
+            'automation_eligible' => false,
+        ]);
         Mail::assertSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('internal@example.test'));
         Mail::assertNotSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('external@example.test'));
     }

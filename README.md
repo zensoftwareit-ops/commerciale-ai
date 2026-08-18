@@ -49,11 +49,14 @@ non pubblicare credenziali nel repository.
 
 ## Processi in background
 
-Code e cache usano il database. Le caselle IMAP si configurano dal pannello **Caselle email** e vengono sincronizzate ogni cinque minuti. In produzione avviare lo scheduler Laravel:
+Code e cache usano il database. Le caselle IMAP si configurano dal pannello **Caselle email**. In produzione eseguire direttamente il comando unico di automazione tramite cron:
 
 ```bash
-php artisan schedule:work
+php artisan commerciale:run
 ```
+
+Il comando elabora nuovi lead, posta IMAP e conversazioni senza passare dallo
+scheduler Laravel. Un lock impedisce esecuzioni sovrapposte.
 
 In produzione configurare questi comandi come servizi di sistema e impostare il document root della virtual host sulla directory `public/`.
 
