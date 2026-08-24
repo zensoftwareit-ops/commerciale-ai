@@ -4,6 +4,7 @@ use App\Http\Middleware\RequireRole;
 use App\Http\Middleware\RequireSuperAdmin;
 use App\Http\Middleware\AuthenticateBillingClient;
 use App\Http\Middleware\RequireActiveLicense;
+use App\Http\Middleware\RequireOrganizationAccess;
 use App\Http\Middleware\RequireBillingSelfService;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'billing.client' => AuthenticateBillingClient::class,
             'billing.selfservice' => RequireBillingSelfService::class,
             'license' => RequireActiveLicense::class,
+            'organization.access' => RequireOrganizationAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

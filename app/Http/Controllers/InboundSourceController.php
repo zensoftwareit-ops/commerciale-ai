@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\InboundSource;
 use App\Services\Leads\InboundDomainGuard;
+use App\Services\Organizations\OrganizationLifecycle;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -17,7 +19,7 @@ class InboundSourceController extends Controller
         return view('settings.sources', ['sources' => InboundSource::query()->orderBy('name')->get()]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, OrganizationLifecycle $lifecycle, TenantContext $tenants): RedirectResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -32,6 +34,7 @@ class InboundSourceController extends Controller
             'endpoint_token_hash' => hash('sha256', $endpointToken),
             'is_active' => true,
         ]);
+        $lifecycle->refresh($tenants->requireOrganization());
 
         return back()
             ->with('status', 'Sorgente creata. Copia ora l’endpoint: non verrà mostrato di nuovo.')
@@ -41,12 +44,13 @@ class InboundSourceController extends Controller
             ]);
     }
 
-    public function update(Request $request, InboundSource $source): RedirectResponse
+    public function update(Request $request, InboundSource $source, OrganizationLifecycle $lifecycle, TenantContext $tenants): RedirectResponse
     {
         $data = $request->validate(['allowed_domains_text' => ['required', 'string', 'max:5000']]);
         $domains = $this->domains($data['allowed_domains_text']);
         $this->ensureDomains($domains);
         $source->update(['allowed_domains' => $domains]);
+        $lifecycle->refresh($tenants->requireOrganization());
 
         return back()->with('status', 'Domini consentiti aggiornati.');
     }

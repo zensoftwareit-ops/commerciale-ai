@@ -7,6 +7,7 @@ use App\Models\LicenseEvent;
 use App\Models\LicensePlan;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\Organizations\OrganizationLifecycle;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -14,7 +15,10 @@ use RuntimeException;
 
 class ProvisionLicense
 {
-    public function __construct(private readonly OrganizationProvisioner $organizations) {}
+    public function __construct(
+        private readonly OrganizationProvisioner $organizations,
+        private readonly OrganizationLifecycle $lifecycle,
+    ) {}
 
     /** @return array{license:License,account_created:bool,reset_link_sent:bool} */
     public function handle(array $data): array
@@ -74,6 +78,8 @@ class ProvisionLicense
 
             return $license->load('plan', 'organization', 'owner');
         });
+
+        $this->lifecycle->refresh($license->organization);
 
         $resetSent = $accountCreated && Password::sendResetLink(['email' => $license->owner->email]) === Password::RESET_LINK_SENT;
         return ['license' => $license, 'account_created' => $accountCreated, 'reset_link_sent' => $resetSent];

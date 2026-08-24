@@ -13,7 +13,15 @@ class Organization extends Model
 {
     use HasFactory, HasUuid;
 
-    protected $fillable = ['name', 'slug', 'billing_account_ref', 'timezone', 'locale'];
+    protected $fillable = [
+        'name', 'slug', 'billing_account_ref', 'timezone', 'locale', 'status',
+        'onboarding_completed_at', 'suspended_at', 'suspension_reason',
+    ];
+
+    protected function casts(): array
+    {
+        return ['onboarding_completed_at' => 'datetime', 'suspended_at' => 'datetime'];
+    }
 
     public function users(): BelongsToMany
     {
@@ -42,8 +50,8 @@ class Organization extends Model
 
     public function activeLicense(): ?License
     {
-        return $this->licenses()->with('plan')->latest('created_at')->get()
-            ->first(fn (License $license): bool => $license->isUsable());
+        $license = $this->licenses()->with('plan')->latest('created_at')->first();
+
+        return $license?->isUsable() ? $license : null;
     }
 }
-

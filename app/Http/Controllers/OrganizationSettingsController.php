@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\OrganizationSetting;
 use App\Models\PricingRule;
 use App\Support\Tenancy\TenantContext;
+use App\Services\Organizations\OrganizationLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -24,7 +25,7 @@ class OrganizationSettingsController extends Controller
         return view('settings.organization', compact('settings', 'aiStatus', 'pricingRules'));
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, OrganizationLifecycle $lifecycle, TenantContext $tenants): RedirectResponse
     {
         $data = $request->validate([
             'legal_name' => ['nullable', 'string', 'max:255'], 'commercial_name' => ['required', 'string', 'max:255'],
@@ -55,6 +56,7 @@ class OrganizationSettingsController extends Controller
         }
         $data['completeness'] = OrganizationSetting::completenessFor($data);
         OrganizationSetting::query()->updateOrCreate(['organization_id' => app(TenantContext::class)->id()], $data);
+        $lifecycle->refresh($tenants->requireOrganization());
 
         return back()->with('status', 'Profilo aziendale aggiornato.');
     }

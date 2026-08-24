@@ -13,6 +13,7 @@ use App\Http\Controllers\MailboxAccountController;
 use App\Http\Controllers\OrganizationSettingsController;
 use App\Http\Controllers\OrganizationSwitchController;
 use App\Http\Controllers\OrganizationUserController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PricingRuleController;
 use App\Http\Controllers\Admin\LicensingDashboardController;
@@ -44,9 +45,13 @@ Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->gro
     Route::put('/licenses/{license}', [AdminLicenseController::class, 'update'])->name('licenses.update');
 });
 
-Route::middleware(['auth', 'tenant', 'license'])->group(function (): void {
+Route::middleware(['auth', 'tenant'])->group(function (): void {
+    Route::get('/onboarding', OnboardingController::class)->name('onboarding');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
+});
+
+Route::middleware(['auth', 'tenant', 'organization.access', 'license'])->group(function (): void {
     Route::get('/notifications', [CommercialNotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/unread', [CommercialNotificationController::class, 'unread'])->name('notifications.unread');
     Route::get('/notifications/{notification}/open', [CommercialNotificationController::class, 'open'])->name('notifications.open');

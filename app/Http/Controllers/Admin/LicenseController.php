@@ -8,6 +8,7 @@ use App\Models\LicensePlan;
 use App\Models\Organization;
 use App\Models\User;
 use App\Services\Licensing\CreateManualLicensedCustomer;
+use App\Services\Organizations\OrganizationLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -36,7 +37,7 @@ class LicenseController extends Controller
         return back()->with('status', $message);
     }
 
-    public function storeExisting(Request $request): RedirectResponse
+    public function storeExisting(Request $request, OrganizationLifecycle $lifecycle): RedirectResponse
     {
         $data = $this->validatedExisting($request);
         $organization = Organization::query()->findOrFail($data['organization_id']);
@@ -47,10 +48,11 @@ class LicenseController extends Controller
             ...collect($data)->except('owner_email')->all(), 'owner_user_id' => $owner->id,
             'key' => $this->newKey(), 'source' => 'manual', 'starts_at' => now(),
         ]);
+        $lifecycle->refresh($organization);
         return back()->with('status', 'Licenza manuale generata.');
     }
 
-    public function update(Request $request, string $license): RedirectResponse
+    public function update(Request $request, string $license, OrganizationLifecycle $lifecycle): RedirectResponse
     {
         $license = License::query()->findOrFail($license);
         $data = $request->validate([
@@ -60,6 +62,7 @@ class LicenseController extends Controller
         ]);
         $data['cancel_at_period_end'] = $request->boolean('cancel_at_period_end');
         $license->update($data);
+        $lifecycle->refresh($license->organization);
         return back()->with('status', 'Licenza aggiornata.');
     }
 

@@ -23,9 +23,10 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
-        $destination = $user->is_super_admin && ! $user->organizations()->exists()
+        $organization = $user->organizations()->orderBy('name')->first();
+        $destination = $user->is_super_admin && ! $organization
             ? route('admin.licensing')
-            : route('leads.index');
+            : (in_array($organization?->status, ['onboarding', 'suspended'], true) ? route('onboarding') : route('leads.index'));
 
         return redirect()->intended($destination);
     }
@@ -39,4 +40,3 @@ class AuthController extends Controller
         return redirect()->route('login');
     }
 }
-

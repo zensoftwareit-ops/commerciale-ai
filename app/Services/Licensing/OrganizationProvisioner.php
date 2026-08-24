@@ -17,6 +17,7 @@ class OrganizationProvisioner
             'billing_account_ref' => $billingAccountRef,
             'timezone' => 'Europe/Rome',
             'locale' => 'it',
+            'status' => 'onboarding',
         ]);
 
         foreach ([

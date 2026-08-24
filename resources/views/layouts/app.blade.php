@@ -76,6 +76,7 @@
             @if($activeRole==='owner')
                 <div class="nav-label">Configurazione</div>
                 <nav class="nav" aria-label="Configurazione">
+                    <a class="nav-link @if(request()->routeIs('onboarding')) active @endif" href="{{ route('onboarding') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Avvio guidato @if($activeOrganization?->status==='onboarding')<span class="nav-count">!</span>@endif</a>
                     <a class="nav-link @if(request()->routeIs('settings.organization*') || request()->routeIs('settings.pricing-rules.*')) active @endif" href="{{ route('settings.organization') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke-width="1.8"/><path d="M19 13.5v-3l-2-.7-.7-1.6.9-2-2.1-2.1-2 .9-1.6-.7-.7-2h-3l-.7 2-1.6.7-2-.9-2.1 2.1.9 2-.7 1.6-2 .7v3l2 .7.7 1.6-.9 2 2.1 2.1 2-.9 1.6.7.7 2h3l.7-2 1.6-.7 2 .9 2.1-2.1-.9-2 .7-1.6 2-.7Z" stroke-width="1.5"/></svg></span>Azienda e AI</a>
                     <a class="nav-link @if(request()->routeIs('settings.sources*')) active @endif" href="{{ route('settings.sources') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M8 12h8M12 8v8" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="8.5" stroke-width="1.8"/></svg></span>Sorgenti lead</a>
                     <a class="nav-link @if(request()->routeIs('settings.mailboxes.*')) active @endif" href="{{ route('settings.mailboxes.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z" stroke-width="1.8"/><path d="m5 8 7 5 7-5" stroke-width="1.8" stroke-linecap="round"/></svg></span>Caselle email</a>
@@ -95,6 +96,9 @@
             <header class="mobile-topbar"><a class="brand-lockup" style="padding:0;color:#101828" href="{{ route('leads.index') }}"><img class="brand-logo-mobile" src="{{ asset('brand/daria-logo-horizontal.svg') }}" alt="Daria"></a><button class="menu-button" type="button" onclick="document.body.classList.toggle('nav-open')" aria-label="Apri menu">☰</button></header>
             <main class="container">
                 @if(session('status'))<div class="notice flash">{{ session('status') }}</div>@endif
+                @if($activeOrganization?->status==='onboarding' && !request()->routeIs('onboarding'))
+                    <div class="warning">Il workspace è ancora in configurazione. <a href="{{ route('onboarding') }}">Completa l’avvio guidato</a>.</div>
+                @endif
                 @yield('content')
             </main>
         </div>

@@ -8,7 +8,7 @@
 
 <section class="card">
     <div class="table"><table>
-        <thead><tr><th>Organizzazione</th><th>Owner</th><th>Configurazione</th><th>Utilizzo</th><th>Licenza</th></tr></thead>
+        <thead><tr><th>Organizzazione</th><th>Owner</th><th>Stato</th><th>Configurazione</th><th>Utilizzo</th><th>Licenza</th></tr></thead>
         <tbody>
         @forelse($organizations as $organization)
             @php($owner=$organization->users->firstWhere('pivot.role', 'owner'))
@@ -16,6 +16,7 @@
             <tr>
                 <td><strong>{{ $organization->name }}</strong><br><span class="muted">{{ $organization->slug }} · {{ $organization->locale }} · {{ $organization->timezone }}</span></td>
                 <td>{{ $owner?->name ?: '—' }}<br><span class="muted">{{ $owner?->email ?: 'Owner mancante' }}</span><br><span class="badge">{{ $organization->users->count() }} utenti</span></td>
+                <td><span class="badge @if($organization->status==='active') success @elseif($organization->status==='suspended') hot @endif">{{ $organization->status }}</span>@if($organization->suspension_reason)<br><span class="muted">{{ str_replace('_', ' ', $organization->suspension_reason) }}</span>@endif</td>
                 <td>
                     <span class="badge">Profilo {{ $organization->settings?->completeness ?? 0 }}%</span><br>
                     <span class="muted">IMAP attive: {{ $organization->active_mailboxes_count }}</span>
@@ -32,7 +33,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="5">Nessuna organizzazione configurata.</td></tr>
+            <tr><td colspan="6">Nessuna organizzazione configurata.</td></tr>
         @endforelse
         </tbody>
     </table></div>

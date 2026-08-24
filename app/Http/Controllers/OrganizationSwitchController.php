@@ -12,6 +12,8 @@ class OrganizationSwitchController extends Controller
         $organization = $request->user()->organizations()->whereKey($organization)->firstOrFail();
         $request->session()->put('organization_id', $organization->id);
 
-        return redirect()->route('leads.index')->with('status', 'Workspace attivo: '.$organization->name.'.');
+        $destination = in_array($organization->status, ['onboarding', 'suspended'], true) ? 'onboarding' : 'leads.index';
+
+        return redirect()->route($destination)->with('status', 'Workspace attivo: '.$organization->name.'.');
     }
 }
