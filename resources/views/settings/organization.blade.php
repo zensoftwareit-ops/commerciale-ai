@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Profilo aziendale · Commerciale AI')
+@section('title', 'Profilo aziendale · Daria')
 @section('content')
 <div class="toolbar"><div><h1>Profilo aziendale</h1><p class="muted">Completezza: <strong>{{ $settings->completeness ?? 0 }}%</strong>. L’AI usa solo informazioni dichiarate qui e nella knowledge base.</p></div><span class="badge">Onboarding</span></div>
 <div class="card" style="margin-bottom:1rem"><div class="toolbar" style="margin:0"><div><strong>Provider AI: {{ strtoupper($aiStatus['provider']) }}</strong><div class="muted">Modello {{ $aiStatus['model'] }} · la chiave è letta esclusivamente dal server</div></div><span class="badge {{ $aiStatus['configured'] ? '' : 'hot' }}">{{ $aiStatus['configured'] ? 'Configurato' : 'Chiave mancante' }}</span></div>@unless($aiStatus['configured'])<p class="error">Imposta <code>OPENAI_API_KEY</code> nel file <code>.env</code> del server per abilitare le analisi reali.</p>@endunless</div>

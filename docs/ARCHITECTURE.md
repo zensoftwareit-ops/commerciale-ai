@@ -1,6 +1,6 @@
 # Architettura del pilot
 
-Commerciale AI è un monolite modulare Laravel 12 con interfaccia Blade server-rendered. SQLite è il database predefinito per sviluppo; MariaDB, MySQL e PostgreSQL sono supportati per il server. Code, cache e sessioni usano il database senza servizi aggiuntivi.
+Daria è un monolite modulare Laravel 12 con interfaccia Blade server-rendered. SQLite è il database predefinito per sviluppo; MariaDB, MySQL e PostgreSQL sono supportati per il server. Code, cache e sessioni usano il database senza servizi aggiuntivi.
 
 ## Confini principali
 

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Nuovo lead · Commerciale AI')
+@section('title', 'Nuovo lead · Daria')
 @section('content')
 <div class="toolbar"><h1>Inserimento manuale</h1><a href="{{ route('leads.index') }}">Torna alla inbox</a></div>
 <form class="card" method="post" action="{{ route('leads.store') }}">@csrf<div class="grid grid-2">

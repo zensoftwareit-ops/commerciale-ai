@@ -1,7 +1,7 @@
 @extends('layouts.app')
-@section('title', 'Accedi · Commerciale AI')
+@section('title', 'Accedi · Daria')
 @section('content')
-<div class="auth card"><h1>Accedi</h1><p class="muted">Lavora i lead della tua organizzazione.</p>
+<div class="auth card"><h1>Bentornato</h1><p class="muted">Accedi a Daria e riprendi le conversazioni della tua azienda.</p>
 <form method="post" action="/login">@csrf
 <label for="email">Email</label><input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus>@error('email')<div class="error">{{ $message }}</div>@enderror
 <label for="password">Password</label><input id="password" type="password" name="password" required>

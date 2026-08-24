@@ -1,6 +1,6 @@
 # Guida base di installazione
 
-Questa guida installa una singola istanza di Commerciale AI senza Docker. La stessa applicazione è multi-tenant, ma per il progetto pilota si utilizza una sola organizzazione.
+Questa guida installa una singola istanza di Daria senza Docker. La stessa applicazione è multi-tenant, ma per il progetto pilota si utilizza una sola organizzazione.
 
 ## 1. Requisiti
 
@@ -112,7 +112,7 @@ cp .env.example .env
 Impostare almeno:
 
 ```dotenv
-APP_NAME="Commerciale AI - PreventivoSitoWeb.it"
+APP_NAME="Daria - PreventivoSitoWeb.it"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://DOMINIO-APP
@@ -212,7 +212,7 @@ php artisan key:generate
 Il file `.env` non deve essere pubblicato, versionato o servito dal web server. Un'impostazione minima di produzione è:
 
 ```dotenv
-APP_NAME="Commerciale AI"
+APP_NAME="Daria"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://DOMINIO-DELL-APP
@@ -285,7 +285,7 @@ MAIL_PORT=587
 MAIL_USERNAME=SMTP_USERNAME
 MAIL_PASSWORD=SMTP_PASSWORD
 MAIL_FROM_ADDRESS=EMAIL_MITTENTE
-MAIL_FROM_NAME="Commerciale AI"
+MAIL_FROM_NAME="Daria"
 ```
 
 Su Plesk è possibile usare la casella del dominio. In genere `MAIL_HOST` è il nome del server di posta mostrato nel pannello, la porta è `587` con TLS oppure `465` con SMTPS. Usare sempre i valori forniti dal proprio servizio email.

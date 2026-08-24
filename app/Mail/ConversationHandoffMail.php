@@ -18,7 +18,7 @@ class ConversationHandoffMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: '[Commerciale AI] Intervento richiesto: '.$this->commercialNotification->lead?->name);
+        return new Envelope(subject: '[Daria] Intervento richiesto: '.$this->commercialNotification->lead?->name);
     }
 
     public function content(): Content
@@ -34,4 +34,3 @@ class ConversationHandoffMail extends Mailable
         ]);
     }
 }
-

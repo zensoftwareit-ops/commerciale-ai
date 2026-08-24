@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Email da associare · Commerciale AI')
+@section('title', 'Email da associare · Daria')
 @section('content')
 <div class="toolbar">
     <div>

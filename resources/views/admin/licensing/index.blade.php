@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('title', 'Licenze · Super Admin')
+@section('title', 'Licenze · Daria Super Admin')
 @section('content')
 <div class="toolbar">
     <div>

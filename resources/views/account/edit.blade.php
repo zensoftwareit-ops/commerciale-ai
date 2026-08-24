@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Account · Commerciale AI')
+@section('title', 'Account · Daria')
 @section('content')
 <div class="toolbar"><div><h1>Account</h1><p class="muted">{{ auth()->user()->email }}</p></div><a href="{{ route('leads.index') }}">Torna alla inbox</a></div>
 <form class="card" method="post" action="{{ route('account.password.update') }}" style="max-width:620px">@csrf @method('put')

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Knowledge base · Commerciale AI')
+@section('title', 'Knowledge base · Daria')
 @section('content')
 @php($isOwner=auth()->user()->roleFor(app(\App\Support\Tenancy\TenantContext::class)->organization()) === 'owner')
 <div class="toolbar"><div><h1>Knowledge base</h1><p class="muted">Solo i contenuti attivi vengono usati per preparare le analisi.</p></div>@if($isOwner)<a class="btn" href="{{ route('knowledge.create') }}">+ Aggiungi contenuto</a>@endif</div>

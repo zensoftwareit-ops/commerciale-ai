@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Sorgenti lead · Commerciale AI')
+@section('title', 'Sorgenti lead · Daria')
 @section('content')
 <div class="toolbar"><div><h1>Sorgenti lead</h1><p class="muted">Crea un endpoint dedicato: il sito deve soltanto inviare il proprio payload, senza trasformazioni.</p></div><span class="badge">Solo owner</span></div>
 
@@ -14,7 +14,7 @@
 <div class="grid grid-2">
     <section class="card">
         <h2>Come funziona</h2>
-        <p>Ogni sorgente ha un URL segreto. Commerciale AI riconosce automaticamente contatti, servizio, messaggio, consensi e campi commerciali anche con nomi italiani o inglesi.</p>
+        <p>Ogni sorgente ha un URL segreto. Daria riconosce automaticamente contatti, servizio, messaggio, consensi e campi commerciali anche con nomi italiani o inglesi.</p>
         <p class="muted">I domini configurati vengono verificati rispetto a Origin, Referer o URL presenti nel payload. Nei POST server-to-server senza questi dati, l’autenticazione è garantita dal token segreto dell’endpoint.</p>
     </section>
     <form class="card" method="post" action="{{ route('settings.sources.store') }}">@csrf

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Notifiche · Commerciale AI')
+@section('title', 'Notifiche · Daria')
 @section('content')
 <div class="toolbar">
     <div><div class="page-kicker">Centro operativo</div><h1>Notifiche</h1><p class="muted">Segnalazioni che richiedono l’intervento del team commerciale.</p></div>
@@ -26,4 +26,3 @@
     <div class="pagination">{{ $notifications->links() }}</div>
 </section>
 @endsection
-

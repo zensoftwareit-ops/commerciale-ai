@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', ($document->exists ? 'Modifica' : 'Nuovo contenuto').' · Commerciale AI')
+@section('title', ($document->exists ? 'Modifica' : 'Nuovo contenuto').' · Daria')
 @section('content')
 <div class="toolbar"><h1>{{ $document->exists ? 'Modifica contenuto' : 'Nuovo contenuto' }}</h1><a href="{{ route('knowledge.index') }}">Torna alla knowledge base</a></div>
 <form class="card" method="post" action="{{ $document->exists ? route('knowledge.update',$document) : route('knowledge.store') }}">@csrf @if($document->exists) @method('put') @endif

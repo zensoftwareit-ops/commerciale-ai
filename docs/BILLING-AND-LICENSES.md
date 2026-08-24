@@ -69,7 +69,7 @@ BILLING_INTEGRATION_KEY=SEGRETO_CASUALE_DI_ALMENO_32_BYTE
 
 Il webhook Stripe firmato arriverà al plugin WordPress, che riconcilierà il pagamento
 con il software tramite API idempotenti. Stripe sarà la fonte dello stato economico;
-Commerciale AI conserverà licenze, organizzazioni, owner, limiti e cronologia degli
+Daria conserverà licenze, organizzazioni, owner, limiti e cronologia degli
 eventi.
 
 Gli stati `active` e `trialing` consentono l'uso. Gli stati `past_due`, `unpaid`,

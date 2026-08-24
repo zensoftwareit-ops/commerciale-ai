@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', $lead->name.' · Commerciale AI')
+@section('title', $lead->name.' · Daria')
 @section('content')
 <div class="toolbar">
     <div>
@@ -199,4 +199,3 @@
 </section>
 @endif
 @endsection
-

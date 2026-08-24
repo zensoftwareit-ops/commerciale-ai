@@ -1,6 +1,6 @@
-# Commerciale AI — Pilot
+# Daria — Pilot
 
-Applicazione PHP/Laravel multi-tenant per acquisire, qualificare e lavorare lead commerciali. Include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base, analisi strutturata, risposte email con approvazione umana e sincronizzazione IMAP.
+Daria è l'assistente AI per le PMI che comprende, qualifica e prepara la risposta ai lead in ingresso. L'applicazione PHP/Laravel multi-tenant include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base, analisi strutturata, risposte email e sincronizzazione IMAP.
 
 Il proprietario dell'istanza può eliminare definitivamente un lead dalla relativa scheda, insieme a tutti i dati collegati. L'operazione richiede la conferma testuale `ELIMINA` e non è disponibile agli utenti sales.
 

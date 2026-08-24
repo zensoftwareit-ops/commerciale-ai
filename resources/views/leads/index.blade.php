@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Lead inbox · Commerciale AI')
+@section('title', 'Lead inbox · Daria')
 @section('content')
 @php
     $readyCount = collect($pilotReadiness)->filter()->count();
@@ -71,4 +71,3 @@
     <div class="pagination">{{ $leads->links() }}</div>
 </section>
 @endsection
-

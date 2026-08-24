@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Caselle email · Commerciale AI')
+@section('title', 'Caselle email · Daria')
 @section('content')
 <div class="toolbar"><div><div class="page-kicker">Configurazione</div><h1>Caselle email</h1><p class="muted">Collega una o più caselle IMAP. Le password sono cifrate e non vengono mai mostrate.</p></div><span class="badge">Solo owner</span></div>
 @error('imap')<div class="error">{{ $message }}</div>@enderror
@@ -30,4 +30,3 @@
     <button class="btn" style="margin-top:16px">Salva casella</button>
 </form>
 @endsection
-

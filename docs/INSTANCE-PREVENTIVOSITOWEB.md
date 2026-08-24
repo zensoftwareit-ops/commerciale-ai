@@ -1,6 +1,6 @@
 # Configurazione pilota: preventivositoweb.it
 
-Questa guida parte da un'installazione completata seguendo [INSTALLATION.md](INSTALLATION.md). L'obiettivo è ricevere in Commerciale AI le richieste generate dal questionario di `preventivositoweb.it` e qualificarle usando le informazioni commerciali del sito.
+Questa guida parte da un'installazione completata seguendo [INSTALLATION.md](INSTALLATION.md). L'obiettivo è ricevere in Daria le richieste generate dal questionario di `preventivositoweb.it` e qualificarle usando le informazioni commerciali del sito.
 
 I testi suggeriti sono stati ricavati dalla pagina pubblica [preventivositoweb.it](https://preventivositoweb.it/) il 9 agosto 2026. Ragione sociale, criteri di esclusione e condizioni commerciali devono essere verificati dal titolare prima dell'uso reale.
 
@@ -15,7 +15,7 @@ https://commerciale.preventivositoweb.it
 Il sito pubblico e l'applicazione commerciale restano così separati. Nel `.env` dell'istanza:
 
 ```dotenv
-APP_NAME="Commerciale AI - PreventivoSitoWeb.it"
+APP_NAME="Daria - PreventivoSitoWeb.it"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://commerciale.preventivositoweb.it
@@ -246,4 +246,3 @@ Durante il collaudo:
 6. abilitare l'invio dei preventivi soltanto dopo aver verificato manualmente tutte le fasce.
 
 Il sistema conserva ogni versione della stima e mostra nella scheda lead i motivi che bloccano l'invio automatico.
-
