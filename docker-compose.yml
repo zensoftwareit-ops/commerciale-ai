@@ -1,0 +1,67 @@
+name: ${COMPOSE_PROJECT_NAME:-commerciale-ai-wordpress}
+
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${WORDPRESS_DB_NAME}
+      MARIADB_USER: ${WORDPRESS_DB_USER}
+      MARIADB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${WORDPRESS_DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  wordpress:
+    image: wordpress:7.1-php8.3-apache
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${WP_PORT:-8080}:80"
+    environment: &wordpress_environment
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
+      WORDPRESS_SALT: ${WORDPRESS_SALT}
+      WP_HOME: ${WP_HOME}
+      WP_ENVIRONMENT_TYPE: ${WP_ENVIRONMENT_TYPE:-production}
+      WP_DEBUG: ${WP_DEBUG:-false}
+      CAI_API_BASE_URL: ${CAI_API_BASE_URL}
+      CAI_API_KEY: ${CAI_API_KEY}
+      CAI_STRIPE_SECRET_KEY: ${CAI_STRIPE_SECRET_KEY}
+      CAI_STRIPE_WEBHOOK_SECRET: ${CAI_STRIPE_WEBHOOK_SECRET}
+      CAI_SOFTWARE_URL: ${CAI_SOFTWARE_URL}
+    volumes:
+      - ./standalone:/var/www/html
+
+  wpcli:
+    image: wordpress:cli-php8.3
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    environment:
+      <<: *wordpress_environment
+      WP_SITE_TITLE: ${WP_SITE_TITLE:-Commerciale AI}
+      WP_ADMIN_USER: ${WP_ADMIN_USER}
+      WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
+      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
+    user: "33:33"
+    entrypoint: ["/bin/sh", "/scripts/bootstrap.sh"]
+    volumes:
+      - ./standalone:/var/www/html
+      - ./scripts:/scripts:ro
+    restart: "no"
+
+volumes:
+  db_data:

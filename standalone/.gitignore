@@ -1,0 +1,8 @@
+/wp-content/uploads/*
+!/wp-content/uploads/.gitkeep
+/wp-content/cache/*
+!/wp-content/cache/.gitkeep
+/wp-content/upgrade/
+/wp-content/debug.log
+/wp-config.php
+/.htaccess.backup
