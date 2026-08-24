@@ -6,19 +6,43 @@ use App\Models\Organization;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 trait BelongsToOrganization
 {
     protected static function bootBelongsToOrganization(): void
     {
         static::addGlobalScope('organization', function (Builder $builder): void {
-            if ($organizationId = app(TenantContext::class)->id()) {
-                $builder->where($builder->qualifyColumn('organization_id'), $organizationId);
+            $organizationId = app(TenantContext::class)->id();
+            if (! $organizationId) {
+                $builder->whereRaw('1 = 0');
+                return;
             }
+
+            $builder->where($builder->qualifyColumn('organization_id'), $organizationId);
         });
 
         static::creating(function ($model): void {
-            $model->organization_id ??= app(TenantContext::class)->id();
+            $organizationId = app(TenantContext::class)->id();
+            $model->organization_id ??= $organizationId;
+
+            if (! $model->organization_id) {
+                throw new LogicException('A tenant-scoped record requires an organization.');
+            }
+            if ($organizationId && (string) $model->organization_id !== (string) $organizationId) {
+                throw new LogicException('A tenant-scoped record cannot be created for another organization.');
+            }
+        });
+
+        static::saving(function ($model): void {
+            if ($model->exists && $model->isDirty('organization_id')) {
+                throw new LogicException('The organization of a tenant-scoped record is immutable.');
+            }
+
+            $organizationId = app(TenantContext::class)->id();
+            if ($organizationId && (string) $model->organization_id !== (string) $organizationId) {
+                throw new LogicException('A tenant-scoped record cannot be changed from another organization.');
+            }
         });
     }
 

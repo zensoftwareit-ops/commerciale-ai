@@ -84,7 +84,7 @@ class LicensingTest extends CommercialeAiTestCase
         $this->assertSame('active', $license->status);
         $this->assertNotNull($license->current_period_ends_at);
         $this->assertDatabaseHas('organization_settings', ['organization_id' => $organization->id]);
-        $this->assertSame(8, PipelineStage::query()->where('organization_id', $organization->id)->count());
+        $this->assertSame(8, PipelineStage::withoutGlobalScopes()->where('organization_id', $organization->id)->count());
     }
 
     public function test_only_super_admin_can_open_licensing_panel(): void
@@ -93,6 +93,17 @@ class LicensingTest extends CommercialeAiTestCase
         $this->actingAs($user)->get(route('admin.licensing'))->assertForbidden();
         $user->update(['is_super_admin' => true]);
         $this->actingAs($user->fresh())->get(route('admin.licensing'))->assertOk();
+    }
+
+    public function test_super_admin_can_open_the_multi_tenant_customer_overview(): void
+    {
+        [$organization, $admin] = $this->organizationWithUser();
+        $admin->update(['is_super_admin' => true]);
+
+        $this->actingAs($admin->fresh())->get(route('admin.organizations.index'))
+            ->assertOk()
+            ->assertSee($organization->name)
+            ->assertSee('Clienti e organizzazioni');
     }
 
     public function test_active_plan_limits_new_leads_and_included_users(): void

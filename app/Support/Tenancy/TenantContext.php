@@ -4,6 +4,7 @@ namespace App\Support\Tenancy;
 
 use App\Models\Organization;
 use LogicException;
+use Closure;
 
 class TenantContext
 {
@@ -32,5 +33,18 @@ class TenantContext
     public function requireOrganization(): Organization
     {
         return $this->organization ?? throw new LogicException('No organization is active.');
+    }
+
+    /** @template T @param Closure():T $callback @return T */
+    public function run(Organization $organization, Closure $callback): mixed
+    {
+        $previous = $this->organization;
+        $this->set($organization);
+
+        try {
+            return $callback();
+        } finally {
+            $previous ? $this->set($previous) : $this->clear();
+        }
     }
 }

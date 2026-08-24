@@ -11,10 +11,12 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadReplyController;
 use App\Http\Controllers\MailboxAccountController;
 use App\Http\Controllers\OrganizationSettingsController;
+use App\Http\Controllers\OrganizationSwitchController;
 use App\Http\Controllers\OrganizationUserController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PricingRuleController;
 use App\Http\Controllers\Admin\LicensingDashboardController;
+use App\Http\Controllers\Admin\OrganizationController as AdminOrganizationController;
 use App\Http\Controllers\Admin\LicensePlanController as AdminLicensePlanController;
 use App\Http\Controllers\Admin\LicenseController as AdminLicenseController;
 use Illuminate\Support\Facades\Route;
@@ -31,8 +33,10 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->post('/logout', [AuthController::class, 'destroy'])->name('logout');
+Route::middleware('auth')->post('/organizations/{organization}/switch', OrganizationSwitchController::class)->name('organizations.switch');
 Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->group(function (): void {
     Route::get('/licensing', LicensingDashboardController::class)->name('licensing');
+    Route::get('/organizations', [AdminOrganizationController::class, 'index'])->name('organizations.index');
     Route::post('/plans', [AdminLicensePlanController::class, 'store'])->name('plans.store');
     Route::put('/plans/{plan}', [AdminLicensePlanController::class, 'update'])->name('plans.update');
     Route::post('/licenses', [AdminLicenseController::class, 'store'])->name('licenses.store');

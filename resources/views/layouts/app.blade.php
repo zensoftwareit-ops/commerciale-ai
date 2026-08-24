@@ -19,7 +19,7 @@
         a{color:var(--brand);text-decoration:none}a:hover{color:var(--brand-dark)}button,input,select,textarea{font:inherit}
         .app-shell{min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:256px;background:var(--nav);color:#d0d5dd;padding:24px 16px;display:flex;flex-direction:column;z-index:30}
         .brand-lockup{display:flex;align-items:center;padding:0 8px 22px;color:white}.brand-lockup:hover{color:white}.brand-logo{display:block;width:142px;height:auto}.brand-logo-mobile{display:block;width:92px;height:auto}.brand-copy{line-height:1.15}.brand-copy small{color:#aab3c2;font-size:11px}
-        .org-chip{margin:0 4px 20px;padding:10px 12px;border:1px solid #344054;border-radius:10px;background:#1d2939}.org-chip span{display:block;color:#98a2b3;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.org-chip strong{display:block;color:#f2f4f7;font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .org-chip{margin:0 4px 20px;padding:10px 12px;border:1px solid #344054;border-radius:10px;background:#1d2939}.org-chip span{display:block;color:#98a2b3;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.org-chip strong{display:block;color:#f2f4f7;font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.org-chip form{margin-top:8px}.org-chip select{padding:6px 8px;border-color:#46556f;background:#263654;color:#fff;font-size:11px;box-shadow:none}
         .nav-label{padding:0 12px;margin:9px 0 6px;color:#7f8ba0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em}.nav{display:grid;gap:3px}.nav-link{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;color:#c5ccd7;font-weight:600}.nav-link:hover{background:#21304d;color:white}.nav-link.active{background:#263654;color:white;box-shadow:inset 3px 0 var(--brand)}.nav-icon{width:19px;height:19px;display:grid;place-items:center;color:currentColor}.nav-icon svg{width:19px;height:19px;stroke:currentColor}.nav-count{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--brand);color:var(--ink);display:grid;place-items:center;font-size:11px;font-weight:800}
         .sidebar-footer{margin-top:auto;padding-top:16px;border-top:1px solid #344054}.user-card{display:flex;align-items:center;gap:10px;padding:8px}.avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#344054;color:#f2f4f7;font-weight:700}.user-meta{min-width:0;flex:1}.user-meta a{display:block;color:#f2f4f7;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.user-meta small{color:#98a2b3}.logout-button{border:0;background:transparent;color:#98a2b3;cursor:pointer;padding:7px;border-radius:7px}.logout-button:hover{background:#344054;color:white}
         .workspace{margin-left:256px;min-height:100vh}.mobile-topbar{display:none}.container{max-width:1440px;margin:0 auto;padding:36px 36px 64px}
@@ -45,6 +45,7 @@
 @auth
     @php($activeOrganization=app(\App\Support\Tenancy\TenantContext::class)->organization())
     @php($activeRole=auth()->user()->roleFor($activeOrganization))
+    @php($availableOrganizations=auth()->user()->organizations()->orderBy('name')->get())
     @php($pendingInboundCount=in_array($activeRole, ['owner', 'sales'], true) ? \App\Models\InboundEmail::query()->where('status', 'pending')->count() : 0)
     @php($unreadNotificationCount=\App\Models\CommercialNotification::query()->where('user_id',auth()->id())->whereNull('read_at')->count())
     <div class="app-shell">
@@ -52,7 +53,17 @@
             <a class="brand-lockup" href="{{ route('leads.index') }}">
                 <img class="brand-logo" src="{{ asset('brand/daria-logo-white.svg') }}" alt="Daria">
             </a>
-            <div class="org-chip"><span>Workspace</span><strong>{{ $activeOrganization?->name }}</strong></div>
+            <div class="org-chip">
+                <span>Workspace</span><strong>{{ $activeOrganization?->name }}</strong>
+                @if($availableOrganizations->count() > 1)
+                    <form method="post" action="{{ route('organizations.switch', ['organization' => '__organization__']) }}" onsubmit="this.action=this.action.replace('__organization__',this.organization.value)">
+                        @csrf
+                        <select name="organization" aria-label="Cambia workspace" onchange="this.form.requestSubmit()">
+                            @foreach($availableOrganizations as $organization)<option value="{{ $organization->id }}" @selected($organization->is($activeOrganization))>{{ $organization->name }}</option>@endforeach
+                        </select>
+                    </form>
+                @endif
+            </div>
             <div class="nav-label">Operatività</div>
             <nav class="nav" aria-label="Navigazione principale">
                 <a class="nav-link @if(request()->routeIs('leads.*')) active @endif" href="{{ route('leads.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M4 7.5h16M4 12h16M4 16.5h10" stroke-width="1.8" stroke-linecap="round"/></svg></span>Lead inbox</a>

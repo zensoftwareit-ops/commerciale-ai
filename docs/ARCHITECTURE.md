@@ -2,6 +2,12 @@
 
 Daria è un monolite modulare Laravel 12 con interfaccia Blade server-rendered. SQLite è il database predefinito per sviluppo; MariaDB, MySQL e PostgreSQL sono supportati per il server. Code, cache e sessioni usano il database senza servizi aggiuntivi.
 
+La produzione utilizza un'unica applicazione e un database condiviso multi-tenant.
+I modelli operativi applicano uno scope `organization_id` fail-closed: in assenza
+di un tenant attivo non restituiscono record. Le operazioni di piattaforma devono
+usare esplicitamente `withoutGlobalScopes()` e filtrare l'organizzazione interessata.
+Vedi [SAAS-ROADMAP.md](SAAS-ROADMAP.md).
+
 ## Confini principali
 
 - `Support/Tenancy`: contesto tenant e scope Eloquent centralizzato.
