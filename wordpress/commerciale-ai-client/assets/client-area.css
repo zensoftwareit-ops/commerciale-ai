@@ -1,0 +1,54 @@
+.cai-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+.cai-plan { position: relative; display: flex; min-width: 0; flex-direction: column; padding: 30px; border: 1px solid rgba(16,34,37,.14); border-radius: 22px; background: #fffdf8; box-shadow: 0 12px 30px rgba(16,34,37,.05); }
+.cai-plan--featured { border-color: #102225; box-shadow: 0 24px 60px rgba(16,34,37,.14); transform: translateY(-8px); }
+.cai-plan__badge { position: absolute; top: -13px; right: 24px; padding: 5px 12px; border-radius: 999px; color: #fff; background: #f1664b; font-size: 11px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.cai-plan__name { margin: 0 0 10px; font-size: 24px; font-weight: 850; letter-spacing: -.035em; }
+.cai-plan__description { min-height: 52px; margin: 0 0 24px; color: #5f7071; font-size: 14px; }
+.cai-plan__price { display: flex; align-items: baseline; gap: 6px; padding-bottom: 22px; border-bottom: 1px solid rgba(16,34,37,.12); }
+.cai-plan__price strong { font-size: 40px; line-height: 1; letter-spacing: -.055em; }
+.cai-plan__price span { color: #5f7071; font-size: 13px; }
+.cai-plan__features { flex: 1; margin: 24px 0 30px; padding: 0; list-style: none; }
+.cai-plan__features li { position: relative; margin: 0 0 12px; padding-left: 24px; font-size: 14px; }
+.cai-plan__features li::before { position: absolute; left: 0; color: #f1664b; content: "✓"; font-weight: 900; }
+.cai-plan form { margin: 0; }
+.cai-action { display: inline-flex; min-height: 46px; width: auto; align-items: center; justify-content: center; padding: 11px 19px; border: 1px solid #102225; border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 800; text-align: center; text-decoration: none; transition: transform .2s, box-shadow .2s; }
+.cai-plan .cai-action { width: 100%; }
+.cai-action:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,34,37,.16); }
+.cai-action--primary { color: #fff; background: #102225; }
+.cai-action--secondary { color: #102225; background: transparent; }
+.cai-action--disabled { color: #778483; background: #edf0ed; border-color: #edf0ed; cursor: default; }
+.cai-action--disabled:hover { transform: none; box-shadow: none; }
+.cai-message { margin: 0 0 24px; padding: 14px 18px; border: 1px solid; border-radius: 13px; font-size: 14px; }
+.cai-message--success { border-color: #8ac9aa; background: #e8f7ef; }
+.cai-message--error { border-color: #e5a194; background: #fff0ed; }
+.cai-message--info { border-color: #dbc276; background: #fff8d9; }
+.cai-account__header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+.cai-account__header h2 { margin: 4px 0 0; }
+.cai-kicker { color: #f1664b; font-size: 11px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+.cai-link-button { min-height: auto; padding: 0; border: 0; color: #5f7071; background: transparent; box-shadow: none; font-size: 13px; text-decoration: underline; }
+.cai-link-button:hover { color: #102225; transform: none; box-shadow: none; }
+.cai-account__grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; }
+.cai-panel { padding: 28px; border: 1px solid rgba(16,34,37,.14); border-radius: 20px; background: #fffdf8; }
+.cai-panel h3 { margin: 0 0 22px; }
+.cai-subscription { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cai-subscription > div { padding: 13px; border-radius: 12px; background: #f3f3ed; }
+.cai-subscription span, .cai-license > span { display: block; margin-bottom: 4px; color: #5f7071; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.cai-subscription strong { display: block; font-size: 14px; }
+.cai-status { color: #7d3230; }
+.cai-status--active, .cai-status--trialing { color: #287354; }
+.cai-license { margin: 16px 0; padding: 13px; border: 1px dashed rgba(16,34,37,.18); border-radius: 12px; }
+.cai-license code { overflow-wrap: anywhere; }
+.cai-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+.cai-actions form { margin: 0; }
+.cai-form { display: grid; gap: 15px; }
+.cai-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
+.cai-form input:not([type="checkbox"]) { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid rgba(16,34,37,.18); border-radius: 11px; color: #102225; background: #fff; font: inherit; }
+.cai-form input:focus { border-color: #f1664b; outline: 3px solid rgba(241,102,75,.12); }
+.cai-form input:disabled { color: #6b7777; background: #f1f2ef; }
+.cai-form small { color: #5f7071; font-weight: 500; }
+.cai-check { display: flex !important; grid-template-columns: auto 1fr; align-items: center; }
+.cai-auth-grid { display: grid; max-width: 980px; grid-template-columns: 1fr 1fr; gap: 20px; }
+.cai-auth-card { padding: clamp(24px, 4vw, 38px); border: 1px solid rgba(16,34,37,.14); border-radius: 22px; background: #fffdf8; box-shadow: 0 24px 70px rgba(16,34,37,.08); }
+.cai-auth-card h2 { margin: 7px 0 26px; }
+.cai-small-link { color: #5f7071; font-size: 12px; }
+@media (max-width: 780px) { .cai-plan--featured { transform: none; } .cai-account__grid, .cai-auth-grid { grid-template-columns: 1fr; } .cai-subscription { grid-template-columns: 1fr; } }
