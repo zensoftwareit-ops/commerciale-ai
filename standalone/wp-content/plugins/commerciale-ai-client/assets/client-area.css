@@ -3,11 +3,13 @@
 .cai-plan--featured { border-color: #102225; box-shadow: 0 24px 60px rgba(16,34,37,.14); transform: translateY(-8px); }
 .cai-plan__badge { position: absolute; top: -13px; right: 24px; padding: 5px 12px; border-radius: 999px; color: #fff; background: #f1664b; font-size: 11px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
 .cai-plan__name { margin: 0 0 10px; font-size: 24px; font-weight: 850; letter-spacing: -.035em; }
+.cai-plan__fit { margin: -4px 0 13px; color: #d94d36; font-size: 11px; font-weight: 850; letter-spacing: .035em; text-transform: uppercase; }
 .cai-plan__description { min-height: 52px; margin: 0 0 24px; color: #5f7071; font-size: 14px; }
 .cai-plan__price { display: flex; align-items: baseline; gap: 6px; padding-bottom: 22px; border-bottom: 1px solid rgba(16,34,37,.12); }
 .cai-plan__price strong { font-size: 40px; line-height: 1; letter-spacing: -.055em; }
 .cai-plan__price span { color: #5f7071; font-size: 13px; }
-.cai-plan__features { flex: 1; margin: 24px 0 30px; padding: 0; list-style: none; }
+.cai-plan__monthly { min-height: 40px; margin: 10px 0 0; color: #5f7071; font-size: 11px; }
+.cai-plan__features { flex: 1; margin: 20px 0 30px; padding: 0; list-style: none; }
 .cai-plan__features li { position: relative; margin: 0 0 12px; padding-left: 24px; font-size: 14px; }
 .cai-plan__features li::before { position: absolute; left: 0; color: #f1664b; content: "✓"; font-weight: 900; }
 .cai-plan form { margin: 0; }

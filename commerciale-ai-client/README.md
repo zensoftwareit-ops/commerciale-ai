@@ -59,7 +59,8 @@ abbiano una licenza valida.
 
 ## Shortcode
 
-- `[commerciale_ai_pricing]` mostra i piani e avvia Checkout;
+- `[commerciale_ai_pricing]` mostra i piani, i posti utente, le soglie mensili
+  di lead e AI, l'equivalente mensile del prezzo annuale e avvia Checkout;
 - `[commerciale_ai_account]` mostra registrazione, login e area cliente.
 
 Gli shortcode funzionano con qualunque tema; il tema `commerciale-ai-theme`

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Commerciale AI Client Area
  * Description: Registrazione, listino, Stripe Checkout, Customer Portal e provisioning licenze Commerciale AI.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Zen Software
  * Requires at least: 6.5
  * Requires PHP: 8.1
@@ -14,7 +14,7 @@ defined('ABSPATH') || exit;
 
 final class Commerciale_AI_Client_Area
 {
-    private const VERSION = '1.0.0';
+    private const VERSION = '1.1.0';
     private const OPTION_KEYS = ['cai_api_base_url', 'cai_api_key', 'cai_stripe_secret_key', 'cai_stripe_webhook_secret', 'cai_software_url'];
     private const SECRET_KEYS = ['cai_api_key', 'cai_stripe_secret_key', 'cai_stripe_webhook_secret'];
     private const ACTIVE_STATUSES = ['active', 'trialing'];
@@ -174,10 +174,17 @@ final class Commerciale_AI_Client_Area
             if (! is_array($plan)) continue;
             $featured = count($plans) === 3 && $index === 1;
             echo '<article class="cai-plan'.($featured ? ' cai-plan--featured' : '').'">';
-            if ($featured) echo '<span class="cai-plan__badge">'.esc_html__('Più scelto', 'commerciale-ai-client').'</span>';
-            echo '<p class="cai-plan__name">'.esc_html($plan['name'] ?? '').'</p><p class="cai-plan__description">'.esc_html($plan['description'] ?? '').'</p>';
-            echo '<div class="cai-plan__price"><strong>'.esc_html(self::money((int) ($plan['annual_price_cents'] ?? 0), (string) ($plan['currency'] ?? 'EUR'))).'</strong><span>/'.esc_html__('anno', 'commerciale-ai-client').'</span></div><ul class="cai-plan__features">';
-            echo '<li>'.esc_html(sprintf(_n('%d utente incluso', '%d utenti inclusi', (int) ($plan['seat_limit'] ?? 1), 'commerciale-ai-client'), (int) ($plan['seat_limit'] ?? 1))).'</li>';
+            if ($featured) echo '<span class="cai-plan__badge">'.esc_html__('Consigliato', 'commerciale-ai-client').'</span>';
+            $price = (int) ($plan['annual_price_cents'] ?? 0);
+            $currency = (string) ($plan['currency'] ?? 'EUR');
+            echo '<p class="cai-plan__name">'.esc_html($plan['name'] ?? '').'</p><p class="cai-plan__fit">'.esc_html(self::plan_fit($plan)).'</p><p class="cai-plan__description">'.esc_html($plan['description'] ?? '').'</p>';
+            echo '<div class="cai-plan__price"><strong>'.esc_html(self::money($price, $currency)).'</strong><span>/'.esc_html__('anno', 'commerciale-ai-client').'</span></div>';
+            if ($price > 0) echo '<p class="cai-plan__monthly">'.esc_html(sprintf(__('Equivale a %s/mese, con fatturazione annuale.', 'commerciale-ai-client'), self::money((int) round($price / 12), $currency))).'</p>';
+            echo '<ul class="cai-plan__features">';
+            $seats = max(1, (int) ($plan['seat_limit'] ?? 1));
+            echo '<li><strong>'.esc_html(sprintf(_n('%d utente incluso', '%d utenti inclusi', $seats, 'commerciale-ai-client'), $seats)).'</strong></li>';
+            echo '<li>'.esc_html(self::limit_label($plan['monthly_lead_limit'] ?? null, __('lead al mese', 'commerciale-ai-client'), __('Lead senza soglia mensile di piano', 'commerciale-ai-client'))).'</li>';
+            echo '<li>'.esc_html(self::limit_label($plan['monthly_ai_token_limit'] ?? null, __('token AI al mese', 'commerciale-ai-client'), __('AI senza soglia mensile di piano', 'commerciale-ai-client'))).'</li>';
             foreach ($plan['features'] ?? [] as $feature) echo '<li>'.esc_html((string) $feature).'</li>';
             echo '</ul>';
             if (! is_user_logged_in()) {
@@ -193,6 +200,20 @@ final class Commerciale_AI_Client_Area
         }
         echo '</div>';
         return (string) ob_get_clean();
+    }
+
+    private static function plan_fit(array $plan): string
+    {
+        $seats = max(1, (int) ($plan['seat_limit'] ?? 1));
+        if ($seats === 1) return __('Per professionisti e attività individuali', 'commerciale-ai-client');
+        if ($seats <= 3) return __('Per piccoli team che condividono i lead', 'commerciale-ai-client');
+        return __('Per team commerciali strutturati', 'commerciale-ai-client');
+    }
+
+    private static function limit_label(mixed $value, string $suffix, string $unlimited): string
+    {
+        if ($value === null || $value === '') return $unlimited;
+        return number_format_i18n(max(0, (int) $value)).' '.$suffix;
     }
 
     public static function account_shortcode(): string

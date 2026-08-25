@@ -20,11 +20,11 @@
         </a>
         <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-menu">Menu</button>
         <nav class="primary-nav" id="primary-menu" aria-label="<?php esc_attr_e('Navigazione principale', 'commerciale-ai'); ?>">
-            <?php wp_nav_menu(['theme_location' => 'primary', 'container' => false, 'fallback_cb' => 'cai_theme_menu_fallback']); ?>
+            <?php wp_nav_menu(['theme_location' => 'primary', 'container' => false, 'fallback_cb' => 'cai_theme_menu_fallback', 'depth' => 2]); ?>
         </nav>
         <div class="header-actions">
             <a class="cai-button cai-button--ghost" href="<?php echo esc_url(cai_account_url()); ?>"><?php echo is_user_logged_in() ? esc_html__('Il mio account', 'commerciale-ai') : esc_html__('Accedi', 'commerciale-ai'); ?></a>
-            <a class="cai-button cai-button--coral" href="<?php echo esc_url(home_url('/#prezzi')); ?>"><?php esc_html_e('Inizia ora', 'commerciale-ai'); ?></a>
+            <a class="cai-button cai-button--coral" href="<?php echo esc_url(cai_page_url('prezzi')); ?>"><?php esc_html_e('Inizia ora', 'commerciale-ai'); ?></a>
         </div>
     </div>
 </header>

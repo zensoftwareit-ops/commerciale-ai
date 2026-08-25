@@ -7,7 +7,9 @@
 
 defined('ABSPATH') || exit;
 
-define('CAI_THEME_VERSION', '1.0.0');
+define('CAI_THEME_VERSION', '2.0.0');
+
+require_once get_template_directory().'/inc/site-structure.php';
 
 function cai_theme_setup(): void
 {
@@ -34,10 +36,18 @@ add_action('wp_enqueue_scripts', 'cai_theme_assets');
 
 function cai_theme_menu_fallback(): void
 {
-    echo '<ul>';
-    echo '<li><a href="'.esc_url(home_url('/#funzioni')).'">'.esc_html__('Funzioni', 'commerciale-ai').'</a></li>';
-    echo '<li><a href="'.esc_url(home_url('/#come-funziona')).'">'.esc_html__('Come funziona', 'commerciale-ai').'</a></li>';
-    echo '<li><a href="'.esc_url(home_url('/#prezzi')).'">'.esc_html__('Prezzi', 'commerciale-ai').'</a></li>';
+    echo '<ul class="menu">';
+    echo '<li class="menu-item menu-item-has-children"><a href="'.esc_url(cai_page_url('prodotto')).'">'.esc_html__('Prodotto', 'commerciale-ai').'</a><ul class="sub-menu">';
+    echo '<li><a href="'.esc_url(cai_page_url('acquisizione-lead')).'">'.esc_html__('Acquisizione lead', 'commerciale-ai').'</a></li>';
+    echo '<li><a href="'.esc_url(cai_page_url('qualificazione-ai')).'">'.esc_html__('Qualificazione AI', 'commerciale-ai').'</a></li>';
+    echo '<li><a href="'.esc_url(cai_page_url('pipeline-follow-up')).'">'.esc_html__('Pipeline e follow-up', 'commerciale-ai').'</a></li></ul></li>';
+    echo '<li class="menu-item menu-item-has-children"><a href="'.esc_url(cai_page_url('soluzioni')).'">'.esc_html__('Soluzioni', 'commerciale-ai').'</a><ul class="sub-menu">';
+    echo '<li><a href="'.esc_url(cai_page_url('professionisti')).'">'.esc_html__('Professionisti', 'commerciale-ai').'</a></li>';
+    echo '<li><a href="'.esc_url(cai_page_url('team-commerciali')).'">'.esc_html__('Team commerciali', 'commerciale-ai').'</a></li>';
+    echo '<li><a href="'.esc_url(cai_page_url('agenzie-b2b')).'">'.esc_html__('Agenzie e servizi B2B', 'commerciale-ai').'</a></li></ul></li>';
+    echo '<li><a href="'.esc_url(cai_page_url('come-funziona')).'">'.esc_html__('Come funziona', 'commerciale-ai').'</a></li>';
+    echo '<li><a href="'.esc_url(cai_page_url('prezzi')).'">'.esc_html__('Prezzi', 'commerciale-ai').'</a></li>';
+    echo '<li><a href="'.esc_url(cai_page_url('faq')).'">'.esc_html__('FAQ', 'commerciale-ai').'</a></li>';
     echo '</ul>';
 }
 

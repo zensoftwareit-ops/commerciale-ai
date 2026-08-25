@@ -9,6 +9,8 @@ const required = [
     'commerciale-ai-theme/header.php',
     'commerciale-ai-theme/footer.php',
     'commerciale-ai-theme/front-page.php',
+    'commerciale-ai-theme/page.php',
+    'commerciale-ai-theme/inc/site-structure.php',
     'commerciale-ai-client/commerciale-ai-client.php',
     'commerciale-ai-client/assets/client-area.css',
     'standalone/wp-content/mu-plugins/commerciale-ai-bootstrap.php',
@@ -60,6 +62,49 @@ function validateDelimiters(filename) {
 for (const filename of phpFiles) {
     if (!validateDelimiters(filename)) {
         console.error(`Delimitatori PHP non bilanciati: ${path.relative(root, filename)}`);
+        failed = true;
+    }
+}
+
+const structure = fs.readFileSync(path.join(root, 'commerciale-ai-theme/inc/site-structure.php'), 'utf8');
+for (const marker of [
+    "'prodotto' =>", "'acquisizione-lead' =>", "'qualificazione-ai' =>", "'risposte-conversazioni' =>",
+    "'pipeline-follow-up' =>", "'knowledge-base' =>", "'team-sicurezza-consumi' =>", "'soluzioni' =>",
+    "'professionisti' =>", "'team-commerciali' =>", "'agenzie-b2b' =>", "'come-funziona' =>",
+    "'prezzi' =>", "'faq' =>", "'contatti' =>",
+]) {
+    if (!structure.includes(marker)) {
+        console.error(`Alberatura incompleta: ${marker}`);
+        failed = true;
+    }
+}
+
+for (const [source, installed] of [
+    ['commerciale-ai-theme', 'standalone/wp-content/themes/commerciale-ai-theme'],
+    ['commerciale-ai-client', 'standalone/wp-content/plugins/commerciale-ai-client'],
+]) {
+    const sourceRoot = path.join(root, source);
+    const installedRoot = path.join(root, installed);
+    const compare = directory => {
+        for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
+            const filename = path.join(directory, entry.name);
+            if (entry.isDirectory()) compare(filename);
+            else {
+                const relative = path.relative(sourceRoot, filename);
+                const installedFile = path.join(installedRoot, relative);
+                if (!fs.existsSync(installedFile) || !fs.readFileSync(filename).equals(fs.readFileSync(installedFile))) {
+                    console.error(`Copia standalone non sincronizzata: ${relative}`);
+                    failed = true;
+                }
+            }
+        }
+    };
+    compare(sourceRoot);
+}
+
+for (const forbidden of ['wp-config.php', 'standalone/wp-config.php']) {
+    if (fs.existsSync(path.join(root, forbidden))) {
+        console.error(`Configurazione reale da non versionare: ${forbidden}`);
         failed = true;
     }
 }
