@@ -35,7 +35,10 @@ trait BelongsToOrganization
         });
 
         static::saving(function ($model): void {
-            if ($model->exists && $model->isDirty('organization_id')) {
+            // New models receive and validate organization_id in the creating event.
+            if (! $model->exists) return;
+
+            if ($model->isDirty('organization_id')) {
                 throw new LogicException('The organization of a tenant-scoped record is immutable.');
             }
 

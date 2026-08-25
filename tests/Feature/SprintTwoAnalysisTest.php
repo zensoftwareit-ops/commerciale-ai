@@ -28,7 +28,7 @@ class SprintTwoAnalysisTest extends CommercialeAiTestCase
         $this->actingAs($user)->withSession(['organization_id' => $organization->id])->put(route('settings.organization.update'), [
             'commercial_name' => 'Azienda Demo', 'industry' => 'Software', 'business_description' => 'Sviluppo software per PMI.',
             'products_services' => 'Applicazioni e siti web.', 'ideal_customer' => 'PMI italiane.', 'tone_of_voice' => 'diretto',
-            'email_signature' => 'Team Demo', 'qualification_questions_text' => "Budget?\nTempistiche?",
+            'email_signature' => 'Team Demo', 'qualification_questions_text' => "Budget?\nTempistiche?", 'max_automatic_replies' => 3,
         ])->assertSessionHasNoErrors();
         app(TenantContext::class)->set($organization);
         $this->assertSame(100, OrganizationSetting::query()->firstOrFail()->completeness);
@@ -68,7 +68,10 @@ class SprintTwoAnalysisTest extends CommercialeAiTestCase
         {
             public function analyze(Lead $lead, array $context = []): array
             {
-                return ['summary' => 'incompleto'];
+                return ['summary' => 'incompleto', '_meta' => [
+                    'provider' => 'openai', 'model' => 'test-model',
+                    'input_units' => 120, 'output_units' => 30, 'estimated_cost' => 0.001,
+                ]];
             }
         });
 
@@ -77,6 +80,7 @@ class SprintTwoAnalysisTest extends CommercialeAiTestCase
             app(AnalyzeLead::class)->handle($lead);
         } finally {
             $this->assertSame('failed', AiRun::withoutGlobalScopes()->firstOrFail()->status);
+            $this->assertDatabaseHas('usage_records', ['organization_id' => $organization->id, 'input_units' => 120, 'output_units' => 30]);
         }
     }
 }

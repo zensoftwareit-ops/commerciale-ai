@@ -10,7 +10,6 @@ use App\Models\AiRun;
 use App\Models\Lead;
 use App\Models\LeadReply;
 use App\Models\OrganizationSetting;
-use App\Models\UsageRecord;
 use App\Services\Quotations\BuildQuotation;
 use App\Services\Licensing\LicenseUsageGuard;
 use App\Support\Tenancy\TenantContext;
@@ -20,7 +19,12 @@ use Throwable;
 
 class GenerateLeadReply
 {
-    public function __construct(private readonly LeadReplyGenerator $generator, private readonly BuildQuotation $quotationBuilder, private readonly LicenseUsageGuard $licenseGuard) {}
+    public function __construct(
+        private readonly LeadReplyGenerator $generator,
+        private readonly BuildQuotation $quotationBuilder,
+        private readonly LicenseUsageGuard $licenseGuard,
+        private readonly RecordAiUsage $usageRecorder,
+    ) {}
 
     public function handle(Lead $lead, AiAnalysis $analysis, ?int $actorId = null, array $extraContext = []): LeadReply
     {
@@ -62,6 +66,7 @@ class GenerateLeadReply
 
         try {
             $result = $this->generator->generate($lead, $analysis, $context);
+            $this->usageRecorder->handle($run, 'reply_draft', $result['_meta'] ?? []);
             validator($result, [
                 'subject' => ['required', 'string', 'max:255'],
                 'body' => ['required', 'string', 'max:10000'],
@@ -105,12 +110,6 @@ class GenerateLeadReply
                 ]);
                 $reply->ensureOutboundMessageId();
                 $quotationResult['quotation']?->update(['lead_reply_id' => $reply->id]);
-                UsageRecord::create([
-                    'organization_id' => $organizationId, 'ai_run_id' => $run->id,
-                    'operation' => 'reply_draft', 'provider' => $run->provider, 'model' => $run->model,
-                    'input_units' => $run->input_units, 'output_units' => $run->output_units,
-                    'estimated_cost' => $run->estimated_cost, 'occurred_at' => now(),
-                ]);
                 $lead->update(['operational_status' => 'awaiting_approval', 'last_activity_at' => now()]);
                 Activity::create([
                     'organization_id' => $organizationId, 'lead_id' => $lead->id, 'actor_id' => $actorId,
@@ -143,4 +142,3 @@ class GenerateLeadReply
         return $inbound->concat($outbound)->sortBy('at')->take(-20)->values()->all();
     }
 }
-

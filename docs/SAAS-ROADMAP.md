@@ -47,12 +47,14 @@ Appartengono all'organizzazione:
 
 ## Fase 3 — esercizio SaaS
 
+- contabilizzazione token e costo stimato per organizzazione (completata);
+- budget AI mensile per pacchetto, avviso all'80% e blocco al 100% (completato);
 - code persistenti per AI ed email;
 - retry e dead-letter per operazioni fallite;
 - monitoraggio centralizzato, metriche e allarmi;
 - backup automatici e prove periodiche di ripristino;
 - retention e cancellazione dati conformi alle policy;
-- rate limit per tenant e protezione dei costi OpenAI.
+- rate limit aggiuntivi per tenant e protezione dei costi OpenAI.
 
 Un'istanza o un database dedicato rimangono una possibile offerta Enterprise e non
 il modello standard della piattaforma.

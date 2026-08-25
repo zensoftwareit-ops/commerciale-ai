@@ -55,6 +55,10 @@ class CommercialNotificationController extends Controller
         $notification = $this->forUser($request, $notification);
         $notification->update(['read_at' => now()]);
 
+        if (! $notification->lead_id && str_starts_with($notification->type, 'ai_budget_')) {
+            return redirect()->route('usage.index');
+        }
+
         return redirect()->route('leads.show', $notification->lead_id);
     }
 
@@ -63,4 +67,3 @@ class CommercialNotificationController extends Controller
         return CommercialNotification::query()->where('user_id', $request->user()->id)->findOrFail($id);
     }
 }
-

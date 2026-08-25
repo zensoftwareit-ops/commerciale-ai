@@ -14,6 +14,7 @@ use App\Http\Controllers\OrganizationSettingsController;
 use App\Http\Controllers\OrganizationSwitchController;
 use App\Http\Controllers\OrganizationUserController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\AiUsageController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PricingRuleController;
 use App\Http\Controllers\Admin\LicensingDashboardController;
@@ -49,6 +50,7 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::get('/onboarding', OnboardingController::class)->name('onboarding');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
+    Route::get('/usage', AiUsageController::class)->middleware('role:owner')->name('usage.index');
 });
 
 Route::middleware(['auth', 'tenant', 'organization.access', 'license'])->group(function (): void {

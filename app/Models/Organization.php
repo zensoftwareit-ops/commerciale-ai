@@ -48,6 +48,11 @@ class Organization extends Model
         return $this->hasMany(License::class);
     }
 
+    public function usageRecords(): HasMany
+    {
+        return $this->hasMany(UsageRecord::class);
+    }
+
     public function activeLicense(): ?License
     {
         $license = $this->licenses()->with('plan')->latest('created_at')->first();

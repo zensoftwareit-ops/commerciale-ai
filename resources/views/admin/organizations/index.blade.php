@@ -21,7 +21,7 @@
                     <span class="badge">Profilo {{ $organization->settings?->completeness ?? 0 }}%</span><br>
                     <span class="muted">IMAP attive: {{ $organization->active_mailboxes_count }}</span>
                 </td>
-                <td><strong>{{ $organization->leads_count }}</strong> lead totali</td>
+                <td><strong>{{ $organization->leads_count }}</strong> lead totali<br><span class="muted">AI mese: {{ number_format($organization->current_month_ai_tokens, 0, ',', '.') }} token · € {{ number_format($organization->current_month_ai_cost, 4, ',', '.') }}</span>@if($license?->plan?->monthly_ai_token_limit)<br><span class="badge @if($organization->current_month_ai_tokens >= $license->plan->monthly_ai_token_limit) hot @elseif($organization->current_month_ai_tokens >= $license->plan->monthly_ai_token_limit * .8) warm @endif">{{ min(100, (int) floor(($organization->current_month_ai_tokens / $license->plan->monthly_ai_token_limit) * 100)) }}%</span>@endif</td>
                 <td>
                     @if($license)
                         <span class="badge">{{ $license->status }}</span><br>

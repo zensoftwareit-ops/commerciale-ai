@@ -21,15 +21,16 @@ class LicenseUsageGuard
     {
         $license = $this->license(); if (! $license || $license->plan->monthly_ai_token_limit === null) return;
         $used = (int) UsageRecord::query()->where('occurred_at', '>=', now()->startOfMonth())->selectRaw('COALESCE(SUM(input_units + output_units),0) AS total')->value('total');
-        if ($used >= $license->plan->monthly_ai_token_limit) throw ValidationException::withMessages(['license' => 'Budget mensile AI raggiunto per il pacchetto '.$license->plan->name.'.']);
+        if ($used >= $license->plan->monthly_ai_token_limit) {
+            throw ValidationException::withMessages(['license' => 'Budget AI mensile esaurito per il pacchetto '.$license->plan->name.'. Il conteggio ripartirà il primo giorno del prossimo mese.']);
+        }
     }
 
     private function license(): ?License
     {
-        if (! config('commerciale-ai.billing.enforcement_enabled')) return null;
         $license = app(TenantContext::class)->requireOrganization()->activeLicense();
+        if (! $license && ! config('commerciale-ai.billing.enforcement_enabled')) return null;
         if (! $license) throw ValidationException::withMessages(['license' => 'La licenza non è attiva.']);
         return $license;
     }
 }
-

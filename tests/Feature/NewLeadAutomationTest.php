@@ -55,7 +55,7 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         [$organization] = $this->organizationWithUser();
         app(TenantContext::class)->set($organization);
         $oldLead = app(CreateLead::class)->handle(['name' => 'Storico', 'email' => 'internal@example.test', 'source_label' => 'web']);
-        $oldLead->update(['created_at' => now()->subHour()]);
+        $oldLead->forceFill(['created_at' => now()->subHour()])->save();
         OrganizationSetting::create([
             'conversation_automation_enabled' => true, 'auto_analyze_new_leads' => true,
             'auto_send_initial_email' => true, 'internal_test_only' => true,

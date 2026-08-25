@@ -12,7 +12,6 @@ use App\Models\OrganizationSetting;
 use App\Models\PipelineStage;
 use App\Models\PromptPolicy;
 use App\Models\QualificationProfile;
-use App\Models\UsageRecord;
 use App\Support\Tenancy\TenantContext;
 use App\Services\Licensing\LicenseUsageGuard;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +24,7 @@ class AnalyzeLead
         private readonly AnalysisOutputValidator $validator,
         private readonly RuleScorer $ruleScorer,
         private readonly LicenseUsageGuard $licenseGuard,
+        private readonly RecordAiUsage $usageRecorder,
     ) {}
 
     public function handle(Lead $lead, ?int $actorId = null): AiAnalysis
@@ -51,6 +51,7 @@ class AnalyzeLead
 
         try {
             $raw = $this->analyzer->analyze($lead, $context);
+            $this->usageRecorder->handle($run, 'lead_analysis', $raw['_meta'] ?? []);
             try {
                 $output = $this->validator->validate($raw);
             } catch (Throwable) {
@@ -90,11 +91,6 @@ class AnalyzeLead
                     'recommended_next_action' => $output['recommended_next_action'], 'qualification_questions' => $output['qualification_questions'],
                     'confidence' => $output['confidence'],
                 ]);
-                UsageRecord::create([
-                    'organization_id' => $organizationId, 'ai_run_id' => $run->id, 'operation' => 'lead_analysis',
-                    'provider' => $run->provider, 'model' => $run->model, 'input_units' => $run->input_units,
-                    'output_units' => $run->output_units, 'estimated_cost' => $run->estimated_cost, 'occurred_at' => now(),
-                ]);
                 $reviewStage = PipelineStage::query()->where('slug', 'to_review')->first();
                 $lead->update(['score' => $finalScore, 'temperature' => $priority === 'high' ? 'hot' : ($priority === 'medium' ? 'warm' : 'cold'), 'operational_status' => 'needs_action', 'pipeline_stage_id' => $reviewStage?->id ?? $lead->pipeline_stage_id, 'last_activity_at' => now()]);
                 Activity::create(['organization_id' => $organizationId, 'lead_id' => $lead->id, 'actor_id' => $actorId, 'type' => 'lead_analyzed', 'title' => 'Analisi AI completata', 'data' => ['analysis_id' => $analysis->id, 'ai_score' => $analysis->ai_score, 'rule_score' => $analysis->rule_score, 'final_score' => $analysis->final_score], 'occurred_at' => now()]);
@@ -107,4 +103,3 @@ class AnalyzeLead
         }
     }
 }
-
