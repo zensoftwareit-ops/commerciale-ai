@@ -1,0 +1,3 @@
+# Configurazione locale: modificare sempre wp-config-sample.php nel repository,
+# quindi copiare/rinominare manualmente il file sul server.
+wp-config.php

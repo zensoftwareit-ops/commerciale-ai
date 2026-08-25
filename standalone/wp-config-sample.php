@@ -18,6 +18,12 @@
  * @package WordPress
  */
 
+/*
+ * Repository policy: keep real credentials only in wp-config.php, which is
+ * ignored by Git. Commit configuration templates exclusively in this file,
+ * then copy it manually to wp-config.php on the target installation.
+ */
+
 // ** Database settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
 define( 'DB_NAME', 'database_name_here' );
