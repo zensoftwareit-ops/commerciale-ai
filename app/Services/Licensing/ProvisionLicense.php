@@ -9,7 +9,6 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Services\Organizations\OrganizationLifecycle;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -18,6 +17,7 @@ class ProvisionLicense
     public function __construct(
         private readonly OrganizationProvisioner $organizations,
         private readonly OrganizationLifecycle $lifecycle,
+        private readonly SendLicenseActivation $activation,
     ) {}
 
     /** @return array{license:License,account_created:bool,reset_link_sent:bool} */
@@ -84,7 +84,11 @@ class ProvisionLicense
 
         $this->lifecycle->refresh($license->organization);
 
-        $resetSent = $accountCreated && Password::sendResetLink(['email' => $license->owner->email]) === Password::RESET_LINK_SENT;
+        $resetSent = false;
+        if ($accountCreated) {
+            $this->activation->handle($license->owner);
+            $resetSent = true;
+        }
         return ['license' => $license, 'account_created' => $accountCreated, 'reset_link_sent' => $resetSent];
     }
 

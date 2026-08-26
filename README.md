@@ -103,6 +103,10 @@ e resta disattivata finché non viene configurata. Vedi [clienti e
 licenze](docs/BILLING-AND-LICENSES.md) e [installazione
 WordPress](wordpress/INSTALLATION.md).
 
+Dal pannello Super Admin le licenze manuali possono essere rinnovate, sospese,
+riattivate o eliminate; l'email di attivazione può essere reinviata. La cancellazione
+definitiva di un cliente richiede la conferma testuale e rimuove l'intero tenant.
+
 L'amministratore della piattaforma usa un account dedicato, creato con
 `php artisan platform-admin:create admin@azienda.it`: non appartiene a nessuna
 organizzazione cliente e non utilizza lead, caselle email o licenze.

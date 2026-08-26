@@ -19,6 +19,21 @@ operazione:
 Se l'invio dell'email non riesce, il cliente può usare **Password dimenticata**
 nella pagina di login dopo che la configurazione SMTP è stata verificata.
 
+Per ogni licenza manuale il pannello consente di:
+
+- reinviare l'email **La tua licenza Daria è attiva** con un nuovo link per
+  impostare la password;
+- disabilitare o riattivare immediatamente l'accesso del cliente;
+- rinnovare per 12 mesi, partendo dalla scadenza futura esistente oppure dalla
+  data odierna se la licenza è già scaduta;
+- eliminare definitivamente la sola licenza.
+
+La pagina **Clienti** permette inoltre di eliminare definitivamente un tenant
+manuale, previa digitazione esatta del suo nome. L'operazione cancella azienda,
+licenze, lead, conversazioni, caselle, configurazioni e gli account che non
+appartengono ad altre organizzazioni. Le licenze Stripe non possono essere
+eliminate manualmente dal pannello.
+
 Per clienti già presenti è disponibile una sezione secondaria che assegna una
 nuova licenza a un'organizzazione e al relativo owner esistenti.
 

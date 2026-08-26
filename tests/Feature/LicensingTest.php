@@ -8,6 +8,7 @@ use App\Models\LicensePlan;
 use App\Models\Organization;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Notifications\LicenseActivationNotification;
 use App\Services\Leads\CreateLead;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -105,6 +106,68 @@ class LicensingTest extends CommercialeAiTestCase
         $this->assertNotNull($license->current_period_ends_at);
         $this->assertDatabaseHas('organization_settings', ['organization_id' => $organization->id]);
         $this->assertSame(8, PipelineStage::withoutGlobalScopes()->where('organization_id', $organization->id)->count());
+        Notification::assertSentTo($owner, LicenseActivationNotification::class);
+    }
+
+    public function test_super_admin_can_resend_suspend_activate_renew_and_delete_a_manual_license(): void
+    {
+        Notification::fake();
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        [$organization, $owner] = $this->organizationWithUser();
+        $plan = LicensePlan::create(['name' => 'Starter', 'slug' => 'starter-actions', 'annual_price_cents' => 49000, 'seat_limit' => 1, 'is_active' => true]);
+        $oldExpiry = now()->addMonths(3)->seconds(0);
+        $license = License::create([
+            'license_plan_id' => $plan->id, 'organization_id' => $organization->id,
+            'owner_user_id' => $owner->id, 'key' => 'CAI-MANUAL-ACTIONS',
+            'status' => 'active', 'source' => 'manual', 'starts_at' => now(),
+            'current_period_ends_at' => $oldExpiry,
+        ]);
+        $session = $this->actingAs($admin);
+
+        $session->post(route('admin.licenses.resend-activation', $license))->assertSessionHasNoErrors();
+        Notification::assertSentTo($owner, LicenseActivationNotification::class);
+
+        $session->post(route('admin.licenses.suspend', $license))->assertSessionHasNoErrors();
+        $this->assertSame('suspended', $license->fresh()->status);
+        $this->assertSame('suspended', $organization->fresh()->status);
+        config()->set('commerciale-ai.billing.enforcement_enabled', false);
+        $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
+            ->get(route('leads.index'))->assertStatus(402);
+
+        $session = $this->actingAs($admin);
+        $session->post(route('admin.licenses.activate', $license))->assertSessionHasNoErrors();
+        $this->assertSame('active', $license->fresh()->status);
+
+        $session->post(route('admin.licenses.renew', $license))->assertSessionHasNoErrors();
+        $license->refresh();
+        $this->assertSame('active', $license->status);
+        $this->assertSame($oldExpiry->copy()->addYear()->toDateTimeString(), $license->current_period_ends_at->toDateTimeString());
+
+        $session->delete(route('admin.licenses.destroy', $license))->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('licenses', ['id' => $license->id]);
+        $this->assertSame('license_missing', $organization->fresh()->suspension_reason);
+    }
+
+    public function test_super_admin_can_permanently_delete_a_manual_customer(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        [$organization, $owner] = $this->organizationWithUser();
+        $plan = LicensePlan::create(['name' => 'Starter', 'slug' => 'starter-delete', 'annual_price_cents' => 49000, 'seat_limit' => 1, 'is_active' => true]);
+        $license = License::create([
+            'license_plan_id' => $plan->id, 'organization_id' => $organization->id,
+            'owner_user_id' => $owner->id, 'key' => 'CAI-DELETE-CUSTOMER',
+            'status' => 'active', 'source' => 'manual', 'starts_at' => now(),
+            'current_period_ends_at' => now()->addYear(),
+        ]);
+
+        $this->actingAs($admin)->delete(route('admin.organizations.destroy', $organization), [
+            'confirmation' => $organization->name,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseMissing('organizations', ['id' => $organization->id]);
+        $this->assertDatabaseMissing('licenses', ['id' => $license->id]);
+        $this->assertDatabaseMissing('users', ['id' => $owner->id]);
+        $this->assertDatabaseHas('users', ['id' => $admin->id]);
     }
 
     public function test_only_super_admin_can_open_licensing_panel(): void

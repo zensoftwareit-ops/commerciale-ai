@@ -102,7 +102,7 @@
 
 <section class="card">
     <h2>Licenze emesse</h2>
-    <div class="table"><table><thead><tr><th>Licenza</th><th>Cliente</th><th>Pacchetto</th><th>Origine</th><th>Stato e scadenze</th><th>Aggiorna</th></tr></thead><tbody>
+    <div class="table"><table><thead><tr><th>Licenza</th><th>Cliente</th><th>Pacchetto</th><th>Origine</th><th>Stato e scadenze</th><th>Aggiorna</th><th>Azioni</th></tr></thead><tbody>
     @forelse($licenses as $license)
         <tr>
             <td><code>{{ $license->key }}</code></td>
@@ -121,9 +121,23 @@
                     <button>Aggiorna</button>
                 </form>
             </td>
+            <td>
+                <div class="actions">
+                    <form method="post" action="{{ route('admin.licenses.resend-activation', $license) }}">@csrf<button class="btn-secondary">Rimanda attivazione</button></form>
+                    @if($license->source === 'manual')
+                        <form method="post" action="{{ route('admin.licenses.renew', $license) }}" onsubmit="return confirm('Rinnovare questa licenza per altri 12 mesi?')">@csrf<button>Rinnova 12 mesi</button></form>
+                        @if(in_array($license->status, ['active','trialing']))
+                            <form method="post" action="{{ route('admin.licenses.suspend', $license) }}" onsubmit="return confirm('Disabilitare subito l’accesso del cliente?')">@csrf<button class="btn-secondary">Disabilita</button></form>
+                        @else
+                            <form method="post" action="{{ route('admin.licenses.activate', $license) }}">@csrf<button>Riattiva</button></form>
+                        @endif
+                        <form method="post" action="{{ route('admin.licenses.destroy', $license) }}" onsubmit="return confirm('Eliminare definitivamente la licenza {{ $license->key }}? Il cliente verrà sospeso.')">@csrf @method('delete')<button class="btn-danger">Elimina licenza</button></form>
+                    @endif
+                </div>
+            </td>
         </tr>
     @empty
-        <tr><td colspan="6">Nessuna licenza.</td></tr>
+        <tr><td colspan="7">Nessuna licenza.</td></tr>
     @endforelse
     </tbody></table></div>
     {{ $licenses->links() }}

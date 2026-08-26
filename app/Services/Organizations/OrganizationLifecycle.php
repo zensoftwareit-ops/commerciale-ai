@@ -45,6 +45,16 @@ class OrganizationLifecycle
         $latestLicense = $organization->licenses()->latest('created_at')->first();
         $usableLicense = $latestLicense?->isUsable() ? $latestLicense : null;
 
+        if (! $latestLicense) {
+            $organization->update([
+                'status' => 'suspended',
+                'suspended_at' => $organization->suspended_at ?? now(),
+                'suspension_reason' => 'license_missing',
+            ]);
+
+            return $organization->refresh();
+        }
+
         if ($latestLicense && ! $usableLicense) {
             $organization->update([
                 'status' => 'suspended',

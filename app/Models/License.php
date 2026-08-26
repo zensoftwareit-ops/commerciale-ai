@@ -26,7 +26,8 @@ class License extends Model
     public function isUsable(): bool
     {
         if (! in_array($this->status, ['active', 'trialing'], true)) return false;
+        if ($this->current_period_ends_at && ! $this->current_period_ends_at->isFuture()) return false;
+
         return ! $this->ends_at || $this->ends_at->isFuture();
     }
 }
-

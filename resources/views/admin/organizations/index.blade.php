@@ -8,7 +8,7 @@
 
 <section class="card">
     <div class="table"><table>
-        <thead><tr><th>Organizzazione</th><th>Owner</th><th>Stato</th><th>Configurazione</th><th>Utilizzo</th><th>Licenza</th></tr></thead>
+        <thead><tr><th>Organizzazione</th><th>Owner</th><th>Stato</th><th>Configurazione</th><th>Utilizzo</th><th>Licenza</th><th>Azioni</th></tr></thead>
         <tbody>
         @forelse($organizations as $organization)
             @php($owner=$organization->users->firstWhere('pivot.role', 'owner'))
@@ -31,9 +31,24 @@
                         <span class="error">Nessuna licenza</span>
                     @endif
                 </td>
+                <td>
+                    @if($organization->licenses->every(fn($item) => $item->source === 'manual'))
+                        <details>
+                            <summary class="muted">Elimina cliente</summary>
+                            <form method="post" action="{{ route('admin.organizations.destroy', $organization) }}" onsubmit="return confirm('Eliminare definitivamente il cliente e tutti i suoi dati?')">
+                                @csrf @method('delete')
+                                <label>Scrivi “{{ $organization->name }}”</label>
+                                <input name="confirmation" required autocomplete="off">
+                                <br><button class="btn-danger">Elimina definitivamente</button>
+                            </form>
+                        </details>
+                    @else
+                        <span class="muted">Gestito da Stripe</span>
+                    @endif
+                </td>
             </tr>
         @empty
-            <tr><td colspan="6">Nessuna organizzazione configurata.</td></tr>
+            <tr><td colspan="7">Nessuna organizzazione configurata.</td></tr>
         @endforelse
         </tbody>
     </table></div>

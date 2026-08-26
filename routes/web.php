@@ -39,6 +39,7 @@ Route::middleware('auth')->post('/organizations/{organization}/switch', Organiza
 Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->group(function (): void {
     Route::get('/licensing', LicensingDashboardController::class)->name('licensing');
     Route::get('/organizations', [AdminOrganizationController::class, 'index'])->name('organizations.index');
+    Route::delete('/organizations/{organization}', [AdminOrganizationController::class, 'destroy'])->name('organizations.destroy');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::put('/account/system-mail-identity', [AccountController::class, 'updatePlatformMailIdentity'])->name('account.system-mail-identity.update');
@@ -47,6 +48,11 @@ Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->gro
     Route::post('/licenses', [AdminLicenseController::class, 'store'])->name('licenses.store');
     Route::post('/licenses/existing', [AdminLicenseController::class, 'storeExisting'])->name('licenses.existing.store');
     Route::put('/licenses/{license}', [AdminLicenseController::class, 'update'])->name('licenses.update');
+    Route::post('/licenses/{license}/resend-activation', [AdminLicenseController::class, 'resendActivation'])->name('licenses.resend-activation');
+    Route::post('/licenses/{license}/renew', [AdminLicenseController::class, 'renew'])->name('licenses.renew');
+    Route::post('/licenses/{license}/suspend', [AdminLicenseController::class, 'suspend'])->name('licenses.suspend');
+    Route::post('/licenses/{license}/activate', [AdminLicenseController::class, 'activate'])->name('licenses.activate');
+    Route::delete('/licenses/{license}', [AdminLicenseController::class, 'destroy'])->name('licenses.destroy');
 });
 
 Route::middleware(['auth', 'tenant'])->group(function (): void {

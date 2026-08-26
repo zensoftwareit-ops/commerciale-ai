@@ -6,7 +6,6 @@ use App\Models\License;
 use App\Models\User;
 use App\Services\Organizations\OrganizationLifecycle;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -15,6 +14,7 @@ class CreateManualLicensedCustomer
     public function __construct(
         private readonly OrganizationProvisioner $organizations,
         private readonly OrganizationLifecycle $lifecycle,
+        private readonly SendLicenseActivation $activation,
     ) {}
 
     /** @return array{license:License,reset_link_sent:bool} */
@@ -47,7 +47,8 @@ class CreateManualLicensedCustomer
         $this->lifecycle->refresh($license->organization);
 
         try {
-            $resetSent = Password::sendResetLink(['email' => $license->owner->email]) === Password::RESET_LINK_SENT;
+            $this->activation->handle($license->owner);
+            $resetSent = true;
         } catch (Throwable) {
             $resetSent = false;
         }
