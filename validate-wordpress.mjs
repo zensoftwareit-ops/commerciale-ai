@@ -9,8 +9,10 @@ const required = [
     'commerciale-ai-theme/header.php',
     'commerciale-ai-theme/footer.php',
     'commerciale-ai-theme/front-page.php',
+    'commerciale-ai-theme/coming-soon.php',
     'commerciale-ai-theme/page.php',
     'commerciale-ai-theme/inc/site-structure.php',
+    'commerciale-ai-theme/inc/coming-soon.php',
     'commerciale-ai-client/commerciale-ai-client.php',
     'commerciale-ai-client/assets/client-area.css',
     'standalone/wp-content/mu-plugins/commerciale-ai-bootstrap.php',
@@ -75,6 +77,14 @@ for (const marker of [
 ]) {
     if (!structure.includes(marker)) {
         console.error(`Alberatura incompleta: ${marker}`);
+        failed = true;
+    }
+}
+
+const comingSoon = fs.readFileSync(path.join(root, 'commerciale-ai-theme/inc/coming-soon.php'), 'utf8');
+for (const marker of ['template_redirect', 'is_user_logged_in', 'REST_REQUEST', 'cai_coming_soon_enabled', 'add_theme_page']) {
+    if (!comingSoon.includes(marker)) {
+        console.error(`Controllo Coming soon non superato: ${marker}`);
         failed = true;
     }
 }

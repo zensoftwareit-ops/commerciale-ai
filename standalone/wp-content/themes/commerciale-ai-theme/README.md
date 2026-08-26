@@ -26,3 +26,13 @@ pagine mancanti e assegna i menu principale e footer:
 Le pagine create dal tema rimangono normali pagine WordPress. Gli aggiornamenti
 automatici riguardano soltanto quelle marcate come gestite dal tema; una pagina
 preesistente e personalizzata non viene sovrascritta.
+
+## Modalità Coming soon
+
+La modalità Coming soon è attiva per impostazione predefinita: i visitatori non
+autenticati vedono la pagina di attesa, mentre utenti loggati, wp-admin, REST API,
+AJAX, cron, XML-RPC e webhook continuano a funzionare.
+
+Per visualizzare l'anteprima o pubblicare il sito completo aprire **Aspetto >
+Coming soon**. L'interruttore viene salvato nel database e non richiede modifiche
+al tema.

@@ -7,9 +7,10 @@
 
 defined('ABSPATH') || exit;
 
-define('CAI_THEME_VERSION', '2.0.0');
+define('CAI_THEME_VERSION', '2.1.0');
 
 require_once get_template_directory().'/inc/site-structure.php';
+require_once get_template_directory().'/inc/coming-soon.php';
 
 function cai_theme_setup(): void
 {
