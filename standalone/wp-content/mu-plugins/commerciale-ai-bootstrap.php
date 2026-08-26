@@ -2,22 +2,27 @@
 /**
  * Plugin Name: Commerciale AI Bootstrap
  * Description: Completa automaticamente l'integrazione iniziale di tema e plugin.
- * Version: 1.0.0
+ * Version: 1.1.0
  */
 
 defined('ABSPATH') || exit;
 
 add_action('admin_init', static function (): void {
-    if (get_option('cai_wordpress_bootstrapped') === '1') return;
     if (! current_user_can('activate_plugins') || ! current_user_can('switch_themes')) return;
 
     if (! function_exists('activate_plugin')) require_once ABSPATH.'wp-admin/includes/plugin.php';
 
-    $plugin = 'commerciale-ai-client/commerciale-ai-client.php';
-    if (! is_plugin_active($plugin)) {
+    $plugins = [
+        'commerciale-ai-client/commerciale-ai-client.php',
+        'commerciale-ai-forms/commerciale-ai-forms.php',
+    ];
+    foreach ($plugins as $plugin) {
+        if (is_plugin_active($plugin)) continue;
         $result = activate_plugin($plugin);
         if (is_wp_error($result)) return;
     }
+
+    if (get_option('cai_wordpress_bootstrapped') === '1') return;
 
     $theme = wp_get_theme('commerciale-ai-theme');
     if (! $theme->exists()) return;

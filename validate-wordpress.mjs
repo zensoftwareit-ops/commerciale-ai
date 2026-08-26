@@ -15,6 +15,9 @@ const required = [
     'commerciale-ai-theme/inc/coming-soon.php',
     'commerciale-ai-client/commerciale-ai-client.php',
     'commerciale-ai-client/assets/client-area.css',
+    'commerciale-ai-forms/commerciale-ai-forms.php',
+    'commerciale-ai-forms/assets/forms.css',
+    'commerciale-ai-forms/assets/forms.js',
     'standalone/wp-content/mu-plugins/commerciale-ai-bootstrap.php',
 ];
 
@@ -92,6 +95,7 @@ for (const marker of ['template_redirect', 'is_user_logged_in', 'REST_REQUEST', 
 for (const [source, installed] of [
     ['commerciale-ai-theme', 'standalone/wp-content/themes/commerciale-ai-theme'],
     ['commerciale-ai-client', 'standalone/wp-content/plugins/commerciale-ai-client'],
+    ['commerciale-ai-forms', 'standalone/wp-content/plugins/commerciale-ai-forms'],
 ]) {
     const sourceRoot = path.join(root, source);
     const installedRoot = path.join(root, installed);
@@ -123,6 +127,14 @@ const plugin = fs.readFileSync(path.join(root, 'commerciale-ai-client/commercial
 for (const marker of ['register_activation_hook', 'valid_stripe_signature', 'Idempotency-Key', 'customer.subscription.', 'commerciale_ai_pricing', 'commerciale_ai_account']) {
     if (!plugin.includes(marker)) {
         console.error(`Controllo plugin non superato: ${marker}`);
+        failed = true;
+    }
+}
+
+const formsPlugin = fs.readFileSync(path.join(root, 'commerciale-ai-forms/commerciale-ai-forms.php'), 'utf8');
+for (const marker of ['admin_post_nopriv_cai_form_submit', 'wp_verify_nonce', 'hash_hmac', 'wp_insert_post', 'wp_mail', 'wp_privacy_personal_data_exporters', 'cai_forms_cleanup', 'commerciale_ai_contact', 'generate_lead']) {
+    if (!formsPlugin.includes(marker)) {
+        console.error(`Controllo plugin form non superato: ${marker}`);
         failed = true;
     }
 }

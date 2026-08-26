@@ -26,6 +26,7 @@ fi
 
 wp theme activate commerciale-ai-theme --path=/var/www/html
 wp plugin activate commerciale-ai-client --path=/var/www/html
+wp plugin activate commerciale-ai-forms --path=/var/www/html
 wp rewrite structure '/%postname%/' --hard --path=/var/www/html
 wp option update timezone_string 'Europe/Rome' --path=/var/www/html
 wp option update default_comment_status 'closed' --path=/var/www/html

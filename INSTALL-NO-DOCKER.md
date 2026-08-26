@@ -27,11 +27,14 @@ Al primo accesso amministrativo il bootstrap integrato:
 
 - attiva il tema `commerciale-ai-theme`;
 - attiva il plugin `commerciale-ai-client`;
+- attiva il plugin `commerciale-ai-forms`;
 - crea le pagine Prezzi e Area cliente;
 - configura permalink, fuso orario e impostazioni commenti.
 
 Aprire infine **Impostazioni > Commerciale AI** e inserire URL del backend,
 `BILLING_INTEGRATION_KEY`, chiavi Stripe e URL di accesso al software.
+Aprire anche **Richieste sito > Impostazioni** per configurare l'indirizzo che
+riceve le notifiche dei form e il periodo di conservazione.
 
 ## Installazione locale su Windows
 

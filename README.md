@@ -31,9 +31,9 @@ Dopo aver compilato `.env`, lo script:
 1. avvia MariaDB e WordPress;
 2. installa WordPress se il database è vuoto;
 3. attiva `commerciale-ai-theme`;
-4. attiva `commerciale-ai-client`;
+4. attiva `commerciale-ai-client` e `commerciale-ai-forms`;
 5. crea le pagine Prezzi e Area cliente;
-6. imposta permalink, lingua operativa e opzioni del plugin;
+6. imposta permalink, lingua operativa e opzioni dei plugin;
 7. lascia il sito disponibile su `WP_HOME`.
 
 Con i valori di esempio il sito risponde su `http://localhost:8080` e il backend
@@ -54,7 +54,8 @@ La directory `standalone` contiene già il core WordPress e può essere usata co
 document root. Tema e plugin sono già presenti rispettivamente in:
 
 - `wp-content/themes/commerciale-ai-theme`;
-- `wp-content/plugins/commerciale-ai-client`.
+- `wp-content/plugins/commerciale-ai-client`;
+- `wp-content/plugins/commerciale-ai-forms`.
 
 Configurare nell'ambiente del server almeno `WORDPRESS_DB_*`, `WORDPRESS_SALT` e
 `WP_HOME`. Se l'hosting non consente variabili d'ambiente, valorizzare le stesse
@@ -62,11 +63,13 @@ impostazioni in un file non pubblico e adattare `wp-config.php`; non inserire
 segreti nel repository.
 
 Dopo l'installazione attivare tema e plugin dal pannello, quindi aprire
-**Impostazioni > Commerciale AI** e verificare le connessioni.
+**Impostazioni > Commerciale AI** e verificare le connessioni. In **Richieste sito
+> Impostazioni** configurare destinatario email, conservazione ed evento GA4.
 
 ## Aggiornare tema e plugin integrati
 
-Le directory sorgente sono `commerciale-ai-theme` e `commerciale-ai-client`.
+Le directory sorgente sono `commerciale-ai-theme`, `commerciale-ai-client` e
+`commerciale-ai-forms`.
 Prima di un rilascio copiarle nelle directory equivalenti sotto `standalone` e
 ricostruire gli ZIP con `build.ps1`.
 

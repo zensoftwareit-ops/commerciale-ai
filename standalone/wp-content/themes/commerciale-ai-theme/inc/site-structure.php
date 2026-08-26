@@ -7,7 +7,7 @@
 
 defined('ABSPATH') || exit;
 
-const CAI_CONTENT_VERSION = '2.0.0';
+const CAI_CONTENT_VERSION = '2.1.0';
 
 /**
  * Return the public page architecture.
@@ -274,11 +274,10 @@ function cai_sync_navigation(array $ids, array $pages): void
 
 function cai_contact_shortcode(): string
 {
-    $email = sanitize_email((string) get_option('admin_email'));
     ob_start(); ?>
     <section class="contact-layout">
         <div class="contact-card contact-card--accent"><p class="content-kicker">Prima dell’acquisto</p><h2>Tre informazioni ci aiutano a risponderti bene.</h2><ol><li>Quante persone lavorano sui lead?</li><li>Quanti nuovi contatti ricevete in un mese?</li><li>Da quali siti o caselle arrivano?</li></ol></div>
-        <div class="contact-card"><p class="content-kicker">Scrivici</p><h2><?php echo esc_html($email); ?></h2><p>Descrivi brevemente il flusso attuale e il risultato che vuoi ottenere. Non inviare password, chiavi API o dati personali dei tuoi clienti.</p><a class="cai-button cai-button--coral" href="mailto:<?php echo esc_attr($email); ?>?subject=<?php echo rawurlencode('Informazioni Commerciale AI'); ?>">Apri la tua email →</a><p class="contact-note">Per pagamenti e abbonamenti già attivi, usa l’Area cliente.</p></div>
+        <div class="contact-card"><p class="content-kicker">Modulo contatti</p><h2>Il modulo è temporaneamente non disponibile.</h2><p>Attiva il plugin Commerciale AI Forms per raccogliere e gestire le richieste dal sito.</p><p class="contact-note">Per pagamenti e abbonamenti già attivi, usa l’Area cliente.</p></div>
     </section>
     <?php return (string) ob_get_clean();
 }

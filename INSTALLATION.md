@@ -14,16 +14,22 @@ solo quando WordPress è già installato sull'hosting.
 
 ## 1. Installare tema e plugin
 
-Da WordPress caricare i due archivi presenti in `wordpress/dist`:
+Da WordPress caricare i tre archivi presenti in `wordpress/dist`:
 
 1. **Aspetto > Temi > Aggiungi nuovo**: installare e attivare
    `commerciale-ai-theme.zip`;
 2. **Plugin > Aggiungi plugin > Carica plugin**: installare e attivare
-   `commerciale-ai-client.zip`.
+   `commerciale-ai-client.zip`;
+3. dalla stessa sezione installare e attivare `commerciale-ai-forms.zip`.
 
 Il plugin crea automaticamente le pagine `/prezzi/` e `/area-cliente/`. La home
 del tema usa direttamente il listino del plugin e non richiede Elementor o altri
 page builder.
+
+Il plugin Forms sostituisce automaticamente il contatto email statico con un
+modulo commerciale. Le richieste restano disponibili in **Richieste sito** anche
+se la notifica email non viene consegnata. Configurare destinatario, conservazione
+ed evento GA4 da **Richieste sito > Impostazioni**.
 
 ## 2. Configurare il backend
 
