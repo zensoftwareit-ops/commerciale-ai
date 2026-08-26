@@ -4,6 +4,14 @@
 <div class="toolbar">
     <div><h1>Account amministratore</h1><p class="muted">{{ auth()->user()->email }} · account di piattaforma non associato ad alcun cliente</p></div>
 </div>
+<form class="card" method="post" action="{{ route('admin.account.mail-identity.update') }}" style="max-width:620px">
+    @csrf @method('put')
+    <h2>Mittente delle email di piattaforma</h2>
+    <p class="muted">Usato per inviti e recupero password. Il trasporto SMTP o Resend rimane globale.</p>
+    <label>Indirizzo mittente</label><input type="email" name="mail_from_address" value="{{ old('mail_from_address',auth()->user()->mail_from_address ?: auth()->user()->email) }}" required>
+    <label>Nome mittente</label><input name="mail_from_name" value="{{ old('mail_from_name',auth()->user()->mail_from_name ?: auth()->user()->name) }}" required maxlength="255">
+    <br><button class="btn">Salva mittente</button>
+</form>
 <form class="card" method="post" action="{{ route('admin.account.password.update') }}" style="max-width:620px">
     @csrf @method('put')
     <h2>Cambia password</h2>

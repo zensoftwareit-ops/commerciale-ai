@@ -22,4 +22,21 @@ class AccountPasswordTest extends CommercialeAiTestCase
 
         $this->assertTrue(Hash::check('NewSecurePassword!2', $user->fresh()->password));
     }
+
+    public function test_customer_can_configure_their_own_mail_sender(): void
+    {
+        [$organization, $user] = $this->organizationWithUser();
+
+        $this->actingAs($user)->withSession(['organization_id' => $organization->id])
+            ->put(route('account.mail-identity.update'), [
+                'mail_from_address' => 'commerciale@cliente.test',
+                'mail_from_name' => 'Ufficio commerciale Cliente',
+            ])->assertSessionHasNoErrors()->assertSessionHas('status');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'mail_from_address' => 'commerciale@cliente.test',
+            'mail_from_name' => 'Ufficio commerciale Cliente',
+        ]);
+    }
 }

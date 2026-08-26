@@ -93,6 +93,8 @@ Con una casella IMAP attiva, le risposte riconosciute vengono importate, mostrat
 Durante il pilota l'invio usa un unico SMTP transazionale configurato sul server. Il
 trasporto SMTP di Resend è già predisposto ma resta disattivato fino alla futura fase
 SaaS, quando verrà aggiunto anche l'onboarding automatico SPF/DKIM per dominio.
+Indirizzo e nome `From` sono configurati da ciascun utente nella propria pagina
+**Account** e non sono presenti nel `.env`; SMTP e Resend sono soltanto trasporti globali.
 
 Il modulo commerciale include un pannello Super Admin per registrare manualmente
 clienti, owner e licenze su tre pacchetti. La vendita self-service con tema e plugin

@@ -6,15 +6,19 @@ use App\Mail\ConversationHandoffMail;
 use App\Models\CommercialNotification;
 use App\Models\InboundEmail;
 use App\Models\Lead;
+use App\Services\Mail\MailIdentity;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 class NotifyConversationHandoff
 {
+    public function __construct(private readonly MailIdentity $identities) {}
+
     public function handle(Lead $lead, InboundEmail $inbound, string $reason): void
     {
         $organization = $lead->organization()->firstOrFail();
         $recipients = $organization->users()->wherePivotIn('role', ['owner', 'sales'])->get();
+        $identity = $this->identities->forOrganization($organization->id);
 
         foreach ($recipients as $recipient) {
             $notification = CommercialNotification::create([
@@ -31,7 +35,7 @@ class NotifyConversationHandoff
             ]);
 
             try {
-                Mail::to($recipient->email)->send(new ConversationHandoffMail($notification));
+                Mail::to($recipient->email)->send(new ConversationHandoffMail($notification, $identity->address, $identity->name));
                 $notification->update(['notified_by_email_at' => now()]);
             } catch (Throwable $exception) {
                 report($exception);
@@ -39,4 +43,3 @@ class NotifyConversationHandoff
         }
     }
 }
-

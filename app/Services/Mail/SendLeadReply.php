@@ -13,15 +13,22 @@ use Throwable;
 
 class SendLeadReply
 {
+    public function __construct(private readonly MailIdentity $identities) {}
+
     public function handle(LeadReply $reply, ?int $actorId = null, bool $automatic = false): void
     {
         if ($reply->status === 'sent') throw new RuntimeException('Questa email è già stata inviata.');
         if ($automatic) $this->guardAutomaticSend($reply);
         if (in_array(config('mail.default'), ['log', 'array'], true)) throw new RuntimeException('Configura un servizio SMTP reale prima dell’invio.');
 
+        $identity = $this->identities->forOrganization($reply->organization_id, $automatic ? null : $actorId);
+
         $claimed = LeadReply::query()->whereKey($reply->id)->where('status', 'draft')->update(['status' => 'sending']);
         if ($claimed !== 1) throw new RuntimeException('La bozza è già in elaborazione o non è più inviabile.');
         $reply->status = 'sending';
+        $reply->sender_address = $identity->address;
+        $reply->sender_name = $identity->name;
+        $reply->saveQuietly();
 
         $reply->ensureOutboundMessageId();
         try {

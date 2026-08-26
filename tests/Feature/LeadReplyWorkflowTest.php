@@ -44,6 +44,7 @@ class LeadReplyWorkflowTest extends CommercialeAiTestCase
         config()->set('mail.default', 'smtp');
         Mail::fake();
         [$organization, $user] = $this->organizationWithUser('sales');
+        $user->update(['mail_from_address' => 'commerciale@azienda.test', 'mail_from_name' => 'Commerciale Azienda']);
         app(TenantContext::class)->set($organization);
         PipelineStage::create(['name' => 'Da valutare', 'slug' => 'to_review', 'system_category' => 'open', 'position' => 2]);
         $lead = app(CreateLead::class)->handle([
@@ -67,6 +68,8 @@ class LeadReplyWorkflowTest extends CommercialeAiTestCase
         $reply->refresh();
         $lead = Lead::withoutGlobalScopes()->findOrFail($lead->id);
         $this->assertSame('sent', $reply->status);
+        $this->assertSame('commerciale@azienda.test', $reply->sender_address);
+        $this->assertSame('Commerciale Azienda', $reply->sender_name);
         $this->assertNotNull($reply->outbound_message_id);
         $this->assertSame($user->id, $reply->approved_by);
         $this->assertSame('follow_up_scheduled', $lead->operational_status);
@@ -74,6 +77,7 @@ class LeadReplyWorkflowTest extends CommercialeAiTestCase
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'email_sent']);
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'follow_up_scheduled']);
         Mail::assertSent(LeadReplyMail::class, fn (LeadReplyMail $mail): bool => $mail->hasTo('anna@example.test')
+            && $mail->envelope()->from->address === 'commerciale@azienda.test'
             && $mail->headers()->messageId === $reply->outbound_message_id);
 
         $session->patch(route('replies.update', [$lead, $reply]), [

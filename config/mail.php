@@ -126,10 +126,10 @@ return [
     |
     */
 
+    // Il mittente non è globale: viene risolto dal database per ogni utente.
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
+        'address' => null,
+        'name' => null,
     ],
 
 ];
-

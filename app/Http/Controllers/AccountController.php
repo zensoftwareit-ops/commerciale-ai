@@ -28,4 +28,18 @@ class AccountController extends Controller
 
         return back()->with('status', 'Password aggiornata.');
     }
+
+    public function updateMailIdentity(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'mail_from_address' => ['required', 'email:rfc', 'max:255'],
+            'mail_from_name' => ['required', 'string', 'max:255'],
+        ]);
+        $request->user()->update([
+            'mail_from_address' => mb_strtolower(trim($data['mail_from_address'])),
+            'mail_from_name' => trim($data['mail_from_name']),
+        ]);
+
+        return back()->with('status', 'Mittente email aggiornato.');
+    }
 }

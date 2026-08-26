@@ -14,7 +14,7 @@ class LeadReply extends Model
     protected $fillable = [
         'organization_id', 'lead_id', 'ai_analysis_id', 'ai_run_id', 'status', 'reply_kind',
         'delivery_mode', 'automation_eligible', 'automation_blockers',
-        'outbound_message_id', 'parent_message_id', 'recipient', 'subject', 'body',
+        'outbound_message_id', 'parent_message_id', 'recipient', 'sender_address', 'sender_name', 'subject', 'body',
         'follow_up_at', 'follow_up_cancelled_at', 'approved_by', 'approved_at', 'sent_at', 'last_error',
     ];
 
@@ -53,7 +53,7 @@ class LeadReply extends Model
             return $this->outbound_message_id;
         }
 
-        $address = (string) config('mail.from.address');
+        $address = (string) $this->sender_address;
         $domain = str_contains($address, '@') ? str($address)->afterLast('@')->value() : null;
         $domain ??= parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'commerciale-ai.local';
         $domain = preg_replace('/[^a-z0-9.-]/i', '', $domain) ?: 'commerciale-ai.local';

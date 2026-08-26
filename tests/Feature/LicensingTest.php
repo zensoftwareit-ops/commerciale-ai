@@ -25,6 +25,7 @@ class LicensingTest extends CommercialeAiTestCase
 
         $admin = User::query()->where('email', 'admin@daria.test')->firstOrFail();
         $this->assertTrue($admin->isPlatformAdmin());
+        $this->assertSame('admin@daria.test', $admin->mail_from_address);
         $this->assertFalse($admin->organizations()->exists());
         $this->assertFalse($admin->ownedLicenses()->exists());
     }

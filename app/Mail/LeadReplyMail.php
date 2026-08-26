@@ -6,6 +6,7 @@ use App\Models\LeadReply;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
@@ -18,7 +19,10 @@ class LeadReplyMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: $this->reply->subject);
+        return new Envelope(
+            from: new Address($this->reply->sender_address, $this->reply->sender_name),
+            subject: $this->reply->subject,
+        );
     }
 
     public function content(): Content

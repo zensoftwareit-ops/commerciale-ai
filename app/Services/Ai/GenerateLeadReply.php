@@ -108,7 +108,6 @@ class GenerateLeadReply
                     'recipient' => $lead->email,
                     'subject' => $result['subject'], 'body' => $result['body'],
                 ]);
-                $reply->ensureOutboundMessageId();
                 $quotationResult['quotation']?->update(['lead_reply_id' => $reply->id]);
                 $lead->update(['operational_status' => 'awaiting_approval', 'last_activity_at' => now()]);
                 Activity::create([
