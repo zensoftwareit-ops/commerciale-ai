@@ -10,19 +10,45 @@ use App\Services\Leads\RunNewLeadAutomation;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Symfony\Component\Console\Command\Command;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('admin:grant {email}', function (string $email): int {
-    $user = User::query()->where('email', mb_strtolower(trim($email)))->first();
-    if (! $user) { $this->error('Utente non trovato.'); return Command::FAILURE; }
-    $user->update(['is_super_admin' => true]);
-    $this->info('Accesso Super Admin abilitato per '.$user->email.'.');
+Artisan::command('platform-admin:create {email} {--name= : Nome visualizzato} {--reset-password : Genera una nuova password temporanea}', function (string $email): int {
+    $email = mb_strtolower(trim($email));
+    if (validator(['email' => $email], ['email' => ['required', 'email', 'max:255']])->fails()) {
+        $this->error('Indirizzo email non valido.');
+        return Command::FAILURE;
+    }
+
+    $user = User::query()->where('email', $email)->first();
+    if ($user && ($user->organizations()->exists() || $user->ownedLicenses()->exists() || filled($user->external_account_id))) {
+        $this->error('Questa email appartiene a un account cliente. Usa un indirizzo esclusivo per l\'amministrazione della piattaforma.');
+        return Command::FAILURE;
+    }
+    if (User::query()->where('is_super_admin', true)->where('email', '!=', $email)->exists()) {
+        $this->error('Esiste già un amministratore di piattaforma. Usa la sua email oppure rimuovilo esplicitamente prima di crearne un altro.');
+        return Command::FAILURE;
+    }
+
+    $created = ! $user;
+    $resetPassword = $created || (bool) $this->option('reset-password');
+    $password = $resetPassword ? Str::password(24, true, true, true, false) : null;
+    $values = ['name' => (string) ($this->option('name') ?: 'Amministratore Daria'), 'is_super_admin' => true, 'external_account_id' => null];
+    if ($password) $values['password'] = $password;
+    $user = User::query()->updateOrCreate(['email' => $email], $values);
+
+    $this->info($created ? 'Amministratore di piattaforma creato.' : 'Amministratore di piattaforma aggiornato.');
+    $this->line('Email: '.$user->email);
+    if ($password) {
+        $this->warn('Password temporanea: '.$password);
+        $this->warn('Copiala ora e cambiala al primo accesso. Non verrà mostrata nuovamente.');
+    }
     return Command::SUCCESS;
-})->purpose('Abilita un utente esistente al pannello licenze');
+})->purpose('Crea l\'account amministrativo della piattaforma, separato da tutti i clienti');
 
 Artisan::command('mail:sync {--test : Verifica soltanto la connessione} {--limit= : Numero massimo di messaggi}', function (SyncInboundEmailReplies $sync, InboundMailbox $mailbox): int {
     try {

@@ -29,6 +29,7 @@ class OrganizationUserController extends Controller
         if ($license && $organization->users()->count() >= $license->plan->seat_limit) return back()->withErrors(['email' => 'Il pacchetto ha raggiunto il limite di '.$license->plan->seat_limit.' utenti.']);
         $email = mb_strtolower(trim($data['email']));
         $user = User::query()->where('email', $email)->first(); $created = false;
+        if ($user?->is_super_admin) return back()->withErrors(['email' => 'L\'account amministrativo della piattaforma non può essere collegato a un cliente.']);
         if (! $user) { $user = User::create(['name' => $data['name'], 'email' => $email, 'password' => Str::password(32)]); $created = true; }
         if ($organization->users()->whereKey($user->id)->exists()) return back()->withErrors(['email' => 'L’utente appartiene già a questa organizzazione.']);
         $organization->users()->attach($user, ['role' => $data['role']]);
@@ -45,4 +46,3 @@ class OrganizationUserController extends Controller
         return back()->with('status', 'Sottoutente rimosso dall’organizzazione.');
     }
 }
-

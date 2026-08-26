@@ -40,6 +40,9 @@ class ProvisionLicense
 
             $email = mb_strtolower(trim($data['email']));
             $user = User::query()->where('email', $email)->first();
+            if ($user?->is_super_admin) {
+                throw new RuntimeException('L\'account amministrativo della piattaforma non può acquistare o possedere una licenza cliente.');
+            }
             if (! $user) {
                 $user = User::create(['name' => $data['name'], 'email' => $email, 'password' => Str::password(32), 'external_account_id' => $data['external_account_id']]);
                 $accountCreated = true;

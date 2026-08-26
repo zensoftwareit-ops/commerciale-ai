@@ -10,8 +10,7 @@ class RequireSuperAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless($request->user()?->is_super_admin, 403);
+        abort_unless($request->user()?->isPlatformAdmin(), 403);
         return $next($request);
     }
 }
-

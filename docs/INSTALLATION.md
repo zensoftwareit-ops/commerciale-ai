@@ -334,9 +334,11 @@ BILLING_INTEGRATION_KEY=
 LICENSE_ENFORCEMENT_ENABLED=false
 ```
 
-Concedere l'accesso amministrativo con
-`php artisan admin:grant email@azienda.it`. Lo Step 2 con WordPress e Stripe resta
-inattivo fino alla vendita self-service.
+Creare l'account amministrativo separato con
+`php artisan platform-admin:create admin@azienda.it`. Il comando genera una
+password temporanea mostrata una sola volta. L'indirizzo non deve appartenere a
+un'organizzazione cliente. Lo Step 2 con WordPress e Stripe è implementato, ma
+resta inattivo finché non viene configurato e collaudato.
 
 Il modulo licenze viene installato con le normali migrazioni ma non blocca il pilota:
 `LICENSE_ENFORCEMENT_ENABLED` è `false` per impostazione predefinita. La procedura

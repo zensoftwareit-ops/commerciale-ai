@@ -95,9 +95,15 @@ trasporto SMTP di Resend è già predisposto ma resta disattivato fino alla futu
 SaaS, quando verrà aggiunto anche l'onboarding automatico SPF/DKIM per dominio.
 
 Il modulo commerciale include un pannello Super Admin per registrare manualmente
-clienti, owner e licenze su tre pacchetti. La futura vendita self-service con plugin
-WordPress e Stripe è separata e resta disattivata fino allo Step 2. Vedi
-[clienti e licenze](docs/BILLING-AND-LICENSES.md).
+clienti, owner e licenze su tre pacchetti. La vendita self-service con tema e plugin
+WordPress, Stripe Checkout e Customer Portal è disponibile come modalità separata
+e resta disattivata finché non viene configurata. Vedi [clienti e
+licenze](docs/BILLING-AND-LICENSES.md) e [installazione
+WordPress](wordpress/INSTALLATION.md).
+
+L'amministratore della piattaforma usa un account dedicato, creato con
+`php artisan platform-admin:create admin@azienda.it`: non appartiene a nessuna
+organizzazione cliente e non utilizza lead, caselle email o licenze.
 
 Il listino strutturato genera fasce di preventivo deterministiche e versionate. L'AI può presentare la fascia ma non modificarla; quando mancano dati prepara al massimo due domande mirate. L'automazione via cron e l'invio automatico sono disattivati per impostazione predefinita; durante il collaudo possono operare esclusivamente sugli indirizzi interni autorizzati e solo se non esiste alcun blocco di sicurezza. Il numero massimo di interventi automatici per lead impedisce conversazioni senza fine.
 

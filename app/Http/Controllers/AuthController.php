@@ -23,10 +23,15 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
+        if ($user->isPlatformAdmin()) {
+            $request->session()->forget('organization_id');
+            return redirect()->intended(route('admin.licensing'));
+        }
+
         $organization = $user->organizations()->orderBy('name')->first();
-        $destination = $user->is_super_admin && ! $organization
-            ? route('admin.licensing')
-            : (in_array($organization?->status, ['onboarding', 'suspended'], true) ? route('onboarding') : route('leads.index'));
+        $destination = in_array($organization?->status, ['onboarding', 'suspended'], true)
+            ? route('onboarding')
+            : route('leads.index');
 
         return redirect()->intended($destination);
     }

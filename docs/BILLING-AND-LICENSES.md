@@ -1,8 +1,8 @@
-# Clienti, licenze e futura vendita self-service
+# Clienti, licenze e vendita self-service
 
-Il progetto è diviso in due fasi indipendenti. La prima è già utilizzabile senza
-WordPress, Stripe o API di billing. La seconda rimane disattivata fino alla messa
-in vendita pubblica.
+Il progetto è diviso in due modalità indipendenti. La prima è utilizzabile senza
+WordPress o Stripe. La seconda è implementata e può essere attivata quando sito,
+prodotti Stripe e ambiente di produzione sono configurati e collaudati.
 
 ## Step 1 — attivazione manuale dal pannello Super Admin
 
@@ -36,13 +36,16 @@ Poi eseguire:
 
 ```bash
 php artisan migrate --force
-php artisan admin:grant email@azienda.it
+php artisan platform-admin:create admin@azienda.it
 php artisan optimize:clear
 php artisan config:cache
 ```
 
 Accedere a `/admin/licensing`, creare i pacchetti e usare il modulo di registrazione
-cliente. `LICENSE_ENFORCEMENT_ENABLED` può restare `false` durante il pilota; dovrà
+cliente. La password temporanea dell'amministratore viene mostrata una volta sola;
+va cambiata al primo accesso da `/admin/account`. L'amministratore non appartiene
+ad alcuna organizzazione, non possiede licenze e non può entrare nel software dei
+clienti. `LICENSE_ENFORCEMENT_ENABLED` può restare `false` durante il pilota; dovrà
 essere portato a `true` soltanto quando ogni organizzazione da mantenere operativa
 avrà una licenza valida.
 
@@ -52,15 +55,15 @@ Lo Stripe Price ID può restare vuoto nello Step 1.
 
 ## Step 2 — vendita self-service WordPress e Stripe
 
-Questa fase comprenderà registrazione e area cliente WordPress, scelta del
+Questa modalità comprende registrazione e area cliente WordPress, scelta del
 pacchetto, Stripe Checkout, Customer Portal, cancellazione dell'abbonamento e
-provisioning automatico della licenza. Solo l'owner acquistante accederà all'area
+provisioning automatico della licenza. Solo l'owner acquistante accede all'area
 cliente WordPress; gli eventuali sottoutenti inclusi nel pacchetto resteranno legati
 alla sua organizzazione e verranno gestiti nel software.
 
-Le API `/api/v1/billing/*` sono oggi nascoste con risposta HTTP 404. Quando lo Step 2
-sarà pronto, si potranno esporre impostando una chiave condivisa robusta e attivando
-esplicitamente il relativo interruttore:
+Le API `/api/v1/billing/*` restano nascoste con risposta HTTP 404 finché la vendita
+self-service non viene attivata. Per esporle impostare una chiave condivisa robusta
+e attivare esplicitamente il relativo interruttore:
 
 ```ini
 BILLING_SELF_SERVICE_ENABLED=true
@@ -69,8 +72,12 @@ BILLING_INTEGRATION_KEY=SEGRETO_CASUALE_DI_ALMENO_32_BYTE
 
 Il webhook Stripe firmato arriverà al plugin WordPress, che riconcilierà il pagamento
 con il software tramite API idempotenti. Stripe sarà la fonte dello stato economico;
-Daria conserverà licenze, organizzazioni, owner, limiti e cronologia degli
+Commerciale AI conserverà licenze, organizzazioni, owner, limiti e cronologia degli
 eventi.
+
+Gli artefatti installabili si trovano in `wordpress/dist`. Il plugin crea le pagine
+**Prezzi** e **Area cliente**, espone il webhook, verifica le connessioni dal pannello
+WordPress e usa gli Stripe Event ID per mantenere idempotente il provisioning.
 
 Gli stati `active` e `trialing` consentono l'uso. Gli stati `past_due`, `unpaid`,
 `canceled`, `paused` e `suspended` non rendono utilizzabile una licenza quando

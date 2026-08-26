@@ -84,7 +84,6 @@
                     <a class="nav-link @if(request()->routeIs('usage.*')) active @endif" href="{{ route('usage.index') }}"><span class="nav-icon"><svg fill="none" viewBox="0 0 24 24"><path d="M5 19V9m7 10V5m7 14v-7" stroke-width="1.8" stroke-linecap="round"/></svg></span>Consumi AI</a>
                 </nav>
             @endif
-            @if(auth()->user()->is_super_admin)<div class="nav-label">Piattaforma</div><nav class="nav"><a class="nav-link" href="{{ route('admin.licensing') }}">Pannello licenze</a></nav>@endif
             <div class="sidebar-footer">
                 <div class="user-card">
                     <span class="avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name,0,1)) }}</span>

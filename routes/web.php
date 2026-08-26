@@ -39,6 +39,8 @@ Route::middleware('auth')->post('/organizations/{organization}/switch', Organiza
 Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->group(function (): void {
     Route::get('/licensing', LicensingDashboardController::class)->name('licensing');
     Route::get('/organizations', [AdminOrganizationController::class, 'index'])->name('organizations.index');
+    Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
+    Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::post('/plans', [AdminLicensePlanController::class, 'store'])->name('plans.store');
     Route::put('/plans/{plan}', [AdminLicensePlanController::class, 'update'])->name('plans.update');
     Route::post('/licenses', [AdminLicenseController::class, 'store'])->name('licenses.store');

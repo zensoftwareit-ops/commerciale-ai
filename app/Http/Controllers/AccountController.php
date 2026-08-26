@@ -12,7 +12,7 @@ class AccountController extends Controller
 {
     public function edit(): View
     {
-        return view('account.edit');
+        return view(request()->user()->isPlatformAdmin() ? 'admin.account.edit' : 'account.edit');
     }
 
     public function updatePassword(Request $request): RedirectResponse

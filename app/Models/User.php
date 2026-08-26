@@ -68,5 +68,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(License::class, 'owner_user_id');
     }
-}
 
+    public function isPlatformAdmin(): bool
+    {
+        return $this->is_super_admin && ! $this->organizations()->exists();
+    }
+
+    public function isCustomerAccount(): bool
+    {
+        return ! $this->is_super_admin && $this->organizations()->exists();
+    }
+}

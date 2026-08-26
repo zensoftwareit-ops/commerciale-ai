@@ -42,6 +42,7 @@ class LicenseController extends Controller
         $data = $this->validatedExisting($request);
         $organization = Organization::query()->findOrFail($data['organization_id']);
         $owner = User::query()->where('email', mb_strtolower($data['owner_email']))->firstOrFail();
+        abort_if($owner->is_super_admin, 422, 'L\'account amministrativo della piattaforma non può possedere licenze cliente.');
         abort_unless($owner->roleFor($organization) === 'owner', 422, 'L’utente deve essere owner dell’organizzazione.');
         $data['current_period_ends_at'] ??= now()->addYear();
         License::create([

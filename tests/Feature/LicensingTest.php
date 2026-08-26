@@ -11,12 +11,32 @@ use App\Models\User;
 use App\Services\Leads\CreateLead;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class LicensingTest extends CommercialeAiTestCase
 {
     use RefreshDatabase;
+
+    public function test_platform_admin_command_creates_a_standalone_account(): void
+    {
+        $this->assertSame(0, Artisan::call('platform-admin:create', ['email' => 'admin@daria.test']));
+
+        $admin = User::query()->where('email', 'admin@daria.test')->firstOrFail();
+        $this->assertTrue($admin->isPlatformAdmin());
+        $this->assertFalse($admin->organizations()->exists());
+        $this->assertFalse($admin->ownedLicenses()->exists());
+    }
+
+    public function test_platform_admin_login_goes_directly_to_platform_panel(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true, 'password' => 'PasswordSicura!2026']);
+
+        $this->post('/login', ['email' => $admin->email, 'password' => 'PasswordSicura!2026'])
+            ->assertRedirect(route('admin.licensing'));
+        $this->get(route('admin.account.edit'))->assertOk()->assertSee('account di piattaforma');
+    }
 
     public function test_billing_api_provisions_an_owner_organization_and_license_idempotently(): void
     {
@@ -56,8 +76,7 @@ class LicensingTest extends CommercialeAiTestCase
     public function test_super_admin_can_register_a_new_customer_and_activate_a_license(): void
     {
         Notification::fake();
-        [, $admin] = $this->organizationWithUser();
-        $admin->update(['is_super_admin' => true]);
+        $admin = User::factory()->create(['is_super_admin' => true]);
         $plan = LicensePlan::create([
             'name' => 'Professional',
             'slug' => 'professional',
@@ -92,18 +111,36 @@ class LicensingTest extends CommercialeAiTestCase
         [, $user] = $this->organizationWithUser();
         $this->actingAs($user)->get(route('admin.licensing'))->assertForbidden();
         $user->update(['is_super_admin' => true]);
-        $this->actingAs($user->fresh())->get(route('admin.licensing'))->assertOk();
+        $this->actingAs($user->fresh())->get(route('admin.licensing'))->assertForbidden();
+
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        $this->actingAs($admin)->get(route('admin.licensing'))->assertOk();
     }
 
     public function test_super_admin_can_open_the_multi_tenant_customer_overview(): void
     {
-        [$organization, $admin] = $this->organizationWithUser();
-        $admin->update(['is_super_admin' => true]);
+        [$organization] = $this->organizationWithUser();
+        $admin = User::factory()->create(['is_super_admin' => true]);
 
         $this->actingAs($admin->fresh())->get(route('admin.organizations.index'))
             ->assertOk()
             ->assertSee($organization->name)
             ->assertSee('Clienti e organizzazioni');
+    }
+
+    public function test_platform_admin_cannot_be_added_to_a_customer_organization(): void
+    {
+        [$organization, $owner] = $this->organizationWithUser();
+        $admin = User::factory()->create(['is_super_admin' => true]);
+
+        $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
+            ->post(route('settings.users.store'), [
+                'name' => $admin->name,
+                'email' => $admin->email,
+                'role' => 'sales',
+            ])->assertSessionHasErrors('email');
+
+        $this->assertFalse($organization->users()->whereKey($admin->id)->exists());
     }
 
     public function test_active_plan_limits_new_leads_and_included_users(): void
