@@ -9,6 +9,10 @@ Tema WordPress responsive per il sito marketing e l'area cliente di Commerciale 
 3. impostare nome sito e logo da **Aspetto > Personalizza**;
 4. attivare il plugin **Commerciale AI Client Area** per popolare listino e area cliente.
 
+Il tema include il logo orizzontale Daria, la variante bianca per il footer e il
+simbolo Daria come favicon predefinita. Un logo o una Site Icon configurati da
+WordPress continuano ad avere la precedenza sui rispettivi valori predefiniti.
+
 La home è già inclusa in `front-page.php`; non richiede un page builder.
 
 ## Alberatura gestita

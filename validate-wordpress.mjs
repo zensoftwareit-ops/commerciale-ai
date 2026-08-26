@@ -13,6 +13,9 @@ const required = [
     'commerciale-ai-theme/page.php',
     'commerciale-ai-theme/inc/site-structure.php',
     'commerciale-ai-theme/inc/coming-soon.php',
+    'commerciale-ai-theme/assets/brand/daria-logo-horizontal.svg',
+    'commerciale-ai-theme/assets/brand/daria-logo-white.svg',
+    'commerciale-ai-theme/assets/brand/daria-mark.svg',
     'commerciale-ai-client/commerciale-ai-client.php',
     'commerciale-ai-client/assets/client-area.css',
     'commerciale-ai-forms/commerciale-ai-forms.php',
@@ -88,6 +91,14 @@ const comingSoon = fs.readFileSync(path.join(root, 'commerciale-ai-theme/inc/com
 for (const marker of ['template_redirect', 'is_user_logged_in', 'REST_REQUEST', 'cai_coming_soon_enabled', 'add_theme_page']) {
     if (!comingSoon.includes(marker)) {
         console.error(`Controllo Coming soon non superato: ${marker}`);
+        failed = true;
+    }
+}
+
+const themeFunctions = fs.readFileSync(path.join(root, 'commerciale-ai-theme/functions.php'), 'utf8');
+for (const marker of ['daria-logo-horizontal.svg', 'daria-logo-white.svg', 'daria-mark.svg', 'has_site_icon', 'login_head']) {
+    if (!themeFunctions.includes(marker)) {
+        console.error(`Controllo identità Daria non superato: ${marker}`);
         failed = true;
     }
 }

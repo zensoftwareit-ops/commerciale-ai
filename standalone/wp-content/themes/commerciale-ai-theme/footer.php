@@ -3,7 +3,7 @@
     <div class="cai-container">
         <div class="footer-grid footer-grid--wide">
             <div>
-                <div class="footer-brand"><?php bloginfo('name'); ?></div>
+                <div class="footer-brand"><?php echo cai_brand_logo('white', 'footer-logo'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></div>
                 <p><?php esc_html_e('Raccoglie, comprende e prepara il prossimo passo. Le decisioni commerciali restano alle persone.', 'commerciale-ai'); ?></p>
             </div>
             <div>

@@ -7,7 +7,7 @@
 
 defined('ABSPATH') || exit;
 
-define('CAI_THEME_VERSION', '2.2.0');
+define('CAI_THEME_VERSION', '2.3.0');
 
 require_once get_template_directory().'/inc/site-structure.php';
 require_once get_template_directory().'/inc/coming-soon.php';
@@ -34,6 +34,30 @@ function cai_theme_assets(): void
     wp_enqueue_script('commerciale-ai', get_template_directory_uri().'/assets/js/site.js', [], CAI_THEME_VERSION, true);
 }
 add_action('wp_enqueue_scripts', 'cai_theme_assets');
+
+function cai_brand_logo(string $variant = 'horizontal', string $class = 'brand-logo'): string
+{
+    $filename = $variant === 'white' ? 'daria-logo-white.svg' : 'daria-logo-horizontal.svg';
+    $dimensions = $variant === 'white' ? ['1000', '260'] : ['1000', '260'];
+    return sprintf(
+        '<img class="%s" src="%s" width="%s" height="%s" alt="%s">',
+        esc_attr($class),
+        esc_url(get_theme_file_uri('/assets/brand/'.$filename)),
+        esc_attr($dimensions[0]),
+        esc_attr($dimensions[1]),
+        esc_attr__('Daria', 'commerciale-ai')
+    );
+}
+
+function cai_fallback_site_icon(): void
+{
+    if (has_site_icon()) return;
+    $icon = get_theme_file_uri('/assets/brand/daria-mark.svg');
+    echo '<link rel="icon" href="'.esc_url($icon).'" type="image/svg+xml">' . "\n";
+}
+add_action('wp_head', 'cai_fallback_site_icon', 5);
+add_action('login_head', 'cai_fallback_site_icon', 5);
+add_action('admin_head', 'cai_fallback_site_icon', 5);
 
 function cai_theme_menu_fallback(): void
 {

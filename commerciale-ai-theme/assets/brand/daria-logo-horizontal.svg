@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="260" viewBox="0 0 1000 260" role="img" aria-labelledby="title">
+  <title id="title">Daria - logo orizzontale</title>
+  <g transform="translate(30 30)">
+    <rect width="200" height="200" rx="52" fill="#17233C"/>
+    <path d="M53 46h40c51 0 80 26 80 54s-29 54-80 54H53V46zm25 29v54h15c33 0 51-10 51-29s-18-25-51-25H78z" fill="#FF6B5E"/>
+    <circle cx="158" cy="52" r="11" fill="#45D6B5"/>
+  </g>
+  <text x="272" y="174" fill="#17233C" font-family="Manrope, Inter, Arial, sans-serif" font-size="142" font-weight="750" letter-spacing="-5">daria</text>
+</svg>

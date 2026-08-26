@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Daria - simbolo</title>
+  <desc id="desc">Una D che unisce analisi, risposta e interazione.</desc>
+  <rect width="512" height="512" rx="136" fill="#17233C"/>
+  <path d="M139 118h102c130 0 205 65 205 139s-75 139-205 139H139V118zm64 75v128h38c83 0 130-24 130-64s-47-64-130-64h-38z" fill="#FF6B5E"/>
+  <circle cx="404" cy="132" r="28" fill="#45D6B5"/>
+</svg>

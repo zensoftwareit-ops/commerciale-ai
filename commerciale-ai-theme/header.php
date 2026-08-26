@@ -14,8 +14,7 @@
             <?php if (has_custom_logo()) : ?>
                 <?php echo wp_get_attachment_image((int) get_theme_mod('custom_logo'), 'full', false, ['class' => 'custom-logo']); ?>
             <?php else : ?>
-                <span class="brand-mark" aria-hidden="true">C</span>
-                <span><?php bloginfo('name'); ?></span>
+                <?php echo cai_brand_logo(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             <?php endif; ?>
         </a>
         <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-menu">Menu</button>
