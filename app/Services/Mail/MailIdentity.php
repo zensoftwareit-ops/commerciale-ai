@@ -3,6 +3,7 @@
 namespace App\Services\Mail;
 
 use App\Models\Organization;
+use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Mail\Mailables\Address;
 use RuntimeException;
@@ -36,10 +37,15 @@ class MailIdentity
         return $this->forUser($user);
     }
 
-    public function forPlatformOr(User $fallback): Address
+    public function forPlatform(): Address
     {
-        $admin = User::query()->where('is_super_admin', true)->whereDoesntHave('organizations')->first();
+        $settings = PlatformSetting::query()->find(1);
+        $address = mb_strtolower(trim((string) $settings?->system_mail_from_address));
+        $name = trim((string) $settings?->system_mail_from_name);
+        if (! filter_var($address, FILTER_VALIDATE_EMAIL) || $name === '') {
+            throw new RuntimeException('Configura il mittente delle email di sistema nel pannello amministrativo.');
+        }
 
-        return $this->forUser($admin ?: $fallback);
+        return new Address($address, $name);
     }
 }

@@ -291,7 +291,10 @@ Su Plesk è possibile usare la casella del dominio. In genere `MAIL_HOST` è il 
 `MAIL_FROM_ADDRESS` e `MAIL_FROM_NAME` non devono essere inseriti nel `.env`.
 Ogni utente configura indirizzo e nome mittente dalla pagina **Account**. Gli
 invii manuali usano il mittente dell'operatore; le automazioni usano quello
-dell'owner dell'organizzazione. La stessa regola vale usando SMTP base o Resend.
+dell'owner dell'organizzazione. Inviti, attivazioni e recupero password usano
+invece l'identità transazionale **Email di sistema Daria**, configurata nel
+pannello Account del Super Admin e non collegata all'indirizzo personale
+dell'amministratore. La stessa separazione vale usando SMTP base o Resend.
 
 Dopo la modifica eseguire:
 
@@ -321,8 +324,9 @@ RESEND_DOMAIN_AUTOMATION_ENABLED=false
 
 La chiave resta globale e solo sul server. `RESEND_DOMAIN_AUTOMATION_ENABLED` deve
 rimanere `false` finché il pannello di onboarding DNS non sarà stato implementato.
-Indirizzo e nome mittente restano sempre quelli salvati sull'utente e non cambiano
-quando viene sostituito il trasporto globale.
+Indirizzo e nome mittente delle conversazioni restano quelli salvati sull'utente;
+le comunicazioni di piattaforma usano il mittente di sistema. Nessuna delle due
+identità cambia quando viene sostituito il trasporto globale.
 In quella fase la REST API di Resend verrà usata per creare i domini dei tenant,
 mostrare SPF/DKIM e aggiornarne lo stato; il trasporto delle email resterà separato
 da questa procedura amministrativa.

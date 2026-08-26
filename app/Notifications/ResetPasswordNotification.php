@@ -9,7 +9,7 @@ class ResetPasswordNotification extends ResetPassword
 {
     public function toMail($notifiable)
     {
-        $identity = app(MailIdentity::class)->forPlatformOr($notifiable);
+        $identity = app(MailIdentity::class)->forPlatform();
 
         return parent::toMail($notifiable)->from($identity->address, $identity->name);
     }

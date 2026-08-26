@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PlatformSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,7 +13,13 @@ class AccountController extends Controller
 {
     public function edit(): View
     {
-        return view(request()->user()->isPlatformAdmin() ? 'admin.account.edit' : 'account.edit');
+        if (request()->user()->isPlatformAdmin()) {
+            return view('admin.account.edit', [
+                'platformSettings' => PlatformSetting::query()->findOrNew(1),
+            ]);
+        }
+
+        return view('account.edit');
     }
 
     public function updatePassword(Request $request): RedirectResponse
@@ -41,5 +48,20 @@ class AccountController extends Controller
         ]);
 
         return back()->with('status', 'Mittente email aggiornato.');
+    }
+
+    public function updatePlatformMailIdentity(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isPlatformAdmin(), 403);
+        $data = $request->validate([
+            'system_mail_from_address' => ['required', 'email:rfc', 'max:255'],
+            'system_mail_from_name' => ['required', 'string', 'max:255'],
+        ]);
+        PlatformSetting::query()->updateOrCreate(['id' => 1], [
+            'system_mail_from_address' => mb_strtolower(trim($data['system_mail_from_address'])),
+            'system_mail_from_name' => trim($data['system_mail_from_name']),
+        ]);
+
+        return back()->with('status', 'Mittente delle email di sistema aggiornato.');
     }
 }

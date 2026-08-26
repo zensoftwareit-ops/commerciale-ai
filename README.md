@@ -106,6 +106,9 @@ WordPress](wordpress/INSTALLATION.md).
 L'amministratore della piattaforma usa un account dedicato, creato con
 `php artisan platform-admin:create admin@azienda.it`: non appartiene a nessuna
 organizzazione cliente e non utilizza lead, caselle email o licenze.
+Dal relativo pannello **Account** configura inoltre l'identità transazionale di
+Daria, separata dal proprio indirizzo personale e usata per inviti, attivazioni
+e recupero password.
 
 Il listino strutturato genera fasce di preventivo deterministiche e versionate. L'AI può presentare la fascia ma non modificarla; quando mancano dati prepara al massimo due domande mirate. L'automazione via cron e l'invio automatico sono disattivati per impostazione predefinita; durante il collaudo possono operare esclusivamente sugli indirizzi interni autorizzati e solo se non esiste alcun blocco di sicurezza. Il numero massimo di interventi automatici per lead impedisce conversazioni senza fine.
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
@@ -37,6 +38,27 @@ class AccountPasswordTest extends CommercialeAiTestCase
             'id' => $user->id,
             'mail_from_address' => 'commerciale@cliente.test',
             'mail_from_name' => 'Ufficio commerciale Cliente',
+        ]);
+    }
+
+    public function test_platform_admin_configures_a_dedicated_system_mail_sender(): void
+    {
+        $admin = User::factory()->create([
+            'is_super_admin' => true,
+            'email' => 'admin-personale@example.test',
+        ]);
+
+        $this->actingAs($admin)->put(route('admin.account.system-mail-identity.update'), [
+            'system_mail_from_address' => 'assistenza@daria-ai.it',
+            'system_mail_from_name' => 'Daria',
+        ])->assertSessionHasNoErrors()->assertSessionHas('status');
+
+        $this->assertDatabaseHas('platform_settings', [
+            'system_mail_from_address' => 'assistenza@daria-ai.it',
+            'system_mail_from_name' => 'Daria',
+        ]);
+        $this->assertDatabaseMissing('platform_settings', [
+            'system_mail_from_address' => 'admin-personale@example.test',
         ]);
     }
 }

@@ -31,7 +31,7 @@ class LicenseController extends Controller
 
         $message = 'Cliente registrato e licenza attivata.';
         $message .= $result['reset_link_sent']
-            ? ' Il cliente ha ricevuto l\'email per impostare la password.'
+            ? ' L\'email per impostare la password è stata affidata al servizio di posta.'
             : ' L\'email di invito non è partita: verifica SMTP oppure usa “Password dimenticata”.';
 
         return back()->with('status', $message);
