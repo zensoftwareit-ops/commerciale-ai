@@ -34,6 +34,10 @@ licenze, lead, conversazioni, caselle, configurazioni e gli account che non
 appartengono ad altre organizzazioni. Le licenze Stripe non possono essere
 eliminate manualmente dal pannello.
 
+Il reinvio è consentito soltanto con un trasporto reale. Se Laravel sta usando
+`log`, `array` oppure un failover che può ripiegare su uno di questi driver, il
+pannello mostra un errore invece di dichiarare falsamente completato l'invio.
+
 Per clienti già presenti è disponibile una sezione secondaria che assegna una
 nuova licenza a un'organizzazione e al relativo owner esistenti.
 

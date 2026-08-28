@@ -43,6 +43,7 @@ class LicensingTest extends CommercialeAiTestCase
     public function test_billing_api_provisions_an_owner_organization_and_license_idempotently(): void
     {
         Notification::fake();
+        config()->set('mail.default', 'smtp');
         config()->set('commerciale-ai.billing.self_service_enabled', true);
         config()->set('commerciale-ai.billing.integration_key', 'test-billing-key');
         LicensePlan::create(['name' => 'Professional', 'slug' => 'professional', 'annual_price_cents' => 99000, 'seat_limit' => 3, 'stripe_price_id' => 'price_test_pro', 'is_active' => true]);
@@ -78,6 +79,7 @@ class LicensingTest extends CommercialeAiTestCase
     public function test_super_admin_can_register_a_new_customer_and_activate_a_license(): void
     {
         Notification::fake();
+        config()->set('mail.default', 'smtp');
         $admin = User::factory()->create(['is_super_admin' => true]);
         $plan = LicensePlan::create([
             'name' => 'Professional',
@@ -112,6 +114,7 @@ class LicensingTest extends CommercialeAiTestCase
     public function test_super_admin_can_resend_suspend_activate_renew_and_delete_a_manual_license(): void
     {
         Notification::fake();
+        config()->set('mail.default', 'smtp');
         $admin = User::factory()->create(['is_super_admin' => true]);
         [$organization, $owner] = $this->organizationWithUser();
         $plan = LicensePlan::create(['name' => 'Starter', 'slug' => 'starter-actions', 'annual_price_cents' => 49000, 'seat_limit' => 1, 'is_active' => true]);

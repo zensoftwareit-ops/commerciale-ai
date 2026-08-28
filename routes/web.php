@@ -43,6 +43,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->gro
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::put('/account/system-mail-identity', [AccountController::class, 'updatePlatformMailIdentity'])->name('account.system-mail-identity.update');
+    Route::post('/account/system-mail-test', [AccountController::class, 'testPlatformMail'])->name('account.system-mail-test');
     Route::post('/plans', [AdminLicensePlanController::class, 'store'])->name('plans.store');
     Route::put('/plans/{plan}', [AdminLicensePlanController::class, 'update'])->name('plans.update');
     Route::post('/licenses', [AdminLicenseController::class, 'store'])->name('licenses.store');

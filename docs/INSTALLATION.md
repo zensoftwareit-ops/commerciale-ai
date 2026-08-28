@@ -303,6 +303,12 @@ Dopo la modifica eseguire:
 /opt/plesk/php/8.3/bin/php artisan config:cache
 ```
 
+Nel pannello Super Admin aprire **Account**: la sezione **Trasporto email
+effettivo** mostra il mailer, il driver, host, porta e username realmente caricati
+da Laravel. Usare **Invia test al mio indirizzo admin** prima di reinviare
+l'attivazione di un cliente. I mailer `log` e `array` vengono bloccati perché non
+consegnano messaggi; anche un failover verso `log` viene segnalato come non sicuro.
+
 Verificare prima con un reset password di prova, poi con un lead di test: analizzarlo, salvare la bozza e premere **Approva e invia**. Non inserire credenziali SMTP nel repository.
 
 #### Strategia SMTP del pilota e predisposizione Resend

@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class AccountPasswordTest extends CommercialeAiTestCase
 {
@@ -60,5 +62,30 @@ class AccountPasswordTest extends CommercialeAiTestCase
         $this->assertDatabaseMissing('platform_settings', [
             'system_mail_from_address' => 'admin-personale@example.test',
         ]);
+    }
+
+    public function test_platform_mail_test_rejects_a_non_delivering_mailer(): void
+    {
+        config()->set('mail.default', 'log');
+        $admin = User::factory()->create(['is_super_admin' => true]);
+
+        $this->actingAs($admin)->post(route('admin.account.system-mail-test'))
+            ->assertSessionHasErrors('mail');
+    }
+
+    public function test_platform_admin_can_send_a_system_mail_test_with_smtp(): void
+    {
+        Mail::fake();
+        config()->set('mail.default', 'smtp');
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        PlatformSetting::create([
+            'id' => 1,
+            'system_mail_from_address' => 'assistenza@daria-ai.it',
+            'system_mail_from_name' => 'Daria',
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.account.system-mail-test'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status');
     }
 }
