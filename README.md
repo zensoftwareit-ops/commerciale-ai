@@ -18,6 +18,7 @@ L’installazione richiede soltanto PHP e Composer; code, cache e database di sv
 - [Installazione base](docs/INSTALLATION.md): ambiente locale, server, database, HTTPS, SMTP e aggiornamenti.
 - [Istanza pilota preventivositoweb.it](docs/INSTANCE-PREVENTIVOSITOWEB.md): configurazione aziendale, knowledge base, webhook e collaudo.
 - [Checklist pilota sintetica](docs/PILOT.md).
+- [Esercizio del pilota su Plesk](docs/PILOT-OPERATIONS.md): deploy, 2FA, cron, salute, backup e ripristino.
 
 ## Installazione locale rapida
 
@@ -113,6 +114,10 @@ organizzazione cliente e non utilizza lead, caselle email o licenze.
 Dal relativo pannello **Account** configura inoltre l'identità transazionale di
 Daria, separata dal proprio indirizzo personale e usata per inviti, attivazioni
 e recupero password.
+
+Il pannello Super Admin dispone inoltre di autenticazione TOTP a due fattori,
+registro delle operazioni e pagina **Salute**. Quest'ultima controlla cron, email,
+OpenAI, IMAP, licenze, backup e configurazione essenziale del server.
 
 Il listino strutturato genera fasce di preventivo deterministiche e versionate. L'AI può presentare la fascia ma non modificarla; quando mancano dati prepara al massimo due domande mirate. L'automazione via cron e l'invio automatico sono disattivati per impostazione predefinita; durante il collaudo possono operare esclusivamente sugli indirizzi interni autorizzati e solo se non esiste alcun blocco di sicurezza. Il numero massimo di interventi automatici per lead impedisce conversazioni senza fine.
 

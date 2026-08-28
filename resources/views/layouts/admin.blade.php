@@ -14,7 +14,7 @@
 <body>
 <header>
     <a href="{{ route('admin.licensing') }}"><img src="{{ asset('brand/daria-logo-white.svg') }}" alt="Daria"></a>
-    <nav><span>Super Admin</span><a href="{{ route('admin.organizations.index') }}">Clienti</a><a href="{{ route('admin.licensing') }}">Licenze</a><a href="{{ route('admin.account.edit') }}">Account</a><form method="post" action="{{ route('logout') }}">@csrf<button>Esci</button></form></nav>
+    <nav><span>Super Admin</span><a href="{{ route('admin.organizations.index') }}">Clienti</a><a href="{{ route('admin.licensing') }}">Licenze</a><a href="{{ route('admin.health.index') }}">Salute</a><a href="{{ route('admin.audit.index') }}">Audit</a><a href="{{ route('admin.two-factor.enroll') }}">Sicurezza</a><a href="{{ route('admin.account.edit') }}">Account</a><form method="post" action="{{ route('logout') }}">@csrf<button>Esci</button></form></nav>
 </header>
 <main>
     @if(session('status'))<div class="notice">{{ session('status') }}</div>@endif

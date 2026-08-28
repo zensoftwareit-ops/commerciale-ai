@@ -2,11 +2,13 @@
 
 use App\Contracts\InboundMailbox;
 use App\Models\MailboxAccount;
+use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\Mail\WebklexInboundMailbox;
 use App\Services\Mail\SyncInboundEmailReplies;
 use App\Services\Mail\RunConversationAutomation;
 use App\Services\Leads\RunNewLeadAutomation;
+use App\Services\Operations\PilotHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -127,17 +129,26 @@ Artisan::command('commerciale:run {--limit=25} {--mail-limit= : Numero massimo d
         return Command::SUCCESS;
     }
 
+    $settings = PlatformSetting::query()->updateOrCreate(['id' => 1], [
+        'last_automation_started_at' => now(),
+        'last_automation_status' => 'running',
+        'last_automation_error' => null,
+    ]);
     $failed = 0;
+    $summary = [];
+    $errors = [];
     try {
         try {
             $leadStats = $newLeads->handle((int) $this->option('limit'));
             $this->info('Nuovi lead');
             $this->table(['Organizzazioni', 'Candidati', 'Analizzati', 'Bozze', 'Inviati', 'Falliti'], [array_values($leadStats)]);
             $failed += $leadStats['failed'];
+            $summary['new_leads'] = $leadStats;
         } catch (Throwable $exception) {
             report($exception);
             $this->error('Nuovi lead: '.$exception->getMessage());
             $failed++;
+            $errors[] = 'Nuovi lead: '.$exception->getMessage();
         }
 
         try {
@@ -149,10 +160,12 @@ Artisan::command('commerciale:run {--limit=25} {--mail-limit= : Numero massimo d
                 $mailStats['unmatched'], $mailStats['automated'], $mailStats['drafts'], $mailStats['handoffs'], $mailStats['draft_errors'],
             ]]);
             $failed += $mailStats['mailbox_errors'] + $mailStats['draft_errors'];
+            $summary['inbound_mail'] = $mailStats;
         } catch (Throwable $exception) {
             report($exception);
             $this->error('Posta in ingresso: '.$exception->getMessage());
             $failed++;
+            $errors[] = 'Posta in ingresso: '.$exception->getMessage();
         }
 
         try {
@@ -160,14 +173,35 @@ Artisan::command('commerciale:run {--limit=25} {--mail-limit= : Numero massimo d
             $this->info('Conversazioni');
             $this->table(['Organizzazioni', 'Candidate', 'Inviate', 'Fallite'], [array_values($conversationStats)]);
             $failed += $conversationStats['failed'];
+            $summary['conversations'] = $conversationStats;
         } catch (Throwable $exception) {
             report($exception);
             $this->error('Conversazioni: '.$exception->getMessage());
             $failed++;
+            $errors[] = 'Conversazioni: '.$exception->getMessage();
         }
     } finally {
+        $settings->update([
+            'last_automation_completed_at' => now(),
+            'last_automation_status' => $failed > 0 ? 'failed' : 'success',
+            'last_automation_summary' => $summary,
+            'last_automation_error' => $errors === [] ? null : implode("\n", $errors),
+        ]);
         $lock->release();
     }
 
     return $failed > 0 ? Command::FAILURE : Command::SUCCESS;
 })->purpose('Esegue direttamente tutte le automazioni senza usare lo scheduler Laravel');
+
+Artisan::command('daria:pilot-status', function (PilotHealth $health): int {
+    $snapshot = $health->snapshot();
+    $this->table(['Controllo', 'Stato', 'Dettaglio'], array_map(
+        fn (array $check): array => [$check['label'], strtoupper($check['status']), $check['detail']],
+        $snapshot['checks'],
+    ));
+    $snapshot['ready']
+        ? $this->info('Il pilot supera tutti i controlli obbligatori.')
+        : $this->error('Il pilot ha ancora controlli obbligatori da risolvere.');
+
+    return $snapshot['ready'] ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Controlla configurazione e salute operativa del pilot Daria');

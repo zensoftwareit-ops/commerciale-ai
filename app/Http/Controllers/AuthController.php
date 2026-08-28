@@ -25,6 +25,13 @@ class AuthController extends Controller
         $user = $request->user();
         if ($user->isPlatformAdmin()) {
             $request->session()->forget('organization_id');
+            $request->session()->forget('platform_2fa_verified_at');
+            if (! $user->two_factor_confirmed_at && config('commerciale-ai.security.platform_2fa_required')) {
+                return redirect()->route('admin.two-factor.enroll')->withErrors(['two_factor' => 'Configura l’autenticazione a due fattori per proteggere il pannello amministrativo.']);
+            }
+            if ($user->two_factor_confirmed_at) {
+                return redirect()->route('admin.two-factor.challenge');
+            }
             return redirect()->intended(route('admin.licensing'));
         }
 

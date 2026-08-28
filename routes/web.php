@@ -21,6 +21,9 @@ use App\Http\Controllers\Admin\LicensingDashboardController;
 use App\Http\Controllers\Admin\OrganizationController as AdminOrganizationController;
 use App\Http\Controllers\Admin\LicensePlanController as AdminLicensePlanController;
 use App\Http\Controllers\Admin\LicenseController as AdminLicenseController;
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\PilotHealthController;
+use App\Http\Controllers\Admin\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/leads');
@@ -36,9 +39,20 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware('auth')->post('/logout', [AuthController::class, 'destroy'])->name('logout');
 Route::middleware('auth')->post('/organizations/{organization}/switch', OrganizationSwitchController::class)->name('organizations.switch');
-Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->group(function (): void {
+Route::middleware(['auth', 'superadmin', 'audit.platform'])->prefix('/admin')->name('admin.')->group(function (): void {
+    Route::get('/two-factor', [TwoFactorController::class, 'enroll'])->name('two-factor.enroll');
+    Route::post('/two-factor/setup', [TwoFactorController::class, 'setup'])->name('two-factor.setup');
+    Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:6,1')->name('two-factor.confirm');
+    Route::delete('/two-factor', [TwoFactorController::class, 'disable'])->middleware('throttle:6,1')->name('two-factor.disable');
+    Route::get('/two-factor-challenge', [TwoFactorController::class, 'challenge'])->name('two-factor.challenge');
+    Route::post('/two-factor-challenge', [TwoFactorController::class, 'verify'])->middleware('throttle:6,1')->name('two-factor.verify');
+
+    Route::middleware('platform.2fa')->group(function (): void {
     Route::get('/licensing', LicensingDashboardController::class)->name('licensing');
     Route::get('/organizations', [AdminOrganizationController::class, 'index'])->name('organizations.index');
+    Route::get('/audit', AuditLogController::class)->name('audit.index');
+    Route::get('/health', [PilotHealthController::class, 'index'])->name('health.index');
+    Route::post('/health/backup-confirm', [PilotHealthController::class, 'confirmBackup'])->name('health.backup-confirm');
     Route::delete('/organizations/{organization}', [AdminOrganizationController::class, 'destroy'])->name('organizations.destroy');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
@@ -54,6 +68,7 @@ Route::middleware(['auth', 'superadmin'])->prefix('/admin')->name('admin.')->gro
     Route::post('/licenses/{license}/suspend', [AdminLicenseController::class, 'suspend'])->name('licenses.suspend');
     Route::post('/licenses/{license}/activate', [AdminLicenseController::class, 'activate'])->name('licenses.activate');
     Route::delete('/licenses/{license}', [AdminLicenseController::class, 'destroy'])->name('licenses.destroy');
+    });
 });
 
 Route::middleware(['auth', 'tenant'])->group(function (): void {

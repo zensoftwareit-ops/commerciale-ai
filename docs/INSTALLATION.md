@@ -347,6 +347,7 @@ da `/admin/licensing`. Nel `.env` mantenere:
 BILLING_SELF_SERVICE_ENABLED=false
 BILLING_INTEGRATION_KEY=
 LICENSE_ENFORCEMENT_ENABLED=false
+PLATFORM_2FA_REQUIRED=false
 ```
 
 Creare l'account amministrativo separato con
@@ -359,6 +360,10 @@ Il modulo licenze viene installato con le normali migrazioni ma non blocca il pi
 `LICENSE_ENFORCEMENT_ENABLED` è `false` per impostazione predefinita. La procedura
 completa per Super Admin, pacchetti, Stripe e plugin WordPress è descritta in
 [`BILLING-AND-LICENSES.md`](BILLING-AND-LICENSES.md).
+
+Prima dell'apertura del pilota, configurare la 2FA dal pannello Super Admin e
+solo dopo impostare `PLATFORM_2FA_REQUIRED=true`. La procedura operativa completa,
+inclusi backup e controllo del cron, e in [`PILOT-OPERATIONS.md`](PILOT-OPERATIONS.md).
 
 ## 6. Posta in ingresso IMAP
 
@@ -438,6 +443,7 @@ php artisan up
 ```bash
 php artisan about
 php artisan migrate:status
+php artisan daria:pilot-status
 ```
 
 In un ambiente di sviluppo, dove sono presenti anche le dipendenze `require-dev`, eseguire inoltre `php artisan test`.

@@ -18,6 +18,9 @@ return [
     'automation' => [
         'external_send_enabled' => (bool) env('AUTOMATION_EXTERNAL_SEND_ENABLED', false),
     ],
+    'security' => [
+        'platform_2fa_required' => (bool) env('PLATFORM_2FA_REQUIRED', false),
+    ],
     'billing' => [
         'self_service_enabled' => (bool) env('BILLING_SELF_SERVICE_ENABLED', false),
         'integration_key' => env('BILLING_INTEGRATION_KEY'),
