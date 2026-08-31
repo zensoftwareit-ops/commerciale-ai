@@ -1,4 +1,4 @@
-# Avvio del progetto pilota
+# Avvio operativo di Daria
 
 ## 1. Installazione
 

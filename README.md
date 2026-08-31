@@ -1,4 +1,4 @@
-# Daria — Pilot
+# Daria
 
 Daria è l'assistente AI per le PMI che comprende, qualifica e prepara la risposta ai lead in ingresso. L'applicazione PHP/Laravel multi-tenant include autenticazione, lead inbox, ricezione adattiva dei payload, profilo aziendale, knowledge base, analisi strutturata, risposte email e sincronizzazione IMAP.
 
@@ -16,9 +16,8 @@ L’installazione richiede soltanto PHP e Composer; code, cache e database di sv
 ## Guide
 
 - [Installazione base](docs/INSTALLATION.md): ambiente locale, server, database, HTTPS, SMTP e aggiornamenti.
-- [Istanza pilota preventivositoweb.it](docs/INSTANCE-PREVENTIVOSITOWEB.md): configurazione aziendale, knowledge base, webhook e collaudo.
-- [Checklist pilota sintetica](docs/PILOT.md).
-- [Esercizio del pilota su Plesk](docs/PILOT-OPERATIONS.md): deploy, 2FA, cron, salute, backup e ripristino.
+- [Avvio operativo](docs/GETTING-STARTED.md): configurazione aziendale, knowledge base, webhook e collaudo.
+- [Gestione su Plesk](docs/OPERATIONS.md): deploy, 2FA, cron, salute, backup e ripristino.
 
 ## Installazione locale rapida
 
@@ -91,7 +90,7 @@ Dopo l'analisi viene generata una bozza email modificabile. Un operatore deve sa
 
 Con una casella IMAP attiva, le risposte riconosciute vengono importate, mostrate nella scheda del lead e contrassegnate come lette. Le credenziali sono cifrate nel database e ogni casella può accedere esclusivamente ai lead della propria organizzazione.
 
-Durante il pilota l'invio usa un unico SMTP transazionale configurato sul server. Il
+Nella configurazione iniziale l'invio usa un unico SMTP transazionale configurato sul server. Il
 trasporto SMTP di Resend è già predisposto ma resta disattivato fino alla futura fase
 SaaS, quando verrà aggiunto anche l'onboarding automatico SPF/DKIM per dominio.
 Indirizzo e nome `From` sono configurati da ciascun utente nella propria pagina
@@ -130,7 +129,7 @@ regole di gestione delle richieste e di quattro documenti iniziali della knowled
 base. Il wizard non attiva automaticamente invii o preventivi e non modifica i
 contenuti manuali già presenti.
 
-## Preparazione del pilota
+## Preparazione dell'ambiente
 
 Dopo il primo accesso:
 
@@ -141,7 +140,7 @@ Dopo il primo accesso:
 5. inviare un lead, aprirlo dalla inbox e selezionare **Analizza lead**;
 6. controllare la bozza, salvarla e usare **Approva e invia**.
 
-La inbox mostra una checklist di prontezza. La guida completa è in [docs/PILOT.md](docs/PILOT.md).
+La inbox mostra una checklist di prontezza. La guida completa è in [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
 
 ## Test e qualità
 
@@ -150,4 +149,4 @@ php artisan test
 vendor/bin/pint --test
 ```
 
-Vedi [docs/INSTALLATION.md](docs/INSTALLATION.md), [docs/INSTANCE-PREVENTIVOSITOWEB.md](docs/INSTANCE-PREVENTIVOSITOWEB.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).
+Vedi [docs/INSTALLATION.md](docs/INSTALLATION.md), [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md), [docs/OPERATIONS.md](docs/OPERATIONS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/SPRINT-2.md](docs/SPRINT-2.md).

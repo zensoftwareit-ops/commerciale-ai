@@ -22,14 +22,14 @@ class LeadController extends Controller
             ->when($request->filled('source'), fn ($q) => $q->where('source_label', $request->string('source')))
             ->latest('last_activity_at')->paginate(25)->withQueryString();
         $settings = OrganizationSetting::query()->first();
-        $pilotReadiness = [
+        $systemReadiness = [
             'company_profile' => ($settings?->completeness ?? 0) === 100,
             'knowledge_base' => KnowledgeDocument::query()->where('status', 'active')->exists(),
             'openai' => config('commerciale-ai.ai_provider') === 'openai' && filled(config('commerciale-ai.openai.api_key')),
             'inbound_source' => InboundSource::query()->where('is_active', true)->exists(),
         ];
 
-        return view('leads.index', compact('leads', 'pilotReadiness'));
+        return view('leads.index', compact('leads', 'systemReadiness'));
     }
 
     public function create(): View

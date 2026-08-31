@@ -85,7 +85,7 @@
 
 <details class="card">
     <summary><strong>Assegna una licenza a un cliente già presente</strong></summary>
-    <p class="muted">Funzione secondaria per il pilota, rinnovi manuali o organizzazioni create in precedenza.</p>
+    <p class="muted">Usa questa funzione per rinnovi manuali o organizzazioni create in precedenza.</p>
     <form method="post" action="{{ route('admin.licenses.existing.store') }}">
         @csrf
         <div class="grid">

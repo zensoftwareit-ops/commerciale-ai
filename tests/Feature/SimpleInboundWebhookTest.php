@@ -15,7 +15,7 @@ class SimpleInboundWebhookTest extends CommercialeAiTestCase
     public function test_it_adapts_an_italian_flat_payload_and_is_automatically_idempotent(): void
     {
         [$organization] = $this->organizationWithUser();
-        [$source, $token] = $this->source($organization, ['preventivositoweb.it']);
+        [$source, $token] = $this->source($organization, ['azienda.example']);
         $payload = [
             'id_richiesta' => 'modulo-123',
             'nome_e_cognome' => 'Mario Rossi',
@@ -28,10 +28,10 @@ class SimpleInboundWebhookTest extends CommercialeAiTestCase
         ];
 
         $url = "/api/v1/inbound/leads/{$token}";
-        $this->withHeader('Origin', 'https://www.preventivositoweb.it')->postJson($url, $payload)
+        $this->withHeader('Origin', 'https://www.azienda.example')->postJson($url, $payload)
             ->assertCreated()
             ->assertJson(['status' => 'created', 'domain_validation' => 'origin_header']);
-        $this->withHeader('Origin', 'https://preventivositoweb.it')->postJson($url, $payload)
+        $this->withHeader('Origin', 'https://azienda.example')->postJson($url, $payload)
             ->assertOk()
             ->assertJson(['status' => 'already_processed']);
 
@@ -43,7 +43,7 @@ class SimpleInboundWebhookTest extends CommercialeAiTestCase
         $this->assertArrayNotHasKey('email', $lead->request_data);
         $this->assertSame(1, WebhookReceipt::withoutGlobalScopes()->count());
         $receipt = WebhookReceipt::withoutGlobalScopes()->sole();
-        $this->assertSame('www.preventivositoweb.it', $receipt->source_domain);
+        $this->assertSame('www.azienda.example', $receipt->source_domain);
         $this->assertSame('origin_header', $receipt->validation_mode);
     }
 

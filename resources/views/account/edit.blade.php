@@ -8,7 +8,7 @@
 <label>Nome mittente</label><input name="mail_from_name" value="{{ old('mail_from_name',auth()->user()->mail_from_name ?: auth()->user()->name) }}" required maxlength="255">
 <br><button class="btn">Salva mittente</button></form>
 <form class="card" method="post" action="{{ route('account.password.update') }}" style="max-width:620px">@csrf @method('put')
-<h2>Cambia password</h2><p class="muted">Prima di usare il pilot con dati reali, sostituisci la password fornita dal seed.</p>
+<h2>Cambia password</h2><p class="muted">Prima di usare Daria con dati reali, sostituisci la password fornita dal seed.</p>
 <label>Password attuale</label><input type="password" name="current_password" required autocomplete="current-password">
 <label>Nuova password</label><input type="password" name="password" required minlength="12" autocomplete="new-password">
 <label>Conferma nuova password</label><input type="password" name="password_confirmation" required minlength="12" autocomplete="new-password">

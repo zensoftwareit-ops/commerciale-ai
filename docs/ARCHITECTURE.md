@@ -1,4 +1,4 @@
-# Architettura del pilot
+# Architettura di Daria
 
 Daria è un monolite modulare Laravel 12 con interfaccia Blade server-rendered. SQLite è il database predefinito per sviluppo; MariaDB, MySQL e PostgreSQL sono supportati per il server. Code, cache e sessioni usano il database senza servizi aggiuntivi.
 
@@ -35,7 +35,7 @@ Ogni modello aziendale contiene `organization_id`; lo scope viene attivato dal t
 - Git non è installato sulla macchina di sviluppo corrente; la pubblicazione usa il connettore GitHub.
 - La deduplicazione email/telefono è intenzionalmente conservativa e andrà resa configurabile.
 - La selezione multi-organizzazione usa la sessione ma non espone ancora un selettore UI.
-- Il rate limiting su database è sufficiente per il pilot; un backend dedicato potrà essere introdotto solo se necessario.
+- Il rate limiting su database è adeguato alla configurazione corrente; un backend dedicato potrà essere introdotto se necessario.
 
 ## Threat model essenziale
 

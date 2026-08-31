@@ -19,8 +19,8 @@
     </section>
     <form class="card" method="post" action="{{ route('settings.sources.store') }}">@csrf
         <h2>Nuova sorgente</h2>
-        <label>Nome</label><input name="name" value="{{ old('name') }}" required maxlength="255" placeholder="preventivositoweb.it">
-        <label>Domini consentiti, uno per riga</label><textarea name="allowed_domains_text" rows="4" required placeholder="preventivositoweb.it&#10;www.preventivositoweb.it">{{ old('allowed_domains_text') }}</textarea>
+        <label>Nome</label><input name="name" value="{{ old('name') }}" required maxlength="255" placeholder="Sito aziendale">
+        <label>Domini consentiti, uno per riga</label><textarea name="allowed_domains_text" rows="4" required placeholder="azienda.it&#10;www.azienda.it">{{ old('allowed_domains_text') }}</textarea>
         @foreach($errors->all() as $error)<div class="error">{{ $error }}</div>@endforeach
         <br><button class="btn">Crea endpoint</button>
     </form>

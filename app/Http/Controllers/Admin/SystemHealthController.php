@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSetting;
-use App\Services\Operations\PilotHealth;
+use App\Services\Operations\SystemHealth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
-class PilotHealthController extends Controller
+class SystemHealthController extends Controller
 {
-    public function index(PilotHealth $health): View
+    public function index(SystemHealth $health): View
     {
         return view('admin.health.index', $health->snapshot());
     }

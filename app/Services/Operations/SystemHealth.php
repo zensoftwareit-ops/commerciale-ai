@@ -12,7 +12,7 @@ use App\Services\Mail\OutboundMailTransport;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-class PilotHealth
+class SystemHealth
 {
     public function __construct(
         private readonly OutboundMailTransport $mail,

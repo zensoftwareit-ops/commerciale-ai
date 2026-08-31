@@ -1,6 +1,6 @@
-# Esercizio del pilota Daria su Plesk
+# Gestione operativa di Daria su Plesk
 
-Questa procedura completa la messa in esercizio del pilota su `app.daria-ai.it`.
+Questa procedura descrive la messa in esercizio di Daria su `app.daria-ai.it`.
 I comandi vanno eseguiti nella directory che contiene `artisan`, usando PHP 8.3
 di Plesk.
 
@@ -66,7 +66,7 @@ Il pannello Super Admin **Salute** segnala un errore se l'ultimo completamento h
 piu di dieci minuti o e fallito. La stessa diagnosi e disponibile da terminale:
 
 ```bash
-/opt/plesk/php/8.3/bin/php artisan daria:pilot-status
+/opt/plesk/php/8.3/bin/php artisan daria:system-status
 ```
 
 ## Backup e prova di ripristino
@@ -88,7 +88,7 @@ pagina **Salute**. Il pulsante registra la verifica, non esegue il backup.
 
 ## Controllo operativo
 
-Ogni giorno controllare **Salute**. Prima di aprire il pilota a utenti reali tutti i
+Ogni giorno controllare **Salute**. Prima di aprire il servizio a utenti reali tutti i
 controlli obbligatori devono essere verdi; gli avvisi vanno valutati. In particolare:
 
 - nessun job fallito o errore IMAP persistente;
@@ -115,16 +115,16 @@ l'applicazione in manutenzione, distribuire il branch `software` ed eseguire:
 /opt/plesk/php/8.3/bin/php artisan route:cache
 /opt/plesk/php/8.3/bin/php artisan view:cache
 /opt/plesk/php/8.3/bin/php artisan up
-/opt/plesk/php/8.3/bin/php artisan daria:pilot-status
+/opt/plesk/php/8.3/bin/php artisan daria:system-status
 ```
 
 Le migrazioni non vanno annullate alla cieca. Se il deploy fallisce, mantenere la
 modalita manutenzione e ripristinare insieme codice e database dal backup creato
 prima del rilascio.
 
-## Limiti intenzionali del pilota
+## Funzioni abilitate gradualmente
 
 Durante il collaudo mantenere `AUTOMATION_EXTERNAL_SEND_ENABLED=false` e usare la
 allowlist interna. Resend, onboarding DNS automatico, WordPress/Stripe self-service
-e invio automatico a destinatari esterni restano fuori dal pilot. La loro presenza
+e invio automatico a destinatari esterni restano disattivati inizialmente. La loro presenza
 nel codice non autorizza l'attivazione in produzione.

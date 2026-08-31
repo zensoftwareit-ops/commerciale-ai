@@ -14,7 +14,7 @@ class InboundSourceSettingsTest extends CommercialeAiTestCase
     {
         [$organization, $owner] = $this->organizationWithUser();
 
-        $response = $this->actingAs($owner)->post('/settings/sources', ['name' => 'Sito pilota', 'allowed_domains_text' => "example.it\nwww.example.it"]);
+        $response = $this->actingAs($owner)->post('/settings/sources', ['name' => 'Sito aziendale', 'allowed_domains_text' => "example.it\nwww.example.it"]);
         $response->assertRedirect()->assertSessionHas('webhook_credentials');
 
         app(TenantContext::class)->set($organization);

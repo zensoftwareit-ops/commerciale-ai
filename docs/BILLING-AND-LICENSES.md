@@ -64,7 +64,7 @@ Accedere a `/admin/licensing`, creare i pacchetti e usare il modulo di registraz
 cliente. La password temporanea dell'amministratore viene mostrata una volta sola;
 va cambiata al primo accesso da `/admin/account`. L'amministratore non appartiene
 ad alcuna organizzazione, non possiede licenze e non può entrare nel software dei
-clienti. `LICENSE_ENFORCEMENT_ENABLED` può restare `false` durante il pilota; dovrà
+clienti. `LICENSE_ENFORCEMENT_ENABLED` può restare `false` durante l'allestimento iniziale; dovrà
 essere portato a `true` soltanto quando ogni organizzazione da mantenere operativa
 avrà una licenza valida.
 

@@ -1,7 +1,7 @@
 @extends('layouts.admin')
-@section('title', 'Salute pilota · Daria')
+@section('title', 'Salute sistema · Daria')
 @section('content')
-<div class="toolbar"><div><h1>Salute pilota</h1><p class="muted">Controlli operativi calcolati in tempo reale sul server.</p></div><span class="badge">{{ $ready ? 'PRONTO' : 'DA COMPLETARE' }}</span></div>
+<div class="toolbar"><div><h1>Salute sistema</h1><p class="muted">Controlli operativi calcolati in tempo reale sul server.</p></div><span class="badge">{{ $ready ? 'PRONTO' : 'DA COMPLETARE' }}</span></div>
 <div class="grid">
 @foreach($checks as $check)
 <article class="card">

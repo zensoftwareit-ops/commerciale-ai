@@ -2,8 +2,8 @@
 @section('title', 'Lead inbox · Daria')
 @section('content')
 @php
-    $readyCount = collect($pilotReadiness)->filter()->count();
-    $readinessTotal = count($pilotReadiness);
+    $readyCount = collect($systemReadiness)->filter()->count();
+    $readinessTotal = count($systemReadiness);
     $statusLabels = [
         'needs_action' => 'Da lavorare', 'awaiting_approval' => 'In approvazione',
         'awaiting_customer' => 'In attesa cliente', 'follow_up_scheduled' => 'Follow-up',
@@ -24,24 +24,24 @@
 <div class="metric-grid">
     <div class="metric"><div class="metric-label">Lead visualizzati</div><div class="metric-value">{{ $leads->total() }}</div><div class="metric-detail">Nel filtro corrente</div></div>
     <div class="metric"><div class="metric-label">Configurazione</div><div class="metric-value">{{ $readyCount }}/{{ $readinessTotal }}</div><div class="metric-detail">Requisiti operativi completati</div></div>
-    <div class="metric"><div class="metric-label">Stato sistema</div><div class="metric-value" style="font-size:18px;color:{{ $readyCount === $readinessTotal ? '#067647' : '#b54708' }}">{{ $readyCount === $readinessTotal ? 'Operativo' : 'Da completare' }}</div><div class="metric-detail">Pilot preventivositoweb.it</div></div>
+    <div class="metric"><div class="metric-label">Stato sistema</div><div class="metric-value" style="font-size:18px;color:{{ $readyCount === $readinessTotal ? '#067647' : '#b54708' }}">{{ $readyCount === $readinessTotal ? 'Operativo' : 'Da completare' }}</div><div class="metric-detail">Configurazione dell'organizzazione</div></div>
 </div>
 
 <section class="card setup-card" style="margin-bottom:16px">
     <div class="toolbar" style="margin:0">
-        <div><strong>Configurazione del pilot</strong><div class="muted">I servizi necessari al flusso automatico.</div></div>
+        <div><strong>Configurazione operativa</strong><div class="muted">I servizi necessari al flusso automatico.</div></div>
         <span class="badge {{ $readyCount === $readinessTotal ? 'success' : 'warm' }}">{{ $readyCount === $readinessTotal ? 'Tutto pronto' : 'Configurazione richiesta' }}</span>
     </div>
     <div class="check-list">
         @foreach(['company_profile' => 'Profilo aziendale', 'knowledge_base' => 'Knowledge base', 'openai' => 'OpenAI', 'inbound_source' => 'Fonte webhook'] as $key => $label)
-            <span class="badge {{ $pilotReadiness[$key] ? 'success' : 'hot' }}">{{ $pilotReadiness[$key] ? '✓' : '!' }} {{ $label }}</span>
+            <span class="badge {{ $systemReadiness[$key] ? 'success' : 'hot' }}">{{ $systemReadiness[$key] ? '✓' : '!' }} {{ $label }}</span>
         @endforeach
     </div>
 </section>
 
 <form class="card filter-bar" method="get" style="margin-bottom:16px">
     <div><label for="status">Stato operativo</label><select id="status" name="status"><option value="">Tutti gli stati</option>@foreach($statusLabels as $value => $label)<option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>@endforeach</select></div>
-    <div><label for="source">Origine del lead</label><input id="source" name="source" value="{{ request('source') }}" placeholder="es. preventivositoweb.it"></div>
+    <div><label for="source">Origine del lead</label><input id="source" name="source" value="{{ request('source') }}" placeholder="es. sito-aziendale.it"></div>
     <button class="btn btn-muted" type="submit">Applica filtri</button>
 </form>
 

@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('organizations', function (Blueprint $table): void {
-            // The default deliberately preserves existing installations and the pilot.
+            // The default deliberately preserves existing installations.
             $table->string('status', 30)->default('active')->after('locale')->index();
             $table->timestampTz('onboarding_completed_at')->nullable()->after('status');
             $table->timestampTz('suspended_at')->nullable()->after('onboarding_completed_at');

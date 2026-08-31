@@ -8,7 +8,7 @@ use App\Services\Mail\WebklexInboundMailbox;
 use App\Services\Mail\SyncInboundEmailReplies;
 use App\Services\Mail\RunConversationAutomation;
 use App\Services\Leads\RunNewLeadAutomation;
-use App\Services\Operations\PilotHealth;
+use App\Services\Operations\SystemHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -193,15 +193,15 @@ Artisan::command('commerciale:run {--limit=25} {--mail-limit= : Numero massimo d
     return $failed > 0 ? Command::FAILURE : Command::SUCCESS;
 })->purpose('Esegue direttamente tutte le automazioni senza usare lo scheduler Laravel');
 
-Artisan::command('daria:pilot-status', function (PilotHealth $health): int {
+Artisan::command('daria:system-status', function (SystemHealth $health): int {
     $snapshot = $health->snapshot();
     $this->table(['Controllo', 'Stato', 'Dettaglio'], array_map(
         fn (array $check): array => [$check['label'], strtoupper($check['status']), $check['detail']],
         $snapshot['checks'],
     ));
     $snapshot['ready']
-        ? $this->info('Il pilot supera tutti i controlli obbligatori.')
-        : $this->error('Il pilot ha ancora controlli obbligatori da risolvere.');
+        ? $this->info('Il sistema supera tutti i controlli obbligatori.')
+        : $this->error('Il sistema ha ancora controlli obbligatori da risolvere.');
 
     return $snapshot['ready'] ? Command::SUCCESS : Command::FAILURE;
-})->purpose('Controlla configurazione e salute operativa del pilot Daria');
+})->purpose('Controlla configurazione e salute operativa di Daria');

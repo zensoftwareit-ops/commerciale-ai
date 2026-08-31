@@ -1,6 +1,6 @@
 # Guida base di installazione
 
-Questa guida installa una singola istanza di Daria senza Docker. La stessa applicazione è multi-tenant, ma per il progetto pilota si utilizza una sola organizzazione.
+Questa guida installa Daria senza Docker. L'applicazione è multi-tenant e può gestire più organizzazioni isolate nella stessa installazione.
 
 ## 1. Requisiti
 
@@ -112,7 +112,7 @@ cp .env.example .env
 Impostare almeno:
 
 ```dotenv
-APP_NAME="Daria - PreventivoSitoWeb.it"
+APP_NAME="Daria"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://DOMINIO-APP
@@ -195,7 +195,7 @@ Abilitare un certificato valido in **SSL/TLS Certificates** e il reindirizzament
 
 Aprire `APP_URL`, accedere e cambiare immediatamente la password. Se compare un errore 500, controllare **Siti Web e Domini > Log** e `storage/logs/laravel.log`.
 
-Per il pilota `preventivositoweb.it`, proseguire con [INSTANCE-PREVENTIVOSITOWEB.md](INSTANCE-PREVENTIVOSITOWEB.md).
+Per completare la configurazione iniziale, proseguire con [GETTING-STARTED.md](GETTING-STARTED.md).
 
 ### Installazione server generica
 
@@ -311,14 +311,14 @@ consegnano messaggi; anche un failover verso `log` viene segnalato come non sicu
 
 Verificare prima con un reset password di prova, poi con un lead di test: analizzarlo, salvare la bozza e premere **Approva e invia**. Non inserire credenziali SMTP nel repository.
 
-#### Strategia SMTP del pilota e predisposizione Resend
+#### Strategia SMTP iniziale e predisposizione Resend
 
-Per il pilota e per il primo gruppo ristretto di clienti l'invio resta monolitico:
+Per la prima fase di esercizio e per un gruppo ristretto di clienti l'invio resta monolitico:
 un unico account SMTP transazionale configurato sul server con `MAIL_MAILER=smtp`.
 I domini mittenti, SPF e DKIM vengono configurati manualmente presso il provider.
 
 Il progetto include anche il mailer `resend_smtp`, lasciato inattivo e senza dipendenze
-Composer aggiuntive. Non abilitarlo durante il pilota. Quando inizierà la vendita
+Composer aggiuntive. Non abilitarlo finché la configurazione dei domini non è automatizzata. Quando inizierà la vendita
 self-service, dopo avere verificato almeno un dominio su Resend, il passaggio potrà
 essere effettuato impostando:
 
@@ -356,14 +356,14 @@ password temporanea mostrata una sola volta. L'indirizzo non deve appartenere a
 un'organizzazione cliente. Lo Step 2 con WordPress e Stripe è implementato, ma
 resta inattivo finché non viene configurato e collaudato.
 
-Il modulo licenze viene installato con le normali migrazioni ma non blocca il pilota:
+Il modulo licenze viene installato con le normali migrazioni; durante l'allestimento iniziale:
 `LICENSE_ENFORCEMENT_ENABLED` è `false` per impostazione predefinita. La procedura
 completa per Super Admin, pacchetti, Stripe e plugin WordPress è descritta in
 [`BILLING-AND-LICENSES.md`](BILLING-AND-LICENSES.md).
 
-Prima dell'apertura del pilota, configurare la 2FA dal pannello Super Admin e
+Prima dell'apertura agli utenti, configurare la 2FA dal pannello Super Admin e
 solo dopo impostare `PLATFORM_2FA_REQUIRED=true`. La procedura operativa completa,
-inclusi backup e controllo del cron, e in [`PILOT-OPERATIONS.md`](PILOT-OPERATIONS.md).
+inclusi backup e controllo del cron, e in [`OPERATIONS.md`](OPERATIONS.md).
 
 ## 6. Posta in ingresso IMAP
 
@@ -420,7 +420,7 @@ Nel file `.env` lasciare:
 AUTOMATION_EXTERNAL_SEND_ENABLED=false
 ```
 
-Questo interruttore server impedisce invii automatici a destinatari esterni anche in caso di errore nel pannello. Non abilitarlo durante il pilota interno.
+Questo interruttore server impedisce invii automatici a destinatari esterni anche in caso di errore nel pannello. Abilitarlo solo dopo aver completato i controlli interni.
 
 ## 7. Aggiornamenti
 
@@ -443,7 +443,7 @@ php artisan up
 ```bash
 php artisan about
 php artisan migrate:status
-php artisan daria:pilot-status
+php artisan daria:system-status
 ```
 
 In un ambiente di sviluppo, dove sono presenti anche le dipendenze `require-dev`, eseguire inoltre `php artisan test`.

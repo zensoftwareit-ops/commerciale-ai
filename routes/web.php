@@ -23,7 +23,7 @@ use App\Http\Controllers\Admin\OrganizationController as AdminOrganizationContro
 use App\Http\Controllers\Admin\LicensePlanController as AdminLicensePlanController;
 use App\Http\Controllers\Admin\LicenseController as AdminLicenseController;
 use App\Http\Controllers\Admin\AuditLogController;
-use App\Http\Controllers\Admin\PilotHealthController;
+use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
@@ -52,8 +52,8 @@ Route::middleware(['auth', 'superadmin', 'audit.platform'])->prefix('/admin')->n
     Route::get('/licensing', LicensingDashboardController::class)->name('licensing');
     Route::get('/organizations', [AdminOrganizationController::class, 'index'])->name('organizations.index');
     Route::get('/audit', AuditLogController::class)->name('audit.index');
-    Route::get('/health', [PilotHealthController::class, 'index'])->name('health.index');
-    Route::post('/health/backup-confirm', [PilotHealthController::class, 'confirmBackup'])->name('health.backup-confirm');
+    Route::get('/health', [SystemHealthController::class, 'index'])->name('health.index');
+    Route::post('/health/backup-confirm', [SystemHealthController::class, 'confirmBackup'])->name('health.backup-confirm');
     Route::delete('/organizations/{organization}', [AdminOrganizationController::class, 'destroy'])->name('organizations.destroy');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
