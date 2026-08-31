@@ -10,6 +10,7 @@ use App\Models\InboundEmail;
 use App\Models\Lead;
 use App\Models\LeadReply;
 use App\Models\MailboxAccount;
+use App\Models\PlatformSetting;
 use App\Services\Ai\AnalyzeLead;
 use App\Services\Ai\GenerateLeadReply;
 use App\Services\Leads\CreateLead;
@@ -177,6 +178,11 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
     public function test_a_conversation_without_a_pricing_rule_is_handed_to_a_human_after_one_automatic_turn(): void
     {
         Mail::fake();
+        PlatformSetting::create([
+            'id' => 1,
+            'system_mail_from_address' => 'sistema@daria-ai.it',
+            'system_mail_from_name' => 'Daria',
+        ]);
         [$organization, $user] = $this->organizationWithUser();
         [$lead, $sentReply] = $this->sentReplyWithFollowUp($organization);
         app(TenantContext::class)->set($organization);
@@ -268,4 +274,3 @@ class FakeInboundMailbox implements InboundMailbox
 
     public function close(): void {}
 }
-

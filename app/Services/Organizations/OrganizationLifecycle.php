@@ -20,7 +20,8 @@ class OrganizationLifecycle
                 'license' => (bool) $organization->activeLicense(),
                 'profile' => (int) (OrganizationSetting::query()->value('completeness') ?? 0) >= 100,
                 'source' => InboundSource::query()->where('is_active', true)->exists(),
-                'mailbox' => MailboxAccount::query()->where('is_active', true)->exists(),
+                'mailbox' => MailboxAccount::query()->where('is_active', true)
+                    ->whereNotNull('from_address')->whereNotNull('from_name')->exists(),
             ];
             $required = ['license', 'profile', 'source'];
             $labels = ['license' => 'Licenza attiva', 'profile' => 'Profilo aziendale completo', 'source' => 'Sorgente lead attiva'];

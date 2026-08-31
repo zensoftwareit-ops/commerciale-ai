@@ -3,38 +3,45 @@
 namespace App\Services\Mail;
 
 use App\Models\Organization;
+use App\Models\MailboxAccount;
 use App\Models\PlatformSetting;
-use App\Models\User;
 use Illuminate\Mail\Mailables\Address;
 use RuntimeException;
 
 class MailIdentity
 {
-    public function forUser(User $user): Address
+    /** @return array{from: Address, reply_to: Address, mailbox: MailboxAccount} */
+    public function commercialForOrganization(string $organizationId): array
     {
-        $address = mb_strtolower(trim((string) ($user->mail_from_address ?: $user->email)));
-        $name = trim((string) ($user->mail_from_name ?: $user->name));
-        if (! filter_var($address, FILTER_VALIDATE_EMAIL)) {
-            throw new RuntimeException('Configura un indirizzo mittente valido nella pagina Account.');
+        Organization::query()->findOrFail($organizationId);
+        $mailbox = MailboxAccount::withoutGlobalScopes()
+            ->where('organization_id', $organizationId)
+            ->where('is_active', true)
+            ->oldest('created_at')
+            ->first();
+        if (! $mailbox) {
+            throw new RuntimeException('Configura e attiva Email Daria nelle impostazioni dell’organizzazione.');
+        }
+        $address = mb_strtolower(trim((string) $mailbox->from_address));
+        $name = trim((string) $mailbox->from_name);
+        $replyTo = mb_strtolower(trim((string) ($mailbox->reply_to_address ?: $address)));
+        if (! filter_var($address, FILTER_VALIDATE_EMAIL) || $name === '') {
+            throw new RuntimeException('Configura mittente e nome nella sezione Email Daria.');
+        }
+        if (! filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('Configura un indirizzo Reply-To valido nella sezione Email Daria.');
         }
 
-        return new Address($address, $name);
+        return [
+            'from' => new Address($address, $name),
+            'reply_to' => new Address($replyTo, $name),
+            'mailbox' => $mailbox,
+        ];
     }
 
-    public function forOrganization(string $organizationId, ?int $preferredUserId = null): Address
+    public function forOrganization(string $organizationId): Address
     {
-        $organization = Organization::query()->findOrFail($organizationId);
-        $query = $organization->users();
-        $user = $preferredUserId
-            ? $query->whereKey($preferredUserId)->first()
-            : $query->wherePivot('role', 'owner')->first();
-        if (! $user) {
-            throw new RuntimeException($preferredUserId
-                ? 'L\'utente mittente non appartiene a questa organizzazione.'
-                : 'L\'organizzazione non ha un owner configurato come mittente.');
-        }
-
-        return $this->forUser($user);
+        return $this->commercialForOrganization($organizationId)['from'];
     }
 
     public function forPlatform(): Address

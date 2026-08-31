@@ -36,7 +36,7 @@ class OrganizationSettingsController extends Controller
             'differentiators' => ['nullable', 'string', 'max:5000'], 'qualification_questions_text' => ['nullable', 'string', 'max:5000'],
             'exclusion_criteria' => ['nullable', 'string', 'max:5000'], 'tone_of_voice' => ['required', 'string', 'max:255'],
             'email_signature' => ['required', 'string', 'max:2000'], 'appointment_details' => ['nullable', 'string', 'max:2000'],
-            'promised_response_minutes' => ['nullable', 'integer', 'min:1', 'max:10080'], 'authorized_sender' => ['nullable', 'email', 'max:255'],
+            'promised_response_minutes' => ['nullable', 'integer', 'min:1', 'max:10080'],
             'conversation_automation_enabled' => ['nullable', 'boolean'], 'auto_send_quotes_enabled' => ['nullable', 'boolean'],
             'internal_test_only' => ['nullable', 'boolean'], 'automation_allowed_recipients_text' => ['nullable', 'string', 'max:5000'],
             'max_automatic_replies' => ['required', 'integer', 'min:1', 'max:10'], 'max_auto_quote_amount' => ['nullable', 'numeric', 'min:0'],

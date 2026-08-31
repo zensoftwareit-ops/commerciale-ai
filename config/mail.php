@@ -126,7 +126,7 @@ return [
     |
     */
 
-    // Il mittente non è globale: viene risolto dal database per ogni utente.
+    // Il mittente viene risolto dal database: identità aziendale o di sistema.
     'from' => [
         'address' => null,
         'name' => null,

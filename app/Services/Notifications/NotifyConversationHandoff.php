@@ -18,7 +18,7 @@ class NotifyConversationHandoff
     {
         $organization = $lead->organization()->firstOrFail();
         $recipients = $organization->users()->wherePivotIn('role', ['owner', 'sales'])->get();
-        $identity = $this->identities->forOrganization($organization->id);
+        $identity = $this->identities->forPlatform();
 
         foreach ($recipients as $recipient) {
             $notification = CommercialNotification::create([

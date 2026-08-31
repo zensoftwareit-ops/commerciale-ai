@@ -14,7 +14,7 @@ class OrganizationSetting extends Model
         'organization_id', 'legal_name', 'commercial_name', 'website_url', 'industry', 'business_description',
         'products_services', 'service_area', 'ideal_customer', 'pricing_rules', 'differentiators',
         'qualification_questions', 'exclusion_criteria', 'tone_of_voice', 'email_signature',
-        'appointment_details', 'promised_response_minutes', 'authorized_sender', 'completeness',
+        'appointment_details', 'promised_response_minutes', 'completeness',
         'conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only',
         'automation_allowed_recipients', 'max_automatic_replies', 'max_auto_quote_amount',
         'auto_analyze_new_leads', 'auto_send_initial_email', 'new_lead_automation_started_at',

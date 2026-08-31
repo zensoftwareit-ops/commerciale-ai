@@ -21,6 +21,7 @@ class LeadReplyMail extends Mailable
     {
         return new Envelope(
             from: new Address($this->reply->sender_address, $this->reply->sender_name),
+            replyTo: [new Address($this->reply->reply_to_address ?: $this->reply->sender_address, $this->reply->sender_name)],
             subject: $this->reply->subject,
         );
     }

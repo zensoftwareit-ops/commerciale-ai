@@ -57,7 +57,7 @@ Artisan::command('mail:sync {--test : Verifica soltanto la connessione} {--limit
         if ($this->option('test')) {
             $accounts = MailboxAccount::withoutGlobalScopes()->where('is_active', true)->get();
             if ($accounts->isEmpty()) {
-                $this->warn('Nessuna casella IMAP attiva. Configurala dal pannello Caselle email.');
+                $this->warn('Nessuna configurazione Email Daria attiva. Configurala dal pannello web.');
                 return Command::SUCCESS;
             }
             $failed = 0;

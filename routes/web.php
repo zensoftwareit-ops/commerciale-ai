@@ -76,7 +76,6 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
     Route::get('/onboarding', OnboardingController::class)->name('onboarding');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
-    Route::put('/account/mail-identity', [AccountController::class, 'updateMailIdentity'])->name('account.mail-identity.update');
     Route::get('/usage', AiUsageController::class)->middleware('role:owner')->name('usage.index');
 });
 
@@ -112,6 +111,7 @@ Route::middleware(['auth', 'tenant', 'organization.access', 'license'])->group(f
     Route::post('/settings/mailboxes', [MailboxAccountController::class, 'store'])->middleware('role:owner')->name('settings.mailboxes.store');
     Route::put('/settings/mailboxes/{mailbox}', [MailboxAccountController::class, 'update'])->middleware('role:owner')->name('settings.mailboxes.update');
     Route::post('/settings/mailboxes/{mailbox}/test', [MailboxAccountController::class, 'test'])->middleware('role:owner')->name('settings.mailboxes.test');
+    Route::post('/settings/mailboxes/{mailbox}/test-outbound', [MailboxAccountController::class, 'testOutbound'])->middleware('role:owner')->name('settings.mailboxes.test-outbound');
     Route::delete('/settings/mailboxes/{mailbox}', [MailboxAccountController::class, 'destroy'])->middleware('role:owner')->name('settings.mailboxes.destroy');
     Route::post('/settings/pricing-rules', [PricingRuleController::class, 'store'])->middleware('role:owner')->name('settings.pricing-rules.store');
     Route::put('/settings/pricing-rules/{rule}', [PricingRuleController::class, 'update'])->middleware('role:owner')->name('settings.pricing-rules.update');

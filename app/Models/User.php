@@ -27,8 +27,6 @@ class User extends Authenticatable
         'password',
         'is_super_admin',
         'external_account_id',
-        'mail_from_address',
-        'mail_from_name',
     ];
 
     /**
@@ -58,14 +56,6 @@ class User extends Authenticatable
             'two_factor_recovery_codes' => 'encrypted:array',
             'two_factor_confirmed_at' => 'datetime',
         ];
-    }
-
-    protected static function booted(): void
-    {
-        static::creating(function (User $user): void {
-            $user->mail_from_address ??= $user->email;
-            $user->mail_from_name ??= $user->name;
-        });
     }
 
     public function sendPasswordResetNotification($token): void

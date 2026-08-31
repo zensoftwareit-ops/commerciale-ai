@@ -14,7 +14,7 @@ class LeadReply extends Model
     protected $fillable = [
         'organization_id', 'lead_id', 'ai_analysis_id', 'ai_run_id', 'status', 'reply_kind',
         'delivery_mode', 'automation_eligible', 'automation_blockers',
-        'outbound_message_id', 'parent_message_id', 'recipient', 'sender_address', 'sender_name', 'subject', 'body',
+        'outbound_message_id', 'parent_message_id', 'recipient', 'sender_address', 'sender_name', 'reply_to_address', 'subject', 'body',
         'follow_up_at', 'follow_up_cancelled_at', 'approved_by', 'approved_at', 'sent_at', 'last_error',
     ];
 

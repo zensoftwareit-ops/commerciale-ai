@@ -49,7 +49,7 @@ non pubblicare credenziali nel repository.
 
 ## Processi in background
 
-Code e cache usano il database. Le caselle IMAP si configurano dal pannello **Caselle email**. In produzione eseguire direttamente il comando unico di automazione tramite cron:
+Code e cache usano il database. L’identità commerciale e la ricezione IMAP si configurano nella sezione **Email Daria**. In produzione eseguire direttamente il comando unico di automazione tramite cron:
 
 ```bash
 php artisan commerciale:run
@@ -88,13 +88,14 @@ Ogni risultato viene validato, combinato con regole dichiarate e registrato con 
 
 Dopo l'analisi viene generata una bozza email modificabile. Un operatore deve salvarla, approvarla e inviarla; l'applicazione non invia autonomamente messaggi al cliente. È possibile associare una data di follow-up, registrata come prossima azione e nella timeline del lead.
 
-Con una casella IMAP attiva, le risposte riconosciute vengono importate, mostrate nella scheda del lead e contrassegnate come lette. Le credenziali sono cifrate nel database e ogni casella può accedere esclusivamente ai lead della propria organizzazione.
+Con **Email Daria** attiva, le risposte riconosciute vengono importate via IMAP, mostrate nella scheda del lead e contrassegnate come lette. Le credenziali sono cifrate nel database e isolate per organizzazione.
 
 Nella configurazione iniziale l'invio usa un unico SMTP transazionale configurato sul server. Il
 trasporto SMTP di Resend è già predisposto ma resta disattivato fino alla futura fase
 SaaS, quando verrà aggiunto anche l'onboarding automatico SPF/DKIM per dominio.
-Indirizzo e nome `From` sono configurati da ciascun utente nella propria pagina
-**Account** e non sono presenti nel `.env`; SMTP e Resend sono soltanto trasporti globali.
+Indirizzo `From`, nome e `Reply-To` si configurano una sola volta per organizzazione
+nella sezione **Email Daria**. L’email personale degli utenti non viene mai usata
+come identità commerciale; SMTP e Resend sono soltanto trasporti globali.
 
 Il modulo commerciale include un pannello Super Admin per registrare manualmente
 clienti, owner e licenze su tre pacchetti. La vendita self-service con tema e plugin
@@ -109,7 +110,7 @@ definitiva di un cliente richiede la conferma testuale e rimuove l'intero tenant
 
 L'amministratore della piattaforma usa un account dedicato, creato con
 `php artisan platform-admin:create admin@azienda.it`: non appartiene a nessuna
-organizzazione cliente e non utilizza lead, caselle email o licenze.
+organizzazione cliente e non utilizza lead, configurazioni Email Daria o licenze.
 Dal relativo pannello **Account** configura inoltre l'identità transazionale di
 Daria, separata dal proprio indirizzo personale e usata per inviti, attivazioni
 e recupero password.

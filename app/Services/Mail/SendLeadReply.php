@@ -21,13 +21,14 @@ class SendLeadReply
         if ($automatic) $this->guardAutomaticSend($reply);
         if (in_array(config('mail.default'), ['log', 'array'], true)) throw new RuntimeException('Configura un servizio SMTP reale prima dell’invio.');
 
-        $identity = $this->identities->forOrganization($reply->organization_id, $automatic ? null : $actorId);
+        $identity = $this->identities->commercialForOrganization($reply->organization_id);
 
         $claimed = LeadReply::query()->whereKey($reply->id)->where('status', 'draft')->update(['status' => 'sending']);
         if ($claimed !== 1) throw new RuntimeException('La bozza è già in elaborazione o non è più inviabile.');
         $reply->status = 'sending';
-        $reply->sender_address = $identity->address;
-        $reply->sender_name = $identity->name;
+        $reply->sender_address = $identity['from']->address;
+        $reply->sender_name = $identity['from']->name;
+        $reply->reply_to_address = $identity['reply_to']->address;
         $reply->saveQuietly();
 
         $reply->ensureOutboundMessageId();

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\LeadReplyMail;
 use App\Models\Lead;
 use App\Models\LeadReply;
+use App\Models\MailboxAccount;
 use App\Models\PipelineStage;
 use App\Services\Leads\CreateLead;
 use App\Support\Tenancy\TenantContext;
@@ -44,7 +45,13 @@ class LeadReplyWorkflowTest extends CommercialeAiTestCase
         config()->set('mail.default', 'smtp');
         Mail::fake();
         [$organization, $user] = $this->organizationWithUser('sales');
-        $user->update(['mail_from_address' => 'commerciale@azienda.test', 'mail_from_name' => 'Commerciale Azienda']);
+        MailboxAccount::create([
+            'organization_id' => $organization->id, 'name' => 'Email Daria',
+            'from_address' => 'commerciale@azienda.test', 'from_name' => 'Commerciale Azienda',
+            'reply_to_address' => 'risposte@azienda.test', 'host' => 'imap.azienda.test', 'port' => 993,
+            'encryption' => 'ssl', 'validate_cert' => true, 'username' => 'commerciale@azienda.test',
+            'password' => 'secret', 'folder' => 'INBOX', 'is_active' => true,
+        ]);
         app(TenantContext::class)->set($organization);
         PipelineStage::create(['name' => 'Da valutare', 'slug' => 'to_review', 'system_category' => 'open', 'position' => 2]);
         $lead = app(CreateLead::class)->handle([
@@ -70,6 +77,7 @@ class LeadReplyWorkflowTest extends CommercialeAiTestCase
         $this->assertSame('sent', $reply->status);
         $this->assertSame('commerciale@azienda.test', $reply->sender_address);
         $this->assertSame('Commerciale Azienda', $reply->sender_name);
+        $this->assertSame('risposte@azienda.test', $reply->reply_to_address);
         $this->assertNotNull($reply->outbound_message_id);
         $this->assertSame($user->id, $reply->approved_by);
         $this->assertSame('follow_up_scheduled', $lead->operational_status);
@@ -78,6 +86,7 @@ class LeadReplyWorkflowTest extends CommercialeAiTestCase
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'follow_up_scheduled']);
         Mail::assertSent(LeadReplyMail::class, fn (LeadReplyMail $mail): bool => $mail->hasTo('anna@example.test')
             && $mail->envelope()->from->address === 'commerciale@azienda.test'
+            && $mail->envelope()->replyTo[0]->address === 'risposte@azienda.test'
             && $mail->headers()->messageId === $reply->outbound_message_id);
 
         $session->patch(route('replies.update', [$lead, $reply]), [

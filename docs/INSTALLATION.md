@@ -289,9 +289,10 @@ MAIL_PASSWORD=SMTP_PASSWORD
 Su Plesk è possibile usare la casella del dominio. In genere `MAIL_HOST` è il nome del server di posta mostrato nel pannello, la porta è `587` con TLS oppure `465` con SMTPS. Usare sempre i valori forniti dal proprio servizio email.
 
 `MAIL_FROM_ADDRESS` e `MAIL_FROM_NAME` non devono essere inseriti nel `.env`.
-Ogni utente configura indirizzo e nome mittente dalla pagina **Account**. Gli
-invii manuali usano il mittente dell'operatore; le automazioni usano quello
-dell'owner dell'organizzazione. Inviti, attivazioni e recupero password usano
+Ogni organizzazione configura un’unica identità commerciale nella sezione
+**Email Daria**: mittente, nome, Reply-To e ricezione IMAP. Invii manuali e
+automazioni usano sempre questa identità, mai l’email personale dell’operatore.
+Inviti, attivazioni e recupero password usano
 invece l'identità transazionale **Email di sistema Daria**, configurata nel
 pannello Account del Super Admin e non collegata all'indirizzo personale
 dell'amministratore. La stessa separazione vale usando SMTP base o Resend.
@@ -330,8 +331,9 @@ RESEND_DOMAIN_AUTOMATION_ENABLED=false
 
 La chiave resta globale e solo sul server. `RESEND_DOMAIN_AUTOMATION_ENABLED` deve
 rimanere `false` finché il pannello di onboarding DNS non sarà stato implementato.
-Indirizzo e nome mittente delle conversazioni restano quelli salvati sull'utente;
-le comunicazioni di piattaforma usano il mittente di sistema. Nessuna delle due
+Indirizzo, nome mittente e Reply-To delle conversazioni restano quelli salvati
+nella configurazione Email Daria dell’organizzazione; le comunicazioni di piattaforma
+usano il mittente di sistema. Nessuna delle due
 identità cambia quando viene sostituito il trasporto globale.
 In quella fase la REST API di Resend verrà usata per creare i domini dei tenant,
 mostrare SPF/DKIM e aggiornarne lo stato; il trasporto delle email resterà separato
@@ -365,9 +367,16 @@ Prima dell'apertura agli utenti, configurare la 2FA dal pannello Super Admin e
 solo dopo impostare `PLATFORM_2FA_REQUIRED=true`. La procedura operativa completa,
 inclusi backup e controllo del cron, e in [`OPERATIONS.md`](OPERATIONS.md).
 
-## 6. Posta in ingresso IMAP
+## 6. Email Daria: invio e ricezione
 
-Per importare le risposte dei lead, accedere come owner e aprire **Caselle email**. Inserire nome, host, porta, cifratura, utente, password e cartella IMAP, quindi premere **Verifica connessione**. È possibile collegare più caselle alla stessa organizzazione. Le password sono cifrate nel database con `APP_KEY` e non vengono mai mostrate nell'interfaccia.
+Accedere come owner e aprire **Email Daria**. Inserire mittente, nome, Reply-To,
+host, porta, cifratura, utente, password e cartella IMAP. Ogni organizzazione usa
+una sola identità commerciale dedicata: lo stesso indirizzo, o il Reply-To indicato,
+deve ricevere le risposte che Daria acquisirà via IMAP. Le password sono cifrate
+nel database con `APP_KEY` e non vengono mai mostrate nell’interfaccia.
+
+Dopo il salvataggio usare **Verifica IMAP** e **Invia test**. Il secondo test usa
+il trasporto SMTP/Resend globale ma mittente e Reply-To dell’organizzazione.
 
 Usare i parametri indicati dal fornitore e non disabilitare la verifica del certificato in produzione. Dopo aver salvato almeno una casella attiva:
 
