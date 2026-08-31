@@ -2,6 +2,7 @@
 @section('title', 'Email Daria · Daria')
 @section('content')
 <div class="toolbar"><div><div class="page-kicker">Configurazione aziendale</div><h1>Email Daria</h1><p class="muted">Un’unica identità dedicata per inviare ai lead e acquisire le loro risposte.</p></div><span class="badge">Solo owner</span></div>
+@if($mailbox)<div class="{{ $mailbox->domain_verification_status === 'verified' ? 'notice' : 'warning' }}"><strong>Dominio mittente: {{ $mailbox->domain_verification_status === 'verified' ? 'verificato' : 'in attesa di verifica' }}.</strong> @if($mailbox->domain_verification_status !== 'verified')Gli invii automatici esterni restano bloccati finché l’amministratore Daria non conferma SPF/DKIM.@else Verificato il {{ $mailbox->domain_verified_at?->format('d/m/Y H:i') }}.@endif</div>@endif
 
 <section class="card" style="margin-bottom:16px">
     <div class="toolbar"><div><h2>Trasporto in uscita</h2><p class="muted">Il trasporto SMTP o Resend è gestito globalmente dalla piattaforma; qui configuri l’identità della tua organizzazione.</p></div><span class="badge {{ $mailTransport['deliverable'] ? 'success' : 'hot' }}">{{ strtoupper($mailTransport['mailer']) }}</span></div>

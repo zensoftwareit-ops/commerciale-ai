@@ -29,6 +29,7 @@ class SprintTwoAnalysisTest extends CommercialeAiTestCase
             'commercial_name' => 'Azienda Demo', 'industry' => 'Software', 'business_description' => 'Sviluppo software per PMI.',
             'products_services' => 'Applicazioni e siti web.', 'ideal_customer' => 'PMI italiane.', 'tone_of_voice' => 'diretto',
             'email_signature' => 'Team Demo', 'qualification_questions_text' => "Budget?\nTempistiche?", 'max_automatic_replies' => 3,
+            'data_retention_days' => 730,
         ])->assertSessionHasNoErrors();
         app(TenantContext::class)->set($organization);
         $this->assertSame(100, OrganizationSetting::query()->firstOrFail()->completeness);

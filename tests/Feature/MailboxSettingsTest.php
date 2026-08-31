@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\MailboxAccount;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -27,9 +28,28 @@ class MailboxSettingsTest extends CommercialeAiTestCase
         $this->assertSame('secret-password', $mailbox->password);
         $this->assertSame('commerciale@azienda.test', $mailbox->from_address);
         $this->assertSame('risposte@azienda.test', $mailbox->reply_to_address);
+        $this->assertSame('pending', $mailbox->domain_verification_status);
         $this->assertNotSame('secret-password', DB::table('mailbox_accounts')->value('password'));
         $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
             ->get(route('settings.mailboxes.index'))->assertOk()->assertSee('sales@example.test')->assertDontSee('secret-password');
+    }
+
+    public function test_only_platform_admin_can_confirm_the_sender_domain(): void
+    {
+        [$organization, $owner] = $this->organizationWithUser();
+        $mailbox = $this->mailboxFor($organization, false);
+        $admin = User::factory()->create(['is_super_admin' => true]);
+
+        $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
+            ->post(route('admin.organizations.mail.verify', [$organization, $mailbox]))
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->post(route('admin.organizations.mail.verify', [$organization, $mailbox]))
+            ->assertRedirect();
+
+        $this->assertSame('verified', $mailbox->fresh()->domain_verification_status);
+        $this->assertSame($admin->id, $mailbox->fresh()->domain_verified_by);
     }
 
     public function test_owner_can_test_the_organization_outbound_identity(): void

@@ -18,8 +18,8 @@ class Lead extends Model
         'external_id', 'source_label', 'name', 'email', 'email_normalized', 'phone',
         'phone_normalized', 'company', 'requested_service', 'request_data', 'consent_data',
         'operational_status', 'temperature', 'score', 'next_action_at', 'last_activity_at',
-        'initial_automation_attempts', 'initial_automation_attempted_at',
-        'initial_automation_completed_at', 'initial_automation_error',
+        'initial_automation_attempts', 'initial_automation_attempted_at', 'initial_automation_next_attempt_at',
+        'initial_automation_completed_at', 'initial_automation_failed_at', 'initial_automation_error',
     ];
 
     protected function casts(): array
@@ -28,7 +28,8 @@ class Lead extends Model
             'request_data' => 'array', 'consent_data' => 'array', 'score' => 'integer',
             'next_action_at' => 'datetime', 'last_activity_at' => 'datetime',
             'initial_automation_attempts' => 'integer', 'initial_automation_attempted_at' => 'datetime',
-            'initial_automation_completed_at' => 'datetime',
+            'initial_automation_next_attempt_at' => 'datetime',
+            'initial_automation_completed_at' => 'datetime', 'initial_automation_failed_at' => 'datetime',
         ];
     }
 

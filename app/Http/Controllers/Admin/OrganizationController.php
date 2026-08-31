@@ -22,6 +22,7 @@ class OrganizationController extends Controller
                 'users',
                 'licenses.plan',
                 'settings' => fn ($query) => $query->withoutGlobalScopes(),
+                'mailboxes' => fn ($query) => $query->withoutGlobalScopes()->oldest('created_at'),
             ])
             ->withCount([
                 'leads as leads_count' => fn ($query) => $query->withoutGlobalScopes(),
@@ -45,6 +46,32 @@ class OrganizationController extends Controller
         });
 
         return view('admin.organizations.index', compact('organizations'));
+    }
+
+    public function verifyMailDomain(Request $request, string $organization, string $mailbox): RedirectResponse
+    {
+        $organization = Organization::query()->findOrFail($organization);
+        $mailbox = $organization->mailboxes()->withoutGlobalScopes()->findOrFail($mailbox);
+        $mailbox->update([
+            'domain_verification_status' => 'verified',
+            'domain_verified_at' => now(),
+            'domain_verified_by' => $request->user()->id,
+        ]);
+
+        return back()->with('status', 'Dominio mittente verificato per '.$organization->name.'.');
+    }
+
+    public function revokeMailDomain(Request $request, string $organization, string $mailbox): RedirectResponse
+    {
+        $organization = Organization::query()->findOrFail($organization);
+        $mailbox = $organization->mailboxes()->withoutGlobalScopes()->findOrFail($mailbox);
+        $mailbox->update([
+            'domain_verification_status' => 'pending',
+            'domain_verified_at' => null,
+            'domain_verified_by' => null,
+        ]);
+
+        return back()->with('status', 'Verifica del dominio revocata: gli invii automatici esterni sono bloccati.');
     }
 
     public function destroy(Request $request, string $organization): RedirectResponse

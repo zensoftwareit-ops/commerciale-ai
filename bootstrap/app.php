@@ -9,6 +9,7 @@ use App\Http\Middleware\RequireBillingSelfService;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\AuditPlatformMutation;
 use App\Http\Middleware\RequirePlatformTwoFactor;
+use App\Http\Middleware\RequireCustomerTwoFactor;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'organization.access' => RequireOrganizationAccess::class,
             'audit.platform' => AuditPlatformMutation::class,
             'platform.2fa' => RequirePlatformTwoFactor::class,
+            'customer.2fa' => RequireCustomerTwoFactor::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

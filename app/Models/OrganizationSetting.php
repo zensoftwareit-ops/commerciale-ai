@@ -15,6 +15,7 @@ class OrganizationSetting extends Model
         'products_services', 'service_area', 'ideal_customer', 'pricing_rules', 'differentiators',
         'qualification_questions', 'exclusion_criteria', 'tone_of_voice', 'email_signature',
         'appointment_details', 'promised_response_minutes', 'completeness',
+        'data_retention_days', 'privacy_cleanup_enabled',
         'conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only',
         'automation_allowed_recipients', 'max_automatic_replies', 'max_auto_quote_amount',
         'auto_analyze_new_leads', 'auto_send_initial_email', 'new_lead_automation_started_at',
@@ -24,6 +25,7 @@ class OrganizationSetting extends Model
     {
         return [
             'qualification_questions' => 'array', 'completeness' => 'integer',
+            'data_retention_days' => 'integer', 'privacy_cleanup_enabled' => 'boolean',
             'conversation_automation_enabled' => 'boolean', 'auto_send_quotes_enabled' => 'boolean',
             'internal_test_only' => 'boolean', 'automation_allowed_recipients' => 'array',
             'max_automatic_replies' => 'integer', 'max_auto_quote_amount' => 'decimal:2',

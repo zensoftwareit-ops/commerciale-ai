@@ -13,6 +13,10 @@
 <div class="grid grid-2"><div><label>Tono di voce *</label><input name="tone_of_voice" value="{{ old('tone_of_voice',$settings->tone_of_voice ?: 'professionale e diretto') }}" required></div><div><label>Tempo di risposta promesso (minuti)</label><input type="number" min="1" name="promised_response_minutes" value="{{ old('promised_response_minutes',$settings->promised_response_minutes) }}"></div><div><label>Modalità appuntamento</label><input name="appointment_details" value="{{ old('appointment_details',$settings->appointment_details) }}"></div></div>
 <label>Firma email *</label><textarea name="email_signature" rows="4" required>{{ old('email_signature',$settings->email_signature) }}</textarea>
 <hr style="margin:2rem 0;border:0;border-top:1px solid #e3e8ef">
+<h2>Privacy e conservazione dati</h2><p class="muted">L’eliminazione automatica riguarda esclusivamente i lead chiusi e non viene eseguita finché non è abilitata.</p>
+<div class="grid grid-2"><div><label>Conservazione lead chiusi (giorni)</label><input type="number" name="data_retention_days" min="30" max="3650" required value="{{ old('data_retention_days',$settings->data_retention_days ?? 730) }}"></div><div><label style="font-weight:400"><input style="width:auto" type="checkbox" name="privacy_cleanup_enabled" value="1" @checked(old('privacy_cleanup_enabled',$settings->privacy_cleanup_enabled))> Abilita cancellazione automatica alla scadenza</label></div></div>
+<a class="btn btn-muted" href="{{ route('account.data-export') }}">Esporta i dati dell’organizzazione</a>
+<hr style="margin:2rem 0;border:0;border-top:1px solid #e3e8ef">
 <h2>Automazione conversazioni</h2>
 <div class="warning">Funzione sperimentale. L’invio automatico avviene solo quando tutti i controlli deterministici sono superati. Mantieni attiva la modalità test interno durante il collaudo.</div>
 @unless(config('commerciale-ai.automation.external_send_enabled'))<div class="notice">Il server accetta soltanto test interni. L’invio automatico verso clienti esterni è bloccato anche se viene disattivata la casella sottostante.</div>@endunless

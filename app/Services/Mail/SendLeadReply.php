@@ -5,6 +5,7 @@ namespace App\Services\Mail;
 use App\Mail\LeadReplyMail;
 use App\Models\Activity;
 use App\Models\LeadReply;
+use App\Models\MailboxAccount;
 use App\Models\OrganizationSetting;
 use App\Models\Quotation;
 use Illuminate\Support\Facades\Mail;
@@ -18,10 +19,10 @@ class SendLeadReply
     public function handle(LeadReply $reply, ?int $actorId = null, bool $automatic = false): void
     {
         if ($reply->status === 'sent') throw new RuntimeException('Questa email è già stata inviata.');
-        if ($automatic) $this->guardAutomaticSend($reply);
         if (in_array(config('mail.default'), ['log', 'array'], true)) throw new RuntimeException('Configura un servizio SMTP reale prima dell’invio.');
 
         $identity = $this->identities->commercialForOrganization($reply->organization_id);
+        if ($automatic) $this->guardAutomaticSend($reply, $identity['mailbox']);
 
         $claimed = LeadReply::query()->whereKey($reply->id)->where('status', 'draft')->update(['status' => 'sending']);
         if ($claimed !== 1) throw new RuntimeException('La bozza è già in elaborazione o non è più inviabile.');
@@ -63,7 +64,7 @@ class SendLeadReply
         }
     }
 
-    private function guardAutomaticSend(LeadReply $reply): void
+    private function guardAutomaticSend(LeadReply $reply, MailboxAccount $mailbox): void
     {
         if (! $reply->automation_eligible) throw new RuntimeException('La bozza non supera i controlli per l’invio automatico.');
         $settings = OrganizationSetting::query()->first();
@@ -72,6 +73,7 @@ class SendLeadReply
         $allowed = collect($settings->automation_allowed_recipients ?? [])->map(fn ($email) => mb_strtolower(trim((string) $email)));
         if ($settings->internal_test_only && ! $allowed->contains($lead->email_normalized)) throw new RuntimeException('Destinatario non incluso nella lista interna.');
         if (! $settings->internal_test_only && ! config('commerciale-ai.automation.external_send_enabled')) throw new RuntimeException('Invii automatici esterni disabilitati sul server.');
+        if (! $settings->internal_test_only && $mailbox->domain_verification_status !== 'verified') throw new RuntimeException('Il dominio mittente non è ancora verificato per gli invii automatici esterni.');
         if ($lead->replies()->where('delivery_mode', 'automatic')->where('status', 'sent')->count() >= $settings->max_automatic_replies) throw new RuntimeException('Limite di risposte automatiche raggiunto.');
 
         if (str_starts_with($reply->reply_kind, 'initial') && ! $settings->auto_send_initial_email) throw new RuntimeException('Invio automatico della prima email disabilitato.');

@@ -19,6 +19,27 @@ class QuotationAutomationTest extends CommercialeAiTestCase
 {
     use RefreshDatabase;
 
+    public function test_external_automation_is_blocked_until_sender_domain_is_verified(): void
+    {
+        config()->set('commerciale-ai.automation.external_send_enabled', true);
+        [$organization] = $this->organizationWithUser();
+        $this->mailboxFor($organization, false);
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti',
+            'products_services' => 'Siti web', 'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'conversation_automation_enabled' => true,
+            'internal_test_only' => false, 'max_automatic_replies' => 3,
+        ]);
+        $lead = app(CreateLead::class)->handle(['name' => 'Anna', 'email' => 'anna@example.test', 'source_label' => 'test']);
+        $reply = app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead), null, [
+            'incoming_email' => ['message_id' => 'external@example.test'],
+        ]);
+
+        $this->assertFalse($reply->automation_eligible);
+        $this->assertContains('sender_domain_not_verified', $reply->automation_blockers);
+    }
+
     public function test_it_builds_a_deterministic_quote_but_keeps_it_as_draft_by_default(): void
     {
         [$organization] = $this->organizationWithUser();
@@ -43,6 +64,7 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         config()->set('mail.default', 'smtp');
         Mail::fake();
         [$organization] = $this->organizationWithUser();
+        $this->mailboxFor($organization);
         app(TenantContext::class)->set($organization);
         OrganizationSetting::create([
             'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti', 'products_services' => 'Siti web',
@@ -91,6 +113,7 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         config()->set('mail.default', 'smtp');
         Mail::fake();
         [$organization] = $this->organizationWithUser();
+        $this->mailboxFor($organization);
         app(TenantContext::class)->set($organization);
         OrganizationSetting::create([
             'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti', 'products_services' => 'Siti web',
@@ -152,4 +175,3 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $this->assertStringNotContainsString('Può indicare', $offer->body);
     }
 }
-

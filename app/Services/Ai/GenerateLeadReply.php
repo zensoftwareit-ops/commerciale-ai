@@ -9,6 +9,7 @@ use App\Models\AiAnalysis;
 use App\Models\AiRun;
 use App\Models\Lead;
 use App\Models\LeadReply;
+use App\Models\MailboxAccount;
 use App\Models\OrganizationSetting;
 use App\Services\Quotations\BuildQuotation;
 use App\Services\Licensing\LicenseUsageGuard;
@@ -73,7 +74,7 @@ class GenerateLeadReply
             ])->validate();
             $meta = $result['_meta'] ?? [];
 
-            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context, $quotationResult): LeadReply {
+            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context, $quotationResult, $settings): LeadReply {
                 $run->update([
                     'status' => 'completed', 'provider' => $meta['provider'] ?? 'unknown',
                     'model' => $meta['model'] ?? 'unknown', 'policy_version' => $meta['policy_version'] ?? 'reply-draft-v1',
@@ -98,6 +99,12 @@ class GenerateLeadReply
                 if (! is_array(data_get($context, 'incoming_email')) && data_get($context, 'automation_stage') !== 'initial') {
                     $automationBlockers[] = 'manual_draft';
                 }
+                $externalAutomation = ! ($settings?->internal_test_only ?? true)
+                    && config('commerciale-ai.automation.external_send_enabled');
+                if ($externalAutomation && ! MailboxAccount::query()->where('is_active', true)->where('domain_verification_status', 'verified')->exists()) {
+                    $automationBlockers[] = 'sender_domain_not_verified';
+                }
+                $automationBlockers = array_values(array_unique($automationBlockers));
                 $reply = LeadReply::create([
                     'organization_id' => $organizationId, 'lead_id' => $lead->id,
                     'ai_analysis_id' => $analysis->id, 'ai_run_id' => $run->id,

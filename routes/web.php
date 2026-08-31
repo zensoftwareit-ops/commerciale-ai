@@ -25,20 +25,30 @@ use App\Http\Controllers\Admin\LicenseController as AdminLicenseController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\TwoFactorController;
+use App\Http\Controllers\AccountTwoFactorController;
+use App\Http\Controllers\OrganizationDataController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/leads');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthController::class, 'create'])->name('login');
-    Route::post('/login', [AuthController::class, 'store']);
+    Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:6,1');
     Route::get('/forgot-password', [PasswordController::class, 'request'])->name('password.request');
-    Route::post('/forgot-password', [PasswordController::class, 'email'])->name('password.email');
+    Route::post('/forgot-password', [PasswordController::class, 'email'])->middleware('throttle:3,1')->name('password.email');
     Route::get('/reset-password/{token}', [PasswordController::class, 'reset'])->name('password.reset');
-    Route::post('/reset-password', [PasswordController::class, 'update'])->name('password.update');
+    Route::post('/reset-password', [PasswordController::class, 'update'])->middleware('throttle:6,1')->name('password.update');
 });
 
 Route::middleware('auth')->post('/logout', [AuthController::class, 'destroy'])->name('logout');
+Route::middleware('auth')->prefix('/account/two-factor')->name('account.two-factor.')->group(function (): void {
+    Route::get('/', [AccountTwoFactorController::class, 'enroll'])->name('enroll');
+    Route::post('/setup', [AccountTwoFactorController::class, 'setup'])->middleware('throttle:6,1')->name('setup');
+    Route::post('/confirm', [AccountTwoFactorController::class, 'confirm'])->middleware('throttle:6,1')->name('confirm');
+    Route::delete('/', [AccountTwoFactorController::class, 'disable'])->middleware('throttle:6,1')->name('disable');
+    Route::get('/challenge', [AccountTwoFactorController::class, 'challenge'])->name('challenge');
+    Route::post('/challenge', [AccountTwoFactorController::class, 'verify'])->middleware('throttle:6,1')->name('verify');
+});
 Route::middleware('auth')->post('/organizations/{organization}/switch', OrganizationSwitchController::class)->name('organizations.switch');
 Route::middleware(['auth', 'superadmin', 'audit.platform'])->prefix('/admin')->name('admin.')->group(function (): void {
     Route::get('/two-factor', [TwoFactorController::class, 'enroll'])->name('two-factor.enroll');
@@ -55,6 +65,8 @@ Route::middleware(['auth', 'superadmin', 'audit.platform'])->prefix('/admin')->n
     Route::get('/health', [SystemHealthController::class, 'index'])->name('health.index');
     Route::post('/health/backup-confirm', [SystemHealthController::class, 'confirmBackup'])->name('health.backup-confirm');
     Route::delete('/organizations/{organization}', [AdminOrganizationController::class, 'destroy'])->name('organizations.destroy');
+    Route::post('/organizations/{organization}/mailboxes/{mailbox}/verify-domain', [AdminOrganizationController::class, 'verifyMailDomain'])->name('organizations.mail.verify');
+    Route::delete('/organizations/{organization}/mailboxes/{mailbox}/verify-domain', [AdminOrganizationController::class, 'revokeMailDomain'])->name('organizations.mail.revoke');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::put('/account/system-mail-identity', [AccountController::class, 'updatePlatformMailIdentity'])->name('account.system-mail-identity.update');
@@ -72,14 +84,15 @@ Route::middleware(['auth', 'superadmin', 'audit.platform'])->prefix('/admin')->n
     });
 });
 
-Route::middleware(['auth', 'tenant'])->group(function (): void {
+Route::middleware(['auth', 'tenant', 'customer.2fa'])->group(function (): void {
     Route::get('/onboarding', OnboardingController::class)->name('onboarding');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::get('/usage', AiUsageController::class)->middleware('role:owner')->name('usage.index');
+    Route::get('/account/data-export', [OrganizationDataController::class, 'export'])->middleware('role:owner')->name('account.data-export');
 });
 
-Route::middleware(['auth', 'tenant', 'organization.access', 'license'])->group(function (): void {
+Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'license'])->group(function (): void {
     Route::get('/setup-wizard', [SetupWizardController::class, 'create'])->middleware('role:owner')->name('setup-wizard.create');
     Route::post('/setup-wizard/generate', [SetupWizardController::class, 'generate'])->middleware(['role:owner', 'throttle:3,1'])->name('setup-wizard.generate');
     Route::get('/setup-wizard/preview', [SetupWizardController::class, 'preview'])->middleware('role:owner')->name('setup-wizard.preview');

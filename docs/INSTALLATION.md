@@ -377,6 +377,9 @@ nel database con `APP_KEY` e non vengono mai mostrate nell’interfaccia.
 
 Dopo il salvataggio usare **Verifica IMAP** e **Invia test**. Il secondo test usa
 il trasporto SMTP/Resend globale ma mittente e Reply-To dell’organizzazione.
+Nel pannello Super Admin aprire **Clienti** e confermare SPF/DKIM soltanto dopo
+avere verificato realmente il dominio. Qualsiasi modifica dell’indirizzo mittente
+riporta automaticamente lo stato a “da verificare”.
 
 Usare i parametri indicati dal fornitore e non disabilitare la verifica del certificato in produzione. Dopo aver salvato almeno una casella attiva:
 

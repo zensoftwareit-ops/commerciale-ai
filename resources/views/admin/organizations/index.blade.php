@@ -13,13 +13,15 @@
         @forelse($organizations as $organization)
             @php($owner=$organization->users->firstWhere('pivot.role', 'owner'))
             @php($license=$organization->licenses->sortByDesc('created_at')->first())
+            @php($mailbox=$organization->mailboxes->first())
             <tr>
                 <td><strong>{{ $organization->name }}</strong><br><span class="muted">{{ $organization->slug }} · {{ $organization->locale }} · {{ $organization->timezone }}</span></td>
                 <td>{{ $owner?->name ?: '—' }}<br><span class="muted">{{ $owner?->email ?: 'Owner mancante' }}</span><br><span class="badge">{{ $organization->users->count() }} utenti</span></td>
                 <td><span class="badge @if($organization->status==='active') success @elseif($organization->status==='suspended') hot @endif">{{ $organization->status }}</span>@if($organization->suspension_reason)<br><span class="muted">{{ str_replace('_', ' ', $organization->suspension_reason) }}</span>@endif</td>
                 <td>
                     <span class="badge">Profilo {{ $organization->settings?->completeness ?? 0 }}%</span><br>
-                    <span class="muted">IMAP attive: {{ $organization->active_mailboxes_count }}</span>
+                    <span class="muted">IMAP attive: {{ $organization->active_mailboxes_count }}</span><br>
+                    @if($mailbox)<span class="badge {{ $mailbox->domain_verification_status === 'verified' ? 'success' : 'warm' }}">Dominio {{ $mailbox->domain_verification_status === 'verified' ? 'verificato' : 'da verificare' }}</span><br><span class="muted">{{ $mailbox->from_address }}</span>@endif
                 </td>
                 <td><strong>{{ $organization->leads_count }}</strong> lead totali<br><span class="muted">AI mese: {{ number_format($organization->current_month_ai_tokens, 0, ',', '.') }} token · € {{ number_format($organization->current_month_ai_cost, 4, ',', '.') }}</span>@if($license?->plan?->monthly_ai_token_limit)<br><span class="badge @if($organization->current_month_ai_tokens >= $license->plan->monthly_ai_token_limit) hot @elseif($organization->current_month_ai_tokens >= $license->plan->monthly_ai_token_limit * .8) warm @endif">{{ min(100, (int) floor(($organization->current_month_ai_tokens / $license->plan->monthly_ai_token_limit) * 100)) }}%</span>@endif</td>
                 <td>
@@ -32,6 +34,13 @@
                     @endif
                 </td>
                 <td>
+                    @if($mailbox)
+                        @if($mailbox->domain_verification_status === 'verified')
+                            <form method="post" action="{{ route('admin.organizations.mail.revoke',[$organization,$mailbox]) }}" onsubmit="return confirm('Revocare la verifica SPF/DKIM?')">@csrf @method('delete')<button class="btn btn-muted">Revoca dominio</button></form>
+                        @else
+                            <form method="post" action="{{ route('admin.organizations.mail.verify',[$organization,$mailbox]) }}" onsubmit="return confirm('Confermi di avere verificato SPF/DKIM per questo mittente?')">@csrf<button class="btn">Conferma SPF/DKIM</button></form>
+                        @endif
+                    @endif
                     @if($organization->licenses->every(fn($item) => $item->source === 'manual'))
                         <details>
                             <summary class="muted">Elimina cliente</summary>

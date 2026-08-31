@@ -4,6 +4,8 @@ namespace App\Services\Operations;
 
 use App\Models\AiRun;
 use App\Models\MailboxAccount;
+use App\Models\Lead;
+use App\Models\LeadReply;
 use App\Models\Organization;
 use App\Models\PlatformSetting;
 use App\Models\User;
@@ -40,6 +42,13 @@ class SystemHealth
         $add('debug', 'Debug', config('app.debug') ? 'error' : 'ok', config('app.debug') ? 'APP_DEBUG è attivo.' : 'APP_DEBUG è disattivato.');
         $https = str_starts_with((string) config('app.url'), 'https://');
         $add('https', 'URL HTTPS', $https ? 'ok' : 'error', (string) config('app.url'));
+        $secureSession = (bool) config('session.secure');
+        $encryptedSession = (bool) config('session.encrypt');
+        $add('session_security', 'Cookie e sessione', $secureSession && $encryptedSession ? 'ok' : ($isProduction ? 'error' : 'warning'),
+            'Cookie sicuro '.($secureSession ? 'attivo' : 'disattivato').' · cifratura sessione '.($encryptedSession ? 'attiva' : 'disattivata').'.');
+        $monitorToken = filled(config('commerciale-ai.operations.healthcheck_token'));
+        $add('external_monitor', 'Monitor esterno', $monitorToken ? 'ok' : ($isProduction ? 'error' : 'warning'),
+            $monitorToken ? 'Endpoint protetto configurato.' : 'Imposta HEALTHCHECK_TOKEN per il monitor esterno.');
 
         $mail = $this->mail->details();
         $add('mail', 'Trasporto email', $mail['deliverable'] ? 'ok' : 'error', $mail['mailer'].' · '.$mail['message']);
@@ -80,12 +89,20 @@ class SystemHealth
         $add('failed_jobs', 'Job falliti', $failedJobs === 0 ? 'ok' : 'warning', $failedJobs.' job nella coda degli errori.');
         $mailboxErrors = MailboxAccount::withoutGlobalScopes()->where('is_active', true)->whereNotNull('last_error')->count();
         $add('imap', 'Caselle IMAP', $mailboxErrors === 0 ? 'ok' : 'warning', $mailboxErrors.' caselle attive con ultimo errore registrato.');
+        $unverifiedDomains = MailboxAccount::withoutGlobalScopes()->where('is_active', true)->where('domain_verification_status', '!=', 'verified')->count();
+        $externalSend = (bool) config('commerciale-ai.automation.external_send_enabled');
+        $add('mail_domains', 'Domini SPF/DKIM', $unverifiedDomains === 0 ? 'ok' : ($externalSend ? 'error' : 'warning'),
+            $unverifiedDomains.' identità attive ancora da verificare.');
+        $failedAutomations = LeadReply::withoutGlobalScopes()->whereNotNull('automation_failed_at')->count()
+            + Lead::withoutGlobalScopes()->whereNotNull('initial_automation_failed_at')->count();
+        $add('automation_handoffs', 'Automazioni sospese', $failedAutomations === 0 ? 'ok' : 'warning', $failedAutomations.' automazioni affidate a un commerciale.');
         $recentAiFailures = AiRun::withoutGlobalScopes()->where('status', 'failed')->where('created_at', '>=', now()->subDay())->count();
         $add('ai_failures', 'Errori AI ultime 24 ore', $recentAiFailures === 0 ? 'ok' : 'warning', $recentAiFailures.' esecuzioni fallite.');
 
         $organizationsWithoutLicense = Organization::query()->get()->filter(fn (Organization $organization): bool => ! $organization->activeLicense())->count();
         $enforcement = (bool) config('commerciale-ai.billing.enforcement_enabled');
-        $add('licenses', 'Licenze', $organizationsWithoutLicense === 0 && $enforcement ? 'ok' : 'warning',
+        $licenseStatus = $organizationsWithoutLicense === 0 && $enforcement ? 'ok' : ($isProduction ? 'error' : 'warning');
+        $add('licenses', 'Licenze', $licenseStatus,
             $organizationsWithoutLicense.' clienti senza licenza utilizzabile · enforcement '.($enforcement ? 'attivo' : 'disattivato').'.');
 
         $backupRecent = $settings->last_backup_verified_at?->greaterThanOrEqualTo(now()->subDays(7)) ?? false;

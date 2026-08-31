@@ -9,6 +9,8 @@ use App\Services\Mail\SyncInboundEmailReplies;
 use App\Services\Mail\RunConversationAutomation;
 use App\Services\Leads\RunNewLeadAutomation;
 use App\Services\Operations\SystemHealth;
+use App\Services\Operations\PlatformHealthAlert;
+use App\Services\Privacy\PurgeExpiredLeadData;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -205,3 +207,24 @@ Artisan::command('daria:system-status', function (SystemHealth $health): int {
 
     return $snapshot['ready'] ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Controlla configurazione e salute operativa di Daria');
+
+Artisan::command('daria:health-alert {--force}', function (PlatformHealthAlert $alerts): int {
+    try {
+        $result = $alerts->handle((bool) $this->option('force'));
+        $this->line($result['message']);
+
+        return Command::SUCCESS;
+    } catch (Throwable $exception) {
+        report($exception);
+        $this->error($exception->getMessage());
+
+        return Command::FAILURE;
+    }
+})->purpose('Invia al Super Admin gli allarmi operativi con deduplicazione e cooldown');
+
+Artisan::command('privacy:purge {--dry-run}', function (PurgeExpiredLeadData $purger): int {
+    $stats = $purger->handle((bool) $this->option('dry-run'));
+    $this->table(['Organizzazioni', 'Candidate', 'Eliminate'], [array_values($stats)]);
+
+    return Command::SUCCESS;
+})->purpose('Elimina i lead chiusi oltre la retention configurata dal cliente');

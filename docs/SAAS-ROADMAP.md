@@ -49,11 +49,10 @@ Appartengono all'organizzazione:
 
 - contabilizzazione token e costo stimato per organizzazione (completata);
 - budget AI mensile per pacchetto, avviso all'80% e blocco al 100% (completato);
-- code persistenti per AI ed email;
-- retry e dead-letter per operazioni fallite;
-- monitoraggio centralizzato, metriche e allarmi;
+- retry con backoff, arresto automatico e passaggio al commerciale (completato);
+- monitoraggio protetto e allarmi email deduplicati (completato);
 - backup automatici e prove periodiche di ripristino;
-- retention e cancellazione dati conformi alle policy;
+- retention dei lead chiusi ed esportazione dati per tenant (completato);
 - rate limit aggiuntivi per tenant e protezione dei costi OpenAI.
 
 Un'istanza o un database dedicato rimangono una possibile offerta Enterprise e non

@@ -14,6 +14,7 @@ class LeadReply extends Model
     protected $fillable = [
         'organization_id', 'lead_id', 'ai_analysis_id', 'ai_run_id', 'status', 'reply_kind',
         'delivery_mode', 'automation_eligible', 'automation_blockers',
+        'automation_attempts', 'automation_next_attempt_at', 'automation_failed_at',
         'outbound_message_id', 'parent_message_id', 'recipient', 'sender_address', 'sender_name', 'reply_to_address', 'subject', 'body',
         'follow_up_at', 'follow_up_cancelled_at', 'approved_by', 'approved_at', 'sent_at', 'last_error',
     ];
@@ -24,6 +25,8 @@ class LeadReply extends Model
             'follow_up_at' => 'datetime', 'follow_up_cancelled_at' => 'datetime',
             'approved_at' => 'datetime', 'sent_at' => 'datetime',
             'automation_eligible' => 'boolean', 'automation_blockers' => 'array',
+            'automation_attempts' => 'integer', 'automation_next_attempt_at' => 'datetime',
+            'automation_failed_at' => 'datetime',
         ];
     }
 

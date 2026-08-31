@@ -96,6 +96,14 @@ SaaS, quando verrà aggiunto anche l'onboarding automatico SPF/DKIM per dominio.
 Indirizzo `From`, nome e `Reply-To` si configurano una sola volta per organizzazione
 nella sezione **Email Daria**. L’email personale degli utenti non viene mai usata
 come identità commerciale; SMTP e Resend sono soltanto trasporti globali.
+Il Super Admin conferma manualmente SPF/DKIM: fino a quel momento gli invii
+automatici esterni restano bloccati. Gli errori di consegna usano tentativi con
+backoff e, al limite, assegnano il lead a un commerciale.
+
+Gli owner possono attivare la 2FA, esportare i dati dell’organizzazione e definire
+la conservazione dei lead chiusi. Il comando `privacy:purge` applica la policy;
+`daria:health-alert` e l’endpoint protetto `/api/v1/platform-health` coprono gli
+allarmi operativi.
 
 Il modulo commerciale include un pannello Super Admin per registrare manualmente
 clienti, owner e licenze su tre pacchetti. La vendita self-service con tema e plugin

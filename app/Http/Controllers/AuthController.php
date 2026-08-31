@@ -36,6 +36,10 @@ class AuthController extends Controller
         }
 
         $organization = $user->organizations()->orderBy('name')->first();
+        $request->session()->forget('customer_2fa_verified_at');
+        if ($user->two_factor_confirmed_at) {
+            return redirect()->route('account.two-factor.challenge');
+        }
         $destination = in_array($organization?->status, ['onboarding', 'suspended'], true)
             ? route('onboarding')
             : route('leads.index');

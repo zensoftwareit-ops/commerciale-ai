@@ -13,6 +13,7 @@ class MailboxAccount extends Model
 
     protected $fillable = [
         'organization_id', 'name', 'from_address', 'from_name', 'reply_to_address',
+        'domain_verification_status', 'domain_verified_at', 'domain_verified_by',
         'host', 'port', 'encryption', 'validate_cert',
         'username', 'password', 'authentication', 'folder', 'is_active',
         'last_tested_at', 'last_outbound_tested_at', 'last_synced_at', 'last_error', 'last_outbound_error',
@@ -22,7 +23,8 @@ class MailboxAccount extends Model
     {
         return [
             'password' => 'encrypted', 'validate_cert' => 'boolean', 'is_active' => 'boolean',
-            'last_tested_at' => 'datetime', 'last_outbound_tested_at' => 'datetime', 'last_synced_at' => 'datetime',
+            'domain_verified_at' => 'datetime', 'last_tested_at' => 'datetime',
+            'last_outbound_tested_at' => 'datetime', 'last_synced_at' => 'datetime',
         ];
     }
 

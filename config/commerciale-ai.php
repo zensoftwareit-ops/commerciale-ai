@@ -17,9 +17,15 @@ return [
     ],
     'automation' => [
         'external_send_enabled' => (bool) env('AUTOMATION_EXTERNAL_SEND_ENABLED', false),
+        'delivery_max_attempts' => (int) env('AUTOMATION_DELIVERY_MAX_ATTEMPTS', 3),
+        'retry_base_minutes' => (int) env('AUTOMATION_RETRY_BASE_MINUTES', 5),
     ],
     'security' => [
         'platform_2fa_required' => (bool) env('PLATFORM_2FA_REQUIRED', false),
+    ],
+    'operations' => [
+        'healthcheck_token' => env('HEALTHCHECK_TOKEN'),
+        'health_alert_cooldown_minutes' => (int) env('HEALTH_ALERT_COOLDOWN_MINUTES', 360),
     ],
     'billing' => [
         'self_service_enabled' => (bool) env('BILLING_SELF_SERVICE_ENABLED', false),

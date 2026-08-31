@@ -33,7 +33,7 @@ class PasswordController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $data = $request->validate(['token' => ['required'], 'email' => ['required', 'email'], 'password' => ['required', 'confirmed', 'min:10']]);
+        $data = $request->validate(['token' => ['required'], 'email' => ['required', 'email'], 'password' => ['required', 'confirmed', 'min:12']]);
         $status = Password::reset($data, function (User $user, string $password): void {
             $user->forceFill(['password' => Hash::make($password), 'remember_token' => Str::random(60)])->save();
             event(new PasswordReset($user));

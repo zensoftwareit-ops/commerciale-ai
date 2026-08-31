@@ -20,6 +20,7 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         config()->set('mail.default', 'smtp');
         Mail::fake();
         [$organization] = $this->organizationWithUser();
+        $this->mailboxFor($organization);
         app(TenantContext::class)->set($organization);
         OrganizationSetting::create([
             'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti web',

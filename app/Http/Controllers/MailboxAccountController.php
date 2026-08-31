@@ -29,6 +29,7 @@ class MailboxAccountController extends Controller
             return back()->withErrors(['mailbox' => 'L’organizzazione dispone già di una configurazione Email Daria.']);
         }
         $data = $this->normalized($this->validated($request, creating: true), $request);
+        $data['domain_verification_status'] = 'pending';
         MailboxAccount::create($data);
 
         return back()->with('status', 'Email Daria configurata. Verifica ora ricezione IMAP e invio.');
@@ -42,6 +43,11 @@ class MailboxAccountController extends Controller
             unset($data['password']);
         }
         $data = $this->normalized($data, $request);
+        if ($mailbox->from_address !== $data['from_address']) {
+            $data['domain_verification_status'] = 'pending';
+            $data['domain_verified_at'] = null;
+            $data['domain_verified_by'] = null;
+        }
         $mailbox->update([...$data, 'last_error' => null, 'last_outbound_error' => null]);
 
         return back()->with('status', 'Configurazione Email Daria aggiornata.');

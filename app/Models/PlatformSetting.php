@@ -15,6 +15,8 @@ class PlatformSetting extends Model
         'last_automation_summary',
         'last_automation_error',
         'last_backup_verified_at',
+        'last_health_alerted_at',
+        'last_health_alert_signature',
     ];
 
     protected function casts(): array
@@ -24,6 +26,7 @@ class PlatformSetting extends Model
             'last_automation_completed_at' => 'datetime',
             'last_automation_summary' => 'array',
             'last_backup_verified_at' => 'datetime',
+            'last_health_alerted_at' => 'datetime',
         ];
     }
 }

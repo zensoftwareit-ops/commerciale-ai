@@ -41,6 +41,8 @@ class OrganizationSettingsController extends Controller
             'internal_test_only' => ['nullable', 'boolean'], 'automation_allowed_recipients_text' => ['nullable', 'string', 'max:5000'],
             'max_automatic_replies' => ['required', 'integer', 'min:1', 'max:10'], 'max_auto_quote_amount' => ['nullable', 'numeric', 'min:0'],
             'auto_analyze_new_leads' => ['nullable', 'boolean'], 'auto_send_initial_email' => ['nullable', 'boolean'],
+            'data_retention_days' => ['required', 'integer', 'min:30', 'max:3650'],
+            'privacy_cleanup_enabled' => ['nullable', 'boolean'],
         ]);
         $data['qualification_questions'] = collect(preg_split('/\r\n|\r|\n/', $data['qualification_questions_text'] ?? ''))->map(fn (string $line): string => trim($line))->filter()->values()->all();
         unset($data['qualification_questions_text']);
@@ -51,6 +53,7 @@ class OrganizationSettingsController extends Controller
         $data['internal_test_only'] = (bool) ($data['internal_test_only'] ?? false);
         $data['auto_analyze_new_leads'] = (bool) ($data['auto_analyze_new_leads'] ?? false);
         $data['auto_send_initial_email'] = (bool) ($data['auto_send_initial_email'] ?? false);
+        $data['privacy_cleanup_enabled'] = (bool) ($data['privacy_cleanup_enabled'] ?? false);
         $current = OrganizationSetting::query()->first();
         if ($data['auto_analyze_new_leads'] && ! $current?->auto_analyze_new_leads) {
             $data['new_lead_automation_started_at'] = now();

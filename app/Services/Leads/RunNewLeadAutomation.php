@@ -7,10 +7,12 @@ use App\Models\Lead;
 use App\Models\LeadReply;
 use App\Models\Organization;
 use App\Models\OrganizationSetting;
+use App\Models\MailboxAccount;
 use App\Services\Ai\AnalyzeLead;
 use App\Services\Ai\GenerateLeadReply;
 use App\Services\Mail\SendLeadReply;
 use App\Support\Tenancy\TenantContext;
+use App\Services\Notifications\NotifyAutomationFailure;
 use Throwable;
 
 class RunNewLeadAutomation
@@ -19,6 +21,7 @@ class RunNewLeadAutomation
         private readonly AnalyzeLead $analyzer,
         private readonly GenerateLeadReply $replyGenerator,
         private readonly SendLeadReply $sender,
+        private readonly NotifyAutomationFailure $failureNotifier,
     ) {}
 
     /** @return array{organizations:int,candidates:int,analyzed:int,drafted:int,sent:int,failed:int} */
@@ -31,10 +34,12 @@ class RunNewLeadAutomation
                 $settings = OrganizationSetting::query()->first();
                 if (! $settings?->auto_analyze_new_leads || ! $settings->conversation_automation_enabled) continue;
                 $stats['organizations']++;
+                $maxAttempts = max(1, (int) config('commerciale-ai.automation.delivery_max_attempts', 3));
                 $leads = Lead::query()
                     ->whereNotNull('email_normalized')
                     ->whereNull('initial_automation_completed_at')
-                    ->where('initial_automation_attempts', '<', 3)
+                    ->where('initial_automation_attempts', '<', $maxAttempts)
+                    ->where(fn ($query) => $query->whereNull('initial_automation_next_attempt_at')->orWhere('initial_automation_next_attempt_at', '<=', now()))
                     ->when($leadId, fn ($query) => $query->whereKey($leadId))
                     ->when(! $leadId, fn ($query) => $query->where('created_at', '>=', $settings->new_lead_automation_started_at ?? now()))
                     ->oldest()->limit(max(1, min($limit, 100)))->get();
@@ -65,16 +70,31 @@ class RunNewLeadAutomation
                             $this->sender->handle($reply->fresh(), automatic: true);
                             $stats['sent']++;
                         }
-                        $lead->update(['initial_automation_completed_at' => now(), 'initial_automation_error' => null]);
+                        $lead->update([
+                            'initial_automation_completed_at' => now(),
+                            'initial_automation_next_attempt_at' => null,
+                            'initial_automation_failed_at' => null,
+                            'initial_automation_error' => null,
+                        ]);
                     } catch (Throwable $exception) {
                         report($exception);
                         $stats['failed']++;
-                        $lead->update(['initial_automation_error' => mb_substr($exception->getMessage(), 0, 2000)]);
+                        $attempts = (int) $lead->initial_automation_attempts + 1;
+                        $final = $attempts >= $maxAttempts;
+                        $base = max(1, (int) config('commerciale-ai.automation.retry_base_minutes', 5));
+                        $lead->update([
+                            'initial_automation_next_attempt_at' => $final ? null : now()->addMinutes($base * (2 ** ($attempts - 1))),
+                            'initial_automation_failed_at' => $final ? now() : null,
+                            'initial_automation_error' => mb_substr($exception->getMessage(), 0, 2000),
+                        ]);
                         Activity::create([
                             'organization_id' => $lead->organization_id, 'lead_id' => $lead->id,
                             'type' => 'initial_automation_failed', 'title' => 'Automazione iniziale non completata',
-                            'data' => ['attempt' => $lead->initial_automation_attempts + 1], 'occurred_at' => now(),
+                            'data' => ['attempt' => $attempts, 'final' => $final], 'occurred_at' => now(),
                         ]);
+                        if ($final) {
+                            $this->failureNotifier->handle($lead, $exception->getMessage());
+                        }
                     }
                 }
             } finally {
@@ -88,6 +108,7 @@ class RunNewLeadAutomation
     public function diagnose(): array
     {
         $rows = [];
+        $maxAttempts = max(1, (int) config('commerciale-ai.automation.delivery_max_attempts', 3));
         foreach (Organization::query()->cursor() as $organization) {
             app(TenantContext::class)->set($organization);
             try {
@@ -109,10 +130,12 @@ class RunNewLeadAutomation
                     'before_activation' => $startedAt ? (clone $base)->where('created_at', '<', $startedAt)->count() : (clone $base)->count(),
                     'not_allowed' => $internalOnly ? (clone $base)->whereNotNull('email_normalized')->whereNotIn('email_normalized', $allowed->all())->count() : 0,
                     'completed' => (clone $base)->whereNotNull('initial_automation_completed_at')->count(),
-                    'failed_3x' => (clone $base)->whereNull('initial_automation_completed_at')->where('initial_automation_attempts', '>=', 3)->count(),
+                    'failed_max' => (clone $base)->whereNull('initial_automation_completed_at')->where('initial_automation_attempts', '>=', $maxAttempts)->count(),
                     'eligible_now' => $settings?->auto_analyze_new_leads && $settings?->conversation_automation_enabled && $startedAt
                         ? (clone $base)->whereNotNull('email_normalized')->whereNull('initial_automation_completed_at')
-                            ->where('initial_automation_attempts', '<', 3)->where('created_at', '>=', $startedAt)->count()
+                            ->where('initial_automation_attempts', '<', $maxAttempts)
+                            ->where(fn ($query) => $query->whereNull('initial_automation_next_attempt_at')->orWhere('initial_automation_next_attempt_at', '<=', now()))
+                            ->where('created_at', '>=', $startedAt)->count()
                         : 0,
                 ];
             } finally {
@@ -136,6 +159,9 @@ class RunNewLeadAutomation
             ->filter();
         $internalOnly = $settings->internal_test_only || ! config('commerciale-ai.automation.external_send_enabled');
         if ($internalOnly && ! $allowed->contains($reply->lead->email_normalized)) $blockers[] = 'recipient_not_allowed';
+        if (! $internalOnly && ! MailboxAccount::query()->where('is_active', true)->where('domain_verification_status', 'verified')->exists()) {
+            $blockers[] = 'sender_domain_not_verified';
+        }
         $reply->update([
             'automation_blockers' => array_values(array_unique($blockers)),
             'automation_eligible' => $blockers === [],

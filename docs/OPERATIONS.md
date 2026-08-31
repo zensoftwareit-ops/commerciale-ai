@@ -30,9 +30,13 @@ APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://app.daria-ai.it
 SESSION_SECURE_COOKIE=true
+SESSION_ENCRYPT=true
 AI_PROVIDER=openai
 AUTOMATION_EXTERNAL_SEND_ENABLED=false
 BILLING_SELF_SERVICE_ENABLED=false
+LICENSE_ENFORCEMENT_ENABLED=true
+HEALTHCHECK_TOKEN=generare-un-segreto-casuale-lungo
+LOG_LEVEL=warning
 PLATFORM_2FA_REQUIRED=false
 ```
 
@@ -61,6 +65,27 @@ cd /var/www/vhosts/daria-ai.it/app.daria-ai.it && /opt/plesk/php/8.3/bin/php art
 Non usare `schedule:run`. `commerciale:run` elabora direttamente nuovi lead,
 posta IMAP e conversazioni; un lock impedisce le sovrapposizioni. Eseguire una volta
 il comando a mano e controllare che mostri i tre riepiloghi.
+
+Creare inoltre un secondo comando ogni cinque minuti, indipendente dal primo:
+
+```bash
+cd /var/www/vhosts/daria-ai.it/app.daria-ai.it && /opt/plesk/php/8.3/bin/php artisan daria:health-alert
+```
+
+Questo invia al Super Admin gli errori nuovi e li ripete soltanto dopo il cooldown.
+Per rilevare anche un fermo completo di PHP/Plesk, configurare un monitor esterno su
+`https://app.daria-ai.it/api/v1/platform-health` passando l'header
+`X-Daria-Health-Token` con il valore di `HEALTHCHECK_TOKEN`. HTTP 503 indica che
+almeno un controllo obbligatorio non è superato.
+
+Infine creare una cron giornaliera, per esempio alle 03:15:
+
+```bash
+cd /var/www/vhosts/daria-ai.it/app.daria-ai.it && /opt/plesk/php/8.3/bin/php artisan privacy:purge
+```
+
+La pulizia elimina soltanto i lead chiusi delle organizzazioni che l'hanno
+esplicitamente abilitata. Prima dell'attivazione usare `privacy:purge --dry-run`.
 
 Il pannello Super Admin **Salute** segnala un errore se l'ultimo completamento ha
 piu di dieci minuti o e fallito. La stessa diagnosi e disponibile da terminale:
@@ -96,6 +121,8 @@ controlli obbligatori devono essere verdi; gli avvisi vanno valutati. In partico
 - trasporto SMTP reale e mittente di sistema configurato;
 - cron completato di recente;
 - account Super Admin separato con 2FA obbligatoria;
+- domini mittente confermati dal Super Admin dopo la verifica SPF/DKIM;
+- endpoint del monitor esterno raggiungibile con il relativo header segreto;
 - backup verificato negli ultimi sette giorni.
 
 Il registro **Audit** mostra tutte le modifiche effettuate nel pannello Super Admin
