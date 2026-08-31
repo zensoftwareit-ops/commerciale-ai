@@ -6,16 +6,19 @@ use App\Contracts\SetupWizardGenerator;
 
 class FakeSetupWizardGenerator implements SetupWizardGenerator
 {
-    public function generate(string $description, array $existingProfile = []): array
+    public function generate(string $description, array $existingProfile = [], array $website = []): array
     {
         $name = (string) ($existingProfile['commercial_name'] ?? 'Azienda Demo');
+        $sourceDescription = trim($description) !== ''
+            ? $description
+            : (string) data_get($website, 'pages.0.text', 'Informazioni ricavate dal sito aziendale.');
 
         return [
             'profile' => [
                 'legal_name' => (string) ($existingProfile['legal_name'] ?? ''),
                 'commercial_name' => $name,
                 'industry' => (string) ($existingProfile['industry'] ?? 'Servizi professionali'),
-                'business_description' => $description,
+                'business_description' => $sourceDescription,
                 'products_services' => 'Servizi descritti dal cliente durante la configurazione.',
                 'service_area' => (string) ($existingProfile['service_area'] ?? 'Italia'),
                 'ideal_customer' => 'Clienti interessati ai servizi descritti.',
@@ -29,7 +32,7 @@ class FakeSetupWizardGenerator implements SetupWizardGenerator
                 'promised_response_minutes' => 240,
             ],
             'knowledge' => [
-                'services' => 'Descrizione iniziale: '.$description,
+                'services' => 'Descrizione iniziale: '.$sourceDescription,
                 'faq' => "Domanda: Come viene gestita una nuova richiesta?\nRisposta: Viene analizzata e, se necessario, approfondita con poche domande mirate.",
                 'request_management' => 'Raccogliere obiettivo, tempistiche e budget. Evitare domande ripetute e passare a un commerciale quando i dati restano insufficienti.',
                 'pricing_guidance' => 'Non comunicare prezzi non presenti nel listino approvato. Se manca una regola applicabile, coinvolgere un commerciale.',

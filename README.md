@@ -124,7 +124,8 @@ Il listino strutturato genera fasce di preventivo deterministiche e versionate. 
 Il flusso iniziale può essere automatizzato integralmente: i nuovi lead vengono analizzati, ricevono una bozza iniziale e, se autorizzati dalla modalità interna, la prima email viene inviata dal cron. L'attivazione non coinvolge lead storici e ogni errore tecnico è limitato a tre tentativi.
 
 L'onboarding include anche **Compila con Daria**: l'owner descrive liberamente
-l'attività e OpenAI genera un'anteprima modificabile del profilo aziendale, delle
+l'attività e/o indica il sito aziendale; Daria legge un massimo di quattro pagine
+pubbliche e OpenAI genera un'anteprima modificabile del profilo aziendale, delle
 regole di gestione delle richieste e di quattro documenti iniziali della knowledge
 base. Il wizard non attiva automaticamente invii o preventivi e non modifica i
 contenuti manuali già presenti.

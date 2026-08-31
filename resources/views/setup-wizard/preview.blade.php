@@ -10,6 +10,10 @@
 <section class="warning"><strong>Da verificare:</strong><ul>@foreach($draft['assumptions'] as $assumption)<li>{{ $assumption }}</li>@endforeach</ul></section>
 @endif
 
+@if($payload['website'] ?? null)
+<section class="notice"><strong>Sito analizzato:</strong> <a href="{{ $payload['website']['url'] }}" target="_blank" rel="noopener noreferrer">{{ $payload['website']['url'] }}</a><ul>@foreach($payload['website']['pages'] as $page)<li>{{ $page['title'] }} <span class="muted">{{ $page['url'] }}</span></li>@endforeach</ul></section>
+@endif
+
 <form method="post" action="{{ route('setup-wizard.apply') }}">
 @csrf
 <input type="hidden" name="draft_id" value="{{ $payload['id'] }}">
@@ -18,6 +22,7 @@
     <div class="grid grid-2">
         <div><label>Ragione sociale</label><input name="profile[legal_name]" value="{{ old('profile.legal_name',$draft['profile']['legal_name']) }}"></div>
         <div><label>Nome commerciale *</label><input name="profile[commercial_name]" value="{{ old('profile.commercial_name',$draft['profile']['commercial_name']) }}" required></div>
+        <div><label>Sito aziendale</label><input type="url" name="profile[website_url]" value="{{ old('profile.website_url',$draft['profile']['website_url'] ?? '') }}"></div>
         <div><label>Settore *</label><input name="profile[industry]" value="{{ old('profile.industry',$draft['profile']['industry']) }}" required></div>
         <div><label>Area geografica</label><input name="profile[service_area]" value="{{ old('profile.service_area',$draft['profile']['service_area']) }}"></div>
     </div>

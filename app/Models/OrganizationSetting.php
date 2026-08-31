@@ -11,7 +11,7 @@ class OrganizationSetting extends Model
     use BelongsToOrganization, HasUuid;
 
     protected $fillable = [
-        'organization_id', 'legal_name', 'commercial_name', 'industry', 'business_description',
+        'organization_id', 'legal_name', 'commercial_name', 'website_url', 'industry', 'business_description',
         'products_services', 'service_area', 'ideal_customer', 'pricing_rules', 'differentiators',
         'qualification_questions', 'exclusion_criteria', 'tone_of_voice', 'email_signature',
         'appointment_details', 'promised_response_minutes', 'authorized_sender', 'completeness',

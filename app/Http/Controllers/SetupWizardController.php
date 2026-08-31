@@ -6,6 +6,7 @@ use App\Models\KnowledgeDocument;
 use App\Models\OrganizationSetting;
 use App\Services\Organizations\GenerateOrganizationSetup;
 use App\Services\Organizations\OrganizationLifecycle;
+use App\Services\Organizations\WebsiteContentReader;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class SetupWizardController extends Controller
 
         return view('setup-wizard.create', [
             'description' => old('description', $settings?->business_description),
+            'websiteUrl' => old('website_url', $settings?->website_url),
             'aiStatus' => [
                 'provider' => (string) config('commerciale-ai.ai_provider'),
                 'configured' => config('commerciale-ai.ai_provider') !== 'openai'
@@ -38,14 +40,26 @@ class SetupWizardController extends Controller
         ]);
     }
 
-    public function generate(Request $request, GenerateOrganizationSetup $generator, TenantContext $tenants): RedirectResponse
+    public function generate(
+        Request $request,
+        GenerateOrganizationSetup $generator,
+        WebsiteContentReader $websites,
+        TenantContext $tenants,
+    ): RedirectResponse
     {
         $data = $request->validate([
-            'description' => ['required', 'string', 'min:80', 'max:10000'],
+            'description' => ['nullable', 'required_without:website_url', 'string', 'min:80', 'max:10000'],
+            'website_url' => ['nullable', 'required_without:description', 'url:http,https', 'max:2048'],
         ]);
+        $description = trim((string) ($data['description'] ?? ''));
+        $website = [];
 
         try {
-            $draft = $generator->handle(trim($data['description']));
+            if (filled($data['website_url'] ?? null)) {
+                $website = $websites->read((string) $data['website_url']);
+            }
+            $draft = $generator->handle($description, $website);
+            $draft['profile']['website_url'] = $website['url'] ?? null;
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
@@ -59,7 +73,15 @@ class SetupWizardController extends Controller
         $request->session()->put('setup_wizard_draft', [
             'id' => (string) Str::uuid(),
             'organization_id' => $tenants->requireOrganization()->id,
-            'description' => trim($data['description']),
+            'description' => $description,
+            'website' => $website === [] ? null : [
+                'url' => $website['url'],
+                'pages' => collect($website['pages'])->map(fn (array $page): array => [
+                    'url' => $page['url'],
+                    'title' => $page['title'],
+                    'characters' => mb_strlen($page['text']),
+                ])->all(),
+            ],
             'draft' => $draft,
             'generated_at' => now()->toIso8601String(),
         ]);
@@ -158,6 +180,7 @@ class SetupWizardController extends Controller
             'profile' => ['required', 'array'],
             'profile.legal_name' => ['nullable', 'string', 'max:255'],
             'profile.commercial_name' => ['required', 'string', 'max:255'],
+            'profile.website_url' => ['nullable', 'url:http,https', 'max:2048'],
             'profile.industry' => ['required', 'string', 'max:255'],
             'profile.business_description' => ['required', 'string', 'max:5000'],
             'profile.products_services' => ['required', 'string', 'max:5000'],

@@ -21,13 +21,13 @@ class GenerateOrganizationSetup
     ) {}
 
     /** @return array<string, mixed> */
-    public function handle(string $description): array
+    public function handle(string $description, array $website = []): array
     {
         $this->licenseGuard->assertAiCapacity();
         $organization = $this->tenants->requireOrganization();
         $existing = OrganizationSetting::query()->first();
         $existingProfile = $existing?->only([
-            'legal_name', 'commercial_name', 'industry', 'business_description', 'products_services',
+            'legal_name', 'commercial_name', 'website_url', 'industry', 'business_description', 'products_services',
             'service_area', 'ideal_customer', 'pricing_rules', 'differentiators', 'qualification_questions',
             'exclusion_criteria', 'tone_of_voice', 'email_signature', 'appointment_details', 'promised_response_minutes',
         ]) ?? [];
@@ -36,12 +36,17 @@ class GenerateOrganizationSetup
             'operation' => 'setup_wizard',
             'status' => 'running',
             'policy_version' => 'setup-wizard-v1',
-            'input_context' => ['activity_description' => $description, 'existing_profile' => $existingProfile],
+            'input_context' => [
+                'activity_description' => $description,
+                'existing_profile' => $existingProfile,
+                'website_url' => $website['url'] ?? null,
+                'website_pages' => collect($website['pages'] ?? [])->pluck('url')->values()->all(),
+            ],
             'started_at' => now(),
         ]);
 
         try {
-            $draft = $this->generator->generate($description, $existingProfile);
+            $draft = $this->generator->generate($description, $existingProfile, $website);
             $this->usageRecorder->handle($run, 'setup_wizard', $draft['_meta'] ?? []);
             $this->validate($draft);
             $meta = $draft['_meta'] ?? [];

@@ -6,6 +6,7 @@ use App\Models\AiRun;
 use App\Models\KnowledgeDocument;
 use App\Models\OrganizationSetting;
 use App\Models\UsageRecord;
+use App\Services\Organizations\WebsiteContentReader;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -89,5 +90,30 @@ class SetupWizardTest extends CommercialeAiTestCase
         $this->actingAs($sales)->withSession(['organization_id' => $organization->id])
             ->get(route('setup-wizard.create'))
             ->assertForbidden();
+    }
+
+    public function test_owner_can_generate_the_setup_using_only_a_public_website(): void
+    {
+        [$organization, $owner] = $this->organizationWithUser();
+        $this->mock(WebsiteContentReader::class)
+            ->shouldReceive('read')
+            ->once()
+            ->with('https://example.com')
+            ->andReturn([
+                'url' => 'https://example.com',
+                'pages' => [[
+                    'url' => 'https://example.com', 'title' => 'Demo',
+                    'text' => str_repeat('Servizi digitali per aziende italiane. ', 4),
+                ]],
+            ]);
+
+        $response = $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
+            ->post(route('setup-wizard.generate'), ['description' => '', 'website_url' => 'https://example.com'])
+            ->assertRedirect(route('setup-wizard.preview'))
+            ->assertSessionHasNoErrors();
+
+        $payload = $response->getSession()->get('setup_wizard_draft');
+        $this->assertSame('https://example.com', $payload['website']['url']);
+        $this->assertSame('https://example.com', $payload['draft']['profile']['website_url']);
     }
 }

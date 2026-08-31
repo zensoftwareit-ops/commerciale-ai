@@ -22,19 +22,24 @@ class OpenAiSetupWizardGeneratorTest extends TestCase
             'usage' => ['input_tokens' => 1000, 'output_tokens' => 500],
         ], 200, ['x-request-id' => 'req_setup_test']));
 
-        $result = app(OpenAiSetupWizardGenerator::class)->generate('Descrizione completa dell attivita di test.', []);
+        $website = ['url' => 'https://example.com', 'pages' => [[
+            'url' => 'https://example.com/servizi', 'title' => 'Servizi', 'text' => 'Consulenza per PMI.',
+        ]]];
+        $result = app(OpenAiSetupWizardGenerator::class)->generate('Descrizione completa dell attivita di test.', [], $website);
 
         $this->assertSame('openai', $result['_meta']['provider']);
         $this->assertSame('req_setup_test', $result['_meta']['request_id']);
         $this->assertSame(0.008, $result['_meta']['estimated_cost']);
         Http::assertSent(function (Request $request): bool {
             $payload = $request->data();
+            $input = json_decode($payload['input'][1]['content'], true, 512, JSON_THROW_ON_ERROR);
 
             return $request->url() === 'https://api.openai.com/v1/responses'
                 && $payload['store'] === false
                 && $payload['text']['format']['type'] === 'json_schema'
                 && $payload['text']['format']['strict'] === true
-                && $payload['text']['format']['name'] === 'organization_setup_draft';
+                && $payload['text']['format']['name'] === 'organization_setup_draft'
+                && $input['website_snapshot']['pages'][0]['text'] === 'Consulenza per PMI.';
         });
     }
 

@@ -29,6 +29,7 @@ class OrganizationSettingsController extends Controller
     {
         $data = $request->validate([
             'legal_name' => ['nullable', 'string', 'max:255'], 'commercial_name' => ['required', 'string', 'max:255'],
+            'website_url' => ['nullable', 'url:http,https', 'max:2048'],
             'industry' => ['required', 'string', 'max:255'], 'business_description' => ['required', 'string', 'max:5000'],
             'products_services' => ['required', 'string', 'max:5000'], 'service_area' => ['nullable', 'string', 'max:255'],
             'ideal_customer' => ['required', 'string', 'max:5000'], 'pricing_rules' => ['nullable', 'string', 'max:5000'],
