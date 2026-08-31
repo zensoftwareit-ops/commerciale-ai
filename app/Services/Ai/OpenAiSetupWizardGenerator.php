@@ -83,7 +83,7 @@ class OpenAiSetupWizardGenerator implements SetupWizardGenerator
                         'ideal_customer' => ['type' => 'string'],
                         'pricing_rules' => ['type' => 'string'],
                         'differentiators' => ['type' => 'string'],
-                        'qualification_questions' => ['type' => 'array', 'maxItems' => 8, 'items' => ['type' => 'string']],
+                        'qualification_questions' => ['type' => 'array', 'minItems' => 1, 'maxItems' => 8, 'items' => ['type' => 'string']],
                         'exclusion_criteria' => ['type' => 'string'],
                         'tone_of_voice' => ['type' => 'string'],
                         'email_signature' => ['type' => 'string'],

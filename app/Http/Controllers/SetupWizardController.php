@@ -50,6 +50,13 @@ class SetupWizardController extends Controller
         $data = $request->validate([
             'description' => ['nullable', 'required_without:website_url', 'string', 'min:80', 'max:10000'],
             'website_url' => ['nullable', 'required_without:description', 'url:http,https', 'max:2048'],
+        ], [
+            'description.required_without' => 'Inserisci una descrizione oppure l’URL del sito aziendale.',
+            'description.min' => 'La descrizione deve contenere almeno 80 caratteri.',
+            'description.max' => 'La descrizione non può superare 10.000 caratteri.',
+            'website_url.required_without' => 'Inserisci l’URL del sito oppure una descrizione dell’attività.',
+            'website_url.url' => 'Inserisci un URL completo, ad esempio https://www.azienda.it.',
+            'website_url.max' => 'L’URL del sito è troppo lungo.',
         ]);
         $description = trim((string) ($data['description'] ?? ''));
         $website = [];

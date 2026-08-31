@@ -6,6 +6,8 @@ use App\Models\AiRun;
 use App\Models\KnowledgeDocument;
 use App\Models\OrganizationSetting;
 use App\Models\UsageRecord;
+use App\Contracts\SetupWizardGenerator;
+use App\Services\Ai\FakeSetupWizardGenerator;
 use App\Services\Organizations\WebsiteContentReader;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,6 +40,9 @@ class SetupWizardTest extends CommercialeAiTestCase
 
         $session = ['organization_id' => $organization->id];
         $description = str_repeat('Realizziamo servizi digitali per PMI italiane con un processo consulenziale. ', 2);
+        $draft = app(FakeSetupWizardGenerator::class)->generate($description);
+        $draft['assumptions'] = [];
+        $this->mock(SetupWizardGenerator::class)->shouldReceive('generate')->once()->andReturn($draft);
         $response = $this->actingAs($owner)->withSession($session)
             ->post(route('setup-wizard.generate'), ['description' => $description])
             ->assertRedirect(route('setup-wizard.preview'))

@@ -87,7 +87,7 @@ class GenerateOrganizationSetup
             'profile.ideal_customer' => ['required', 'string', 'max:5000'],
             'profile.tone_of_voice' => ['required', 'string', 'max:255'],
             'profile.email_signature' => ['required', 'string', 'max:2000'],
-            'profile.qualification_questions' => ['required', 'array', 'max:8'],
+            'profile.qualification_questions' => ['present', 'array', 'min:1', 'max:8'],
             'profile.qualification_questions.*' => ['required', 'string', 'max:500'],
             'profile.promised_response_minutes' => ['required', 'integer', 'min:1', 'max:10080'],
             'knowledge' => ['required', 'array'],
@@ -95,8 +95,23 @@ class GenerateOrganizationSetup
             'knowledge.faq' => ['required', 'string', 'max:50000'],
             'knowledge.request_management' => ['required', 'string', 'max:50000'],
             'knowledge.pricing_guidance' => ['required', 'string', 'max:50000'],
-            'assumptions' => ['required', 'array', 'max:12'],
+            'assumptions' => ['present', 'array', 'max:12'],
             'assumptions.*' => ['required', 'string', 'max:1000'],
+        ], [
+            'required' => 'OpenAI non ha compilato il campo :attribute.',
+            'present' => 'OpenAI non ha restituito il campo :attribute.',
+            'array' => 'OpenAI ha restituito un formato non valido per :attribute.',
+            'min' => 'OpenAI deve proporre almeno una voce per :attribute.',
+            'max' => 'OpenAI ha generato un contenuto troppo esteso per :attribute.',
+            'string' => 'OpenAI ha restituito un testo non valido per :attribute.',
+            'integer' => 'OpenAI ha restituito un numero non valido per :attribute.',
+        ], [
+            'profile.qualification_questions' => 'le domande di qualificazione',
+            'assumptions' => 'le informazioni da verificare',
+            'knowledge.services' => 'i servizi',
+            'knowledge.faq' => 'le FAQ',
+            'knowledge.request_management' => 'la gestione delle richieste',
+            'knowledge.pricing_guidance' => 'le indicazioni sui prezzi',
         ])->validate();
     }
 }
