@@ -46,7 +46,7 @@ class GenerateOrganizationSetup
         ]);
 
         try {
-            $draft = $this->generator->generate($description, $existingProfile, $website);
+            $draft = $this->normalize($this->generator->generate($description, $existingProfile, $website));
             $this->usageRecorder->handle($run, 'setup_wizard', $draft['_meta'] ?? []);
             $this->validate($draft);
             $meta = $draft['_meta'] ?? [];
@@ -113,5 +113,25 @@ class GenerateOrganizationSetup
             'knowledge.request_management' => 'la gestione delle richieste',
             'knowledge.pricing_guidance' => 'le indicazioni sui prezzi',
         ])->validate();
+    }
+
+    /**
+     * @param  array<string, mixed>  $draft
+     * @return array<string, mixed>
+     */
+    private function normalize(array $draft): array
+    {
+        $signature = trim((string) data_get($draft, 'profile.email_signature', ''));
+        if ($signature !== '') {
+            return $draft;
+        }
+
+        $commercialName = trim((string) data_get($draft, 'profile.commercial_name', ''));
+        data_set($draft, 'profile.email_signature', $commercialName !== '' ? 'Il team di '.$commercialName : 'Il team commerciale');
+        $assumptions = is_array($draft['assumptions'] ?? null) ? $draft['assumptions'] : [];
+        $assumptions[] = 'La firma email è stata proposta automaticamente perché non era indicata nelle fonti.';
+        $draft['assumptions'] = $assumptions;
+
+        return $draft;
     }
 }

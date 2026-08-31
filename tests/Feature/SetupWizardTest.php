@@ -42,6 +42,7 @@ class SetupWizardTest extends CommercialeAiTestCase
         $description = str_repeat('Realizziamo servizi digitali per PMI italiane con un processo consulenziale. ', 2);
         $draft = app(FakeSetupWizardGenerator::class)->generate($description);
         $draft['assumptions'] = [];
+        $draft['profile']['email_signature'] = '';
         $this->mock(SetupWizardGenerator::class)->shouldReceive('generate')->once()->andReturn($draft);
         $response = $this->actingAs($owner)->withSession($session)
             ->post(route('setup-wizard.generate'), ['description' => $description])
@@ -50,6 +51,8 @@ class SetupWizardTest extends CommercialeAiTestCase
 
         $payload = $response->getSession()->get('setup_wizard_draft');
         $this->assertSame($organization->id, $payload['organization_id']);
+        $this->assertSame('Il team di Azienda Demo', $payload['draft']['profile']['email_signature']);
+        $this->assertNotEmpty($payload['draft']['assumptions']);
         $this->actingAs($owner)->withSession([...$session, 'setup_wizard_draft' => $payload])
             ->get(route('setup-wizard.preview'))
             ->assertOk()
