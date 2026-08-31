@@ -11,7 +11,7 @@ class KnowledgeDocument extends Model
 {
     use BelongsToOrganization, HasUuid;
 
-    protected $fillable = ['organization_id', 'updated_by', 'title', 'type', 'content', 'structured_data', 'status'];
+    protected $fillable = ['organization_id', 'updated_by', 'title', 'type', 'content', 'structured_data', 'status', 'source', 'source_key'];
 
     protected function casts(): array
     {

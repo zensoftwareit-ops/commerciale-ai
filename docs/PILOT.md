@@ -40,6 +40,12 @@ La inbox contiene una checklist con quattro requisiti:
 
 Compilare **Azienda** con descrizione, servizi, cliente ideale, tono e firma. Inserire nella **Knowledge base** soltanto informazioni approvate: servizi, FAQ, prezzi e regole commerciali. Questi dati guidano qualificazione e suggerimenti.
 
+In alternativa, dalla pagina **Avvio guidato** scegliere **Compila con Daria** e
+descrivere l'attività in linguaggio naturale. OpenAI prepara un'anteprima modificabile
+del profilo, delle modalità di gestione delle richieste e della knowledge base. Prima
+di applicarla verificare in particolare ipotesi, prezzi, tempi e criteri di passaggio
+a un commerciale. Il wizard non abilita automaticamente alcun invio.
+
 ## 4. Acquisizione lead
 
 Per il collaudo si può creare un lead manualmente. Per collegare un sito, aprire **Sorgenti**, indicare i domini consentiti e generare un endpoint dedicato. L’URL segreto è visibile una sola volta.

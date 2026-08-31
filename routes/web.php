@@ -17,6 +17,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\AiUsageController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PricingRuleController;
+use App\Http\Controllers\SetupWizardController;
 use App\Http\Controllers\Admin\LicensingDashboardController;
 use App\Http\Controllers\Admin\OrganizationController as AdminOrganizationController;
 use App\Http\Controllers\Admin\LicensePlanController as AdminLicensePlanController;
@@ -80,6 +81,10 @@ Route::middleware(['auth', 'tenant'])->group(function (): void {
 });
 
 Route::middleware(['auth', 'tenant', 'organization.access', 'license'])->group(function (): void {
+    Route::get('/setup-wizard', [SetupWizardController::class, 'create'])->middleware('role:owner')->name('setup-wizard.create');
+    Route::post('/setup-wizard/generate', [SetupWizardController::class, 'generate'])->middleware(['role:owner', 'throttle:3,1'])->name('setup-wizard.generate');
+    Route::get('/setup-wizard/preview', [SetupWizardController::class, 'preview'])->middleware('role:owner')->name('setup-wizard.preview');
+    Route::post('/setup-wizard/apply', [SetupWizardController::class, 'apply'])->middleware('role:owner')->name('setup-wizard.apply');
     Route::get('/notifications', [CommercialNotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/unread', [CommercialNotificationController::class, 'unread'])->name('notifications.unread');
     Route::get('/notifications/{notification}/open', [CommercialNotificationController::class, 'open'])->name('notifications.open');
