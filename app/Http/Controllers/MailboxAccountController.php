@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MailboxAccount;
 use App\Services\Mail\MailIdentity;
 use App\Services\Mail\OutboundMailTransport;
+use App\Services\Mail\ResendDomainManager;
 use App\Services\Mail\WebklexInboundMailbox;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,11 +16,12 @@ use Throwable;
 
 class MailboxAccountController extends Controller
 {
-    public function index(OutboundMailTransport $transport): View
+    public function index(OutboundMailTransport $transport, ResendDomainManager $resendDomains): View
     {
         return view('settings.mailboxes', [
             'mailbox' => MailboxAccount::query()->oldest('created_at')->first(),
             'mailTransport' => $transport->details(),
+            'resendDomainAutomation' => $resendDomains->configuration(),
         ]);
     }
 
@@ -43,10 +45,18 @@ class MailboxAccountController extends Controller
             unset($data['password']);
         }
         $data = $this->normalized($data, $request);
-        if ($mailbox->from_address !== $data['from_address']) {
+        $oldDomain = $this->domainFromAddress($mailbox->from_address);
+        $newDomain = $this->domainFromAddress($data['from_address']);
+        if ($oldDomain !== $newDomain) {
             $data['domain_verification_status'] = 'pending';
             $data['domain_verified_at'] = null;
             $data['domain_verified_by'] = null;
+            $data['resend_domain_id'] = null;
+            $data['resend_domain_name'] = null;
+            $data['resend_domain_status'] = null;
+            $data['resend_dns_records'] = null;
+            $data['resend_last_checked_at'] = null;
+            $data['resend_last_error'] = null;
         }
         $mailbox->update([...$data, 'last_error' => null, 'last_outbound_error' => null]);
 
@@ -112,6 +122,57 @@ class MailboxAccountController extends Controller
         }
     }
 
+    public function registerResendDomain(string $mailbox, ResendDomainManager $domains): RedirectResponse
+    {
+        $mailbox = MailboxAccount::query()->findOrFail($mailbox);
+
+        try {
+            $mailbox = $domains->register($mailbox);
+
+            return back()->with('status', 'Dominio '.$mailbox->resend_domain_name.' registrato su Resend. Inserisci i record DNS indicati.');
+        } catch (Throwable $exception) {
+            report($exception);
+            $mailbox->update(['resend_last_error' => mb_substr($exception->getMessage(), 0, 2000)]);
+
+            return back()->withErrors(['resend_domain' => $exception->getMessage()]);
+        }
+    }
+
+    public function verifyResendDomain(string $mailbox, ResendDomainManager $domains): RedirectResponse
+    {
+        $mailbox = MailboxAccount::query()->findOrFail($mailbox);
+
+        try {
+            $mailbox = $domains->verify($mailbox);
+            $message = $mailbox->resend_domain_status === 'verified'
+                ? 'Dominio verificato da Resend e abilitato in Daria.'
+                : 'Verifica avviata. Lo stato attuale è '.$mailbox->resend_domain_status.'; attendi la propagazione DNS e aggiorna lo stato.';
+
+            return back()->with('status', $message);
+        } catch (Throwable $exception) {
+            report($exception);
+            $mailbox->update(['resend_last_error' => mb_substr($exception->getMessage(), 0, 2000)]);
+
+            return back()->withErrors(['resend_domain' => $exception->getMessage()]);
+        }
+    }
+
+    public function refreshResendDomain(string $mailbox, ResendDomainManager $domains): RedirectResponse
+    {
+        $mailbox = MailboxAccount::query()->findOrFail($mailbox);
+
+        try {
+            $mailbox = $domains->refresh($mailbox);
+
+            return back()->with('status', 'Stato Resend aggiornato: '.$mailbox->resend_domain_status.'.');
+        } catch (Throwable $exception) {
+            report($exception);
+            $mailbox->update(['resend_last_error' => mb_substr($exception->getMessage(), 0, 2000)]);
+
+            return back()->withErrors(['resend_domain' => $exception->getMessage()]);
+        }
+    }
+
     public function destroy(string $mailbox): RedirectResponse
     {
         MailboxAccount::query()->findOrFail($mailbox)->delete();
@@ -147,5 +208,12 @@ class MailboxAccountController extends Controller
         $data['is_active'] = $request->boolean('is_active');
 
         return $data;
+    }
+
+    private function domainFromAddress(string $address): string
+    {
+        $position = strrpos($address, '@');
+
+        return $position === false ? '' : mb_strtolower(trim(substr($address, $position + 1)));
     }
 }

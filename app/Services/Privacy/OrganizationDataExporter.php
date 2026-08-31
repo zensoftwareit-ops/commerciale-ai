@@ -30,6 +30,7 @@ class OrganizationDataExporter
                 ->map(fn (MailboxAccount $mailbox): array => $mailbox->only([
                     'id', 'name', 'from_address', 'from_name', 'reply_to_address', 'host', 'port', 'encryption',
                     'username', 'folder', 'is_active', 'domain_verification_status', 'domain_verified_at', 'created_at',
+                    'resend_domain_name', 'resend_domain_status', 'resend_dns_records', 'resend_last_checked_at',
                 ]));
             $knowledge = KnowledgeDocument::withoutGlobalScopes()->where('organization_id', $organization->id)->get();
 

@@ -21,6 +21,55 @@
 </section>
 
 @if($mailbox)
+<section class="card" style="margin-top:16px">
+    <div class="toolbar">
+        <div><h2>Verifica dominio con Resend</h2><p class="muted">Daria registra il dominio mittente, mostra i record DNS e acquisisce direttamente lo stato restituito da Resend.</p></div>
+        @if($mailbox->resend_domain_status === 'verified')
+            <span class="badge success">VERIFIED</span>
+        @elseif($mailbox->resend_domain_status)
+            <span class="badge warm">{{ strtoupper($mailbox->resend_domain_status) }}</span>
+        @else
+            <span class="badge">NON REGISTRATO</span>
+        @endif
+    </div>
+
+    @if(!$resendDomainAutomation['enabled'])
+        <div class="warning">La funzione è disabilitata sul server. Imposta <code>RESEND_DOMAIN_AUTOMATION_ENABLED=true</code> e ricrea la cache di configurazione.</div>
+    @elseif(!$resendDomainAutomation['configured'])
+        <div class="error">La chiave <code>RESEND_API_KEY</code> non è disponibile nella configurazione caricata da Laravel.</div>
+    @else
+        <div class="notice" style="margin-bottom:16px">La chiave API deve avere permesso <strong>Full access</strong>. Le chiavi Resend limitate al solo invio non possono creare o verificare domini.</div>
+        @if($mailbox->resend_last_error)<div class="error">{{ $mailbox->resend_last_error }}</div>@endif
+
+        @if(!$mailbox->resend_domain_id)
+            <p>Daria registrerà su Resend il dominio ricavato da <strong>{{ $mailbox->from_address }}</strong>. La chiave API non viene mai mostrata né salvata nell’account cliente.</p>
+            <form method="post" action="{{ route('settings.mailboxes.resend-domain.register',$mailbox) }}">@csrf<button class="btn" type="submit">Registra dominio su Resend</button></form>
+        @else
+            <p><strong>Dominio:</strong> {{ $mailbox->resend_domain_name }}<br><span class="muted">ID Resend: {{ $mailbox->resend_domain_id }} · Ultimo controllo: {{ $mailbox->resend_last_checked_at?->format('d/m/Y H:i:s') ?: 'mai' }}</span></p>
+
+            @if($mailbox->resend_dns_records)
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Record</th><th>Tipo</th><th>Nome</th><th>Valore</th><th>Priorità</th><th>Stato</th></tr></thead>
+                    <tbody>@foreach($mailbox->resend_dns_records as $record)<tr>
+                        <td>{{ $record['record'] ?? '—' }}</td>
+                        <td><code>{{ $record['type'] ?? '—' }}</code></td>
+                        <td><code style="word-break:break-all">{{ $record['name'] ?? '—' }}</code></td>
+                        <td><code style="word-break:break-all">{{ $record['value'] ?? '—' }}</code></td>
+                        <td>{{ $record['priority'] ?? '—' }}</td>
+                        <td><span class="badge {{ ($record['status'] ?? '') === 'verified' ? 'success' : 'warm' }}">{{ strtoupper($record['status'] ?? 'da inserire') }}</span></td>
+                    </tr>@endforeach</tbody>
+                </table></div>
+            @endif
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+                @if($mailbox->resend_domain_status !== 'verified')<form method="post" action="{{ route('settings.mailboxes.resend-domain.verify',$mailbox) }}">@csrf<button class="btn" type="submit">Verifica record DNS</button></form>@endif
+                <form method="post" action="{{ route('settings.mailboxes.resend-domain.refresh',$mailbox) }}">@csrf<button class="btn btn-muted" type="submit">Aggiorna stato</button></form>
+            </div>
+            @if($mailbox->resend_domain_status !== 'verified')<p class="muted">La verifica è asincrona: dopo avere inserito i record nel DNS, avviala e usa “Aggiorna stato” dopo alcuni minuti.</p>@endif
+        @endif
+    @endif
+</section>
+
 <div class="grid grid-2" style="margin-top:16px">
     <section class="card">
         <div class="toolbar"><div><h2>Test ricezione IMAP</h2><p class="muted">Verifica credenziali, certificato e accesso alla cartella configurata.</p></div><span class="badge {{ $mailbox->last_error ? 'hot' : ($mailbox->last_tested_at ? 'success' : 'warm') }}">{{ $mailbox->last_error ? 'Errore' : ($mailbox->last_tested_at ? 'Verificata' : 'Da verificare') }}</span></div>

@@ -125,6 +125,9 @@ Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'lic
     Route::put('/settings/mailboxes/{mailbox}', [MailboxAccountController::class, 'update'])->middleware('role:owner')->name('settings.mailboxes.update');
     Route::post('/settings/mailboxes/{mailbox}/test', [MailboxAccountController::class, 'test'])->middleware('role:owner')->name('settings.mailboxes.test');
     Route::post('/settings/mailboxes/{mailbox}/test-outbound', [MailboxAccountController::class, 'testOutbound'])->middleware('role:owner')->name('settings.mailboxes.test-outbound');
+    Route::post('/settings/mailboxes/{mailbox}/resend-domain/register', [MailboxAccountController::class, 'registerResendDomain'])->middleware(['role:owner', 'throttle:6,1'])->name('settings.mailboxes.resend-domain.register');
+    Route::post('/settings/mailboxes/{mailbox}/resend-domain/verify', [MailboxAccountController::class, 'verifyResendDomain'])->middleware(['role:owner', 'throttle:6,1'])->name('settings.mailboxes.resend-domain.verify');
+    Route::post('/settings/mailboxes/{mailbox}/resend-domain/refresh', [MailboxAccountController::class, 'refreshResendDomain'])->middleware(['role:owner', 'throttle:12,1'])->name('settings.mailboxes.resend-domain.refresh');
     Route::delete('/settings/mailboxes/{mailbox}', [MailboxAccountController::class, 'destroy'])->middleware('role:owner')->name('settings.mailboxes.destroy');
     Route::post('/settings/pricing-rules', [PricingRuleController::class, 'store'])->middleware('role:owner')->name('settings.pricing-rules.store');
     Route::put('/settings/pricing-rules/{rule}', [PricingRuleController::class, 'update'])->middleware('role:owner')->name('settings.pricing-rules.update');

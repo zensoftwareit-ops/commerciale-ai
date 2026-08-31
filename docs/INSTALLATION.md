@@ -318,26 +318,31 @@ Per la prima fase di esercizio e per un gruppo ristretto di clienti l'invio rest
 un unico account SMTP transazionale configurato sul server con `MAIL_MAILER=smtp`.
 I domini mittenti, SPF e DKIM vengono configurati manualmente presso il provider.
 
-Il progetto include anche il mailer `resend_smtp`, lasciato inattivo e senza dipendenze
-Composer aggiuntive. Non abilitarlo finché la configurazione dei domini non è automatizzata. Quando inizierà la vendita
-self-service, dopo avere verificato almeno un dominio su Resend, il passaggio potrà
-essere effettuato impostando:
+Il progetto include anche il mailer `resend_smtp` e l'onboarding dei domini tramite
+API, senza dipendenze Composer aggiuntive. La chiave Resend deve avere permesso
+`Full access`: una chiave limitata al solo invio non può creare o verificare domini.
+Per attivare il trasporto e il pannello DNS impostare:
 
 ```ini
 MAIL_MAILER=resend_smtp
 RESEND_API_KEY=re_CHIAVE_SERVER
-RESEND_DOMAIN_AUTOMATION_ENABLED=false
+RESEND_API_URL=https://api.resend.com
+RESEND_API_TIMEOUT=15
+RESEND_DOMAIN_REGION=eu-west-1
+RESEND_DOMAIN_AUTOMATION_ENABLED=true
 ```
 
-La chiave resta globale e solo sul server. `RESEND_DOMAIN_AUTOMATION_ENABLED` deve
-rimanere `false` finché il pannello di onboarding DNS non sarà stato implementato.
+La chiave resta globale e solo sul server. L'owner apre **Email Daria**, registra
+il dominio ricavato dal mittente, copia nel proprio DNS i record mostrati da
+Resend e avvia la verifica. L'operazione è asincrona: **Aggiorna stato** interroga
+nuovamente l'API. Quando Resend restituisce `verified`, Daria marca automaticamente
+il dominio come verificato e consente gli invii automatici esterni.
 Indirizzo, nome mittente e Reply-To delle conversazioni restano quelli salvati
 nella configurazione Email Daria dell’organizzazione; le comunicazioni di piattaforma
 usano il mittente di sistema. Nessuna delle due
 identità cambia quando viene sostituito il trasporto globale.
-In quella fase la REST API di Resend verrà usata per creare i domini dei tenant,
-mostrare SPF/DKIM e aggiornarne lo stato; il trasporto delle email resterà separato
-da questa procedura amministrativa.
+La configurazione DNS tramite API e il trasporto delle email restano due procedure
+separate: verificare il dominio non cambia la casella IMAP né il Reply-To.
 
 ### Modulo licenze: Step 1 manuale
 
@@ -377,9 +382,11 @@ nel database con `APP_KEY` e non vengono mai mostrate nell’interfaccia.
 
 Dopo il salvataggio usare **Verifica IMAP** e **Invia test**. Il secondo test usa
 il trasporto SMTP/Resend globale ma mittente e Reply-To dell’organizzazione.
-Nel pannello Super Admin aprire **Clienti** e confermare SPF/DKIM soltanto dopo
-avere verificato realmente il dominio. Qualsiasi modifica dell’indirizzo mittente
-riporta automaticamente lo stato a “da verificare”.
+Con onboarding Resend attivo, lo stato `verified` viene acquisito direttamente
+dall'API e non richiede conferma amministrativa. Se Resend è disattivato, nel
+pannello Super Admin aprire **Clienti** e confermare SPF/DKIM soltanto dopo una
+verifica reale presso il provider. La modifica del dominio dell’indirizzo mittente
+azzera la verifica precedente e richiede un nuovo onboarding.
 
 Usare i parametri indicati dal fornitore e non disabilitare la verifica del certificato in produzione. Dopo aver salvato almeno una casella attiva:
 

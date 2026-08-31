@@ -52,6 +52,13 @@ class SystemHealth
 
         $mail = $this->mail->details();
         $add('mail', 'Trasporto email', $mail['deliverable'] ? 'ok' : 'error', $mail['mailer'].' · '.$mail['message']);
+        $resendDomainsEnabled = (bool) config('services.resend.domain_automation_enabled');
+        $resendKeyConfigured = filled(config('services.resend.key'));
+        if ($resendDomainsEnabled || $mail['mailer'] === 'resend_smtp') {
+            $add('resend', 'Resend', $resendKeyConfigured ? 'ok' : 'error', $resendKeyConfigured
+                ? 'API configurata · onboarding domini '.($resendDomainsEnabled ? 'attivo' : 'disattivato').'.'
+                : 'RESEND_API_KEY non è disponibile nella configurazione caricata.');
+        }
         try {
             $identity = $this->identities->forPlatform();
             $add('system_sender', 'Mittente di sistema', 'ok', $identity->name.' <'.$identity->address.'>');

@@ -14,6 +14,8 @@ class MailboxAccount extends Model
     protected $fillable = [
         'organization_id', 'name', 'from_address', 'from_name', 'reply_to_address',
         'domain_verification_status', 'domain_verified_at', 'domain_verified_by',
+        'resend_domain_id', 'resend_domain_name', 'resend_domain_status', 'resend_dns_records',
+        'resend_last_checked_at', 'resend_last_error',
         'host', 'port', 'encryption', 'validate_cert',
         'username', 'password', 'authentication', 'folder', 'is_active',
         'last_tested_at', 'last_outbound_tested_at', 'last_synced_at', 'last_error', 'last_outbound_error',
@@ -24,6 +26,7 @@ class MailboxAccount extends Model
         return [
             'password' => 'encrypted', 'validate_cert' => 'boolean', 'is_active' => 'boolean',
             'domain_verified_at' => 'datetime', 'last_tested_at' => 'datetime',
+            'resend_dns_records' => 'array', 'resend_last_checked_at' => 'datetime',
             'last_outbound_tested_at' => 'datetime', 'last_synced_at' => 'datetime',
         ];
     }
