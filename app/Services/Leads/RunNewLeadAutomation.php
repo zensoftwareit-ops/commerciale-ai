@@ -32,7 +32,9 @@ class RunNewLeadAutomation
             app(TenantContext::class)->set($organization);
             try {
                 $settings = OrganizationSetting::query()->first();
-                if (! $settings?->auto_analyze_new_leads || ! $settings->conversation_automation_enabled) continue;
+                // L'analisi iniziale ha un interruttore proprio: non dipende
+                // dall'automazione delle risposte successive della conversazione.
+                if (! $settings?->auto_analyze_new_leads) continue;
                 $stats['organizations']++;
                 $maxAttempts = max(1, (int) config('commerciale-ai.automation.delivery_max_attempts', 3));
                 $leads = Lead::query()
@@ -131,7 +133,7 @@ class RunNewLeadAutomation
                     'not_allowed' => $internalOnly ? (clone $base)->whereNotNull('email_normalized')->whereNotIn('email_normalized', $allowed->all())->count() : 0,
                     'completed' => (clone $base)->whereNotNull('initial_automation_completed_at')->count(),
                     'failed_max' => (clone $base)->whereNull('initial_automation_completed_at')->where('initial_automation_attempts', '>=', $maxAttempts)->count(),
-                    'eligible_now' => $settings?->auto_analyze_new_leads && $settings?->conversation_automation_enabled && $startedAt
+                    'eligible_now' => $settings?->auto_analyze_new_leads && $startedAt
                         ? (clone $base)->whereNotNull('email_normalized')->whereNull('initial_automation_completed_at')
                             ->where('initial_automation_attempts', '<', $maxAttempts)
                             ->where(fn ($query) => $query->whereNull('initial_automation_next_attempt_at')->orWhere('initial_automation_next_attempt_at', '<=', now()))

@@ -70,4 +70,33 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         $this->assertSame(0, $stats['candidates']);
         $this->assertSame(0, $oldLead->analyses()->withoutGlobalScopes()->count());
     }
+
+    public function test_initial_analysis_and_email_do_not_require_followup_conversation_automation(): void
+    {
+        config()->set('mail.default', 'smtp');
+        Mail::fake();
+        [$organization] = $this->organizationWithUser();
+        $this->mailboxFor($organization);
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti web',
+            'products_services' => 'Siti web', 'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'conversation_automation_enabled' => false,
+            'auto_analyze_new_leads' => true, 'auto_send_initial_email' => true,
+            'internal_test_only' => true, 'automation_allowed_recipients' => ['internal@example.test'],
+            'max_automatic_replies' => 3, 'new_lead_automation_started_at' => now()->subMinute(),
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Test indipendente', 'email' => 'internal@example.test',
+            'requested_service' => 'Sito web', 'source_label' => 'web',
+        ]);
+        app(TenantContext::class)->clear();
+
+        $stats = app(RunNewLeadAutomation::class)->handle();
+
+        $this->assertSame(1, $stats['analyzed']);
+        $this->assertSame(1, $stats['sent']);
+        $this->assertNotNull($lead->fresh()->initial_automation_completed_at);
+        Mail::assertSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('internal@example.test'));
+    }
 }

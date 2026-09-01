@@ -20,7 +20,7 @@
 <h2>Automazione conversazioni</h2>
 <div class="warning">Funzione sperimentale. L’invio automatico avviene solo quando tutti i controlli deterministici sono superati. Mantieni attiva la modalità test interno durante il collaudo.</div>
 @unless(config('commerciale-ai.automation.external_send_enabled'))<div class="notice">Il server accetta soltanto test interni. L’invio automatico verso clienti esterni è bloccato anche se viene disattivata la casella sottostante.</div>@endunless
-<label style="font-weight:400"><input style="width:auto" type="checkbox" name="conversation_automation_enabled" value="1" @checked(old('conversation_automation_enabled',$settings->conversation_automation_enabled))> Abilita elaborazione automatica delle conversazioni</label>
+<label style="font-weight:400"><input style="width:auto" type="checkbox" name="conversation_automation_enabled" value="1" @checked(old('conversation_automation_enabled',$settings->conversation_automation_enabled))> Automatizza le risposte successive alla prima email</label>
 <label style="font-weight:400"><input style="width:auto" type="checkbox" name="auto_analyze_new_leads" value="1" @checked(old('auto_analyze_new_leads',$settings->auto_analyze_new_leads))> Analizza automaticamente i nuovi lead</label>
 <label style="font-weight:400"><input style="width:auto" type="checkbox" name="auto_send_initial_email" value="1" @checked(old('auto_send_initial_email',$settings->auto_send_initial_email))> Invia automaticamente la prima email</label>
 <label style="font-weight:400"><input style="width:auto" type="checkbox" name="auto_send_quotes_enabled" value="1" @checked(old('auto_send_quotes_enabled',$settings->auto_send_quotes_enabled))> Consenti invio automatico dei preventivi affidabili</label>

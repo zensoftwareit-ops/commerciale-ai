@@ -114,6 +114,14 @@
         </div>
     @else
         <p>Nessuna analisi disponibile. Avvia l’analisi per ottenere qualificazione e bozza email.</p>
+        @if($lead->initial_automation_error)
+            <div class="error"><strong>Ultimo tentativo automatico non riuscito.</strong><br>{{ $lead->initial_automation_error }}</div>
+            <p class="muted">Tentativi: {{ $lead->initial_automation_attempts }} · Ultimo tentativo: {{ $lead->initial_automation_attempted_at?->format('d/m/Y H:i:s') ?: '—' }}@if($lead->initial_automation_next_attempt_at) · Prossimo retry: {{ $lead->initial_automation_next_attempt_at->format('d/m/Y H:i:s') }}@endif</p>
+        @elseif($lead->initial_automation_attempted_at)
+            <div class="notice">Il ciclo automatico ha preso in carico il lead il {{ $lead->initial_automation_attempted_at->format('d/m/Y H:i:s') }}.</div>
+        @else
+            <div class="warning">Il lead non è ancora stato preso in carico dall’automazione. Controlla che la cron <code>commerciale:run</code> sia attiva e che “Analizza automaticamente i nuovi lead” sia selezionato.</div>
+        @endif
     @endif
 </section>
 

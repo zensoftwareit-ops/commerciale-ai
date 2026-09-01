@@ -68,7 +68,8 @@ class SendLeadReply
     {
         if (! $reply->automation_eligible) throw new RuntimeException('La bozza non supera i controlli per l’invio automatico.');
         $settings = OrganizationSetting::query()->first();
-        if (! $settings?->conversation_automation_enabled) throw new RuntimeException('Automazione conversazioni disabilitata.');
+        $isInitial = str_starts_with($reply->reply_kind, 'initial');
+        if (! $isInitial && ! $settings?->conversation_automation_enabled) throw new RuntimeException('Automazione conversazioni disabilitata.');
         $lead = $reply->lead;
         $allowed = collect($settings->automation_allowed_recipients ?? [])->map(fn ($email) => mb_strtolower(trim((string) $email)));
         if ($settings->internal_test_only && ! $allowed->contains($lead->email_normalized)) throw new RuntimeException('Destinatario non incluso nella lista interna.');
@@ -76,8 +77,8 @@ class SendLeadReply
         if (! $settings->internal_test_only && $mailbox->domain_verification_status !== 'verified') throw new RuntimeException('Il dominio mittente non è ancora verificato per gli invii automatici esterni.');
         if ($lead->replies()->where('delivery_mode', 'automatic')->where('status', 'sent')->count() >= $settings->max_automatic_replies) throw new RuntimeException('Limite di risposte automatiche raggiunto.');
 
-        if (str_starts_with($reply->reply_kind, 'initial') && ! $settings->auto_send_initial_email) throw new RuntimeException('Invio automatico della prima email disabilitato.');
-        if (str_starts_with($reply->reply_kind, 'initial') && ! $settings->auto_analyze_new_leads) throw new RuntimeException('Automazione dei nuovi lead disabilitata.');
+        if ($isInitial && ! $settings->auto_send_initial_email) throw new RuntimeException('Invio automatico della prima email disabilitato.');
+        if ($isInitial && ! $settings->auto_analyze_new_leads) throw new RuntimeException('Automazione dei nuovi lead disabilitata.');
         if (str_contains($reply->reply_kind, 'quotation')) {
             if (! $settings->auto_send_quotes_enabled) throw new RuntimeException('Invio automatico preventivi disabilitato.');
             $quotation = Quotation::query()->where('lead_reply_id', $reply->id)->first();
