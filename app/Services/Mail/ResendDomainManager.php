@@ -56,7 +56,11 @@ class ResendDomainManager
     {
         $this->ensureAvailable();
         $this->ensureRegistered($mailbox);
-        $this->successful($this->client()->post('/domains/'.rawurlencode((string) $mailbox->resend_domain_id).'/verify'));
+        $this->successful(
+            $this->client()
+                ->withBody('{}', 'application/json')
+                ->send('POST', '/domains/'.rawurlencode((string) $mailbox->resend_domain_id).'/verify'),
+        );
 
         return $this->refresh($mailbox);
     }

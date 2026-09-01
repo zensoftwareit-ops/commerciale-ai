@@ -146,5 +146,8 @@ class MailboxSettingsTest extends CommercialeAiTestCase
         $this->assertSame('verified', $mailbox->domain_verification_status);
         $this->assertNotNull($mailbox->domain_verified_at);
         $this->assertNull($mailbox->domain_verified_by);
+        Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/domains/domain-123/verify')
+            && $request->method() === 'POST'
+            && $request->body() === '{}');
     }
 }
