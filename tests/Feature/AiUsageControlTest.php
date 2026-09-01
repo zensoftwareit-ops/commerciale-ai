@@ -19,6 +19,7 @@ class AiUsageControlTest extends CommercialeAiTestCase
 
     public function test_owner_can_view_current_month_ai_usage(): void
     {
+        $this->assertStringEndsWith('/consumi-ai', route('usage.index'));
         [$organization, $owner] = $this->organizationWithUser();
         $this->license($organization, $owner, 1000);
         app(TenantContext::class)->set($organization);

@@ -88,7 +88,8 @@ Route::middleware(['auth', 'tenant', 'customer.2fa'])->group(function (): void {
     Route::get('/onboarding', OnboardingController::class)->name('onboarding');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
-    Route::get('/usage', AiUsageController::class)->middleware('role:owner')->name('usage.index');
+    // /usage viene intercettato da alcune configurazioni Apache/Plesk prima di Laravel.
+    Route::get('/consumi-ai', AiUsageController::class)->middleware('role:owner')->name('usage.index');
     Route::get('/account/data-export', [OrganizationDataController::class, 'export'])->middleware('role:owner')->name('account.data-export');
 });
 
