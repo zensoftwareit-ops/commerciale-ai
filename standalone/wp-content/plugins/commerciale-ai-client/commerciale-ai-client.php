@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Commerciale AI Client Area
  * Description: Registrazione, listino, Stripe Checkout, Customer Portal e provisioning licenze Commerciale AI.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Zen Software
  * Requires at least: 6.5
  * Requires PHP: 8.1
@@ -14,9 +14,10 @@ defined('ABSPATH') || exit;
 
 final class Commerciale_AI_Client_Area
 {
-    private const VERSION = '1.1.0';
-    private const OPTION_KEYS = ['cai_api_base_url', 'cai_api_key', 'cai_stripe_secret_key', 'cai_stripe_webhook_secret', 'cai_software_url'];
+    private const VERSION = '1.2.0';
+    private const OPTION_KEYS = ['cai_api_base_url', 'cai_api_key', 'cai_stripe_secret_key', 'cai_stripe_webhook_secret', 'cai_software_url', 'cai_stripe_automatic_tax', 'cai_stripe_collect_tax_id'];
     private const SECRET_KEYS = ['cai_api_key', 'cai_stripe_secret_key', 'cai_stripe_webhook_secret'];
+    private const BOOLEAN_KEYS = ['cai_stripe_automatic_tax', 'cai_stripe_collect_tax_id'];
     private const ACTIVE_STATUSES = ['active', 'trialing'];
     private const KNOWN_STATUSES = ['active', 'trialing', 'past_due', 'unpaid', 'canceled', 'paused', 'suspended'];
 
@@ -48,6 +49,8 @@ final class Commerciale_AI_Client_Area
     {
         self::maybe_create_page('cai_pricing_page_id', 'prezzi', 'Prezzi', '[commerciale_ai_pricing]');
         self::maybe_create_page('cai_account_page_id', 'area-cliente', 'Area cliente', '[commerciale_ai_account]');
+        add_option('cai_stripe_automatic_tax', '0');
+        add_option('cai_stripe_collect_tax_id', '1');
         update_option('cai_plugin_version', self::VERSION, false);
         flush_rewrite_rules(false);
     }
@@ -94,6 +97,7 @@ final class Commerciale_AI_Client_Area
             register_setting('cai_settings', $key, [
                 'type' => 'string',
                 'sanitize_callback' => static function ($value) use ($key): string {
+                    if (in_array($key, self::BOOLEAN_KEYS, true)) return empty($value) ? '0' : '1';
                     $value = is_string($value) ? trim(wp_unslash($value)) : '';
                     if (in_array($key, self::SECRET_KEYS, true) && $value === '') return (string) get_option($key, '');
                     return str_contains($key, '_url') ? esc_url_raw($value) : sanitize_text_field($value);
@@ -127,6 +131,12 @@ final class Commerciale_AI_Client_Area
                         </td></tr>
                     <?php endforeach; ?>
                 </table>
+                <h2><?php esc_html_e('Dati fiscali nel checkout', 'commerciale-ai-client'); ?></h2>
+                <input type="hidden" name="cai_stripe_automatic_tax" value="0">
+                <p><label><input type="checkbox" name="cai_stripe_automatic_tax" value="1" <?php checked(get_option('cai_stripe_automatic_tax', '0'), '1'); ?>> <?php esc_html_e('Abilita il calcolo automatico delle imposte con Stripe Tax', 'commerciale-ai-client'); ?></label></p>
+                <input type="hidden" name="cai_stripe_collect_tax_id" value="0">
+                <p><label><input type="checkbox" name="cai_stripe_collect_tax_id" value="1" <?php checked(get_option('cai_stripe_collect_tax_id', '1'), '1'); ?>> <?php esc_html_e('Consenti al cliente di inserire partita IVA o altro identificativo fiscale', 'commerciale-ai-client'); ?></label></p>
+                <p class="description"><?php esc_html_e('L’indirizzo di fatturazione viene sempre richiesto. Attiva Stripe Tax solo dopo averlo configurato nel tuo account Stripe.', 'commerciale-ai-client'); ?></p>
                 <?php submit_button(); ?>
             </form>
             <hr>
@@ -145,8 +155,16 @@ final class Commerciale_AI_Client_Area
         $status = sanitize_key($_GET['cai_status'] ?? '');
         if ($status === '') return;
         $ok = $status === 'connections_ok';
-        $message = $ok ? __('Collegamento API e Stripe verificato.', 'commerciale-ai-client') : __('Verifica non riuscita. Controlla URL e credenziali.', 'commerciale-ai-client');
-        echo '<div class="notice notice-'.($ok ? 'success' : 'error').' is-dismissible"><p>'.esc_html($message).'</p></div>';
+        $details = get_transient('cai_connection_test_'.get_current_user_id());
+        delete_transient('cai_connection_test_'.get_current_user_id());
+        $message = $ok ? __('Configurazione pronta: API, Stripe e tutti i prezzi annuali sono coerenti.', 'commerciale-ai-client') : __('Verifica non riuscita. Correggi gli elementi indicati prima di aprire le vendite.', 'commerciale-ai-client');
+        echo '<div class="notice notice-'.($ok ? 'success' : 'error').' is-dismissible"><p>'.esc_html($message).'</p>';
+        if (is_array($details) && $details !== []) {
+            echo '<ul style="list-style:disc;padding-left:20px">';
+            foreach ($details as $detail) echo '<li>'.esc_html((string) $detail).'</li>';
+            echo '</ul>';
+        }
+        echo '</div>';
     }
 
     public static function test_connection(): void
@@ -155,7 +173,18 @@ final class Commerciale_AI_Client_Area
         check_admin_referer('cai_test_connection');
         $api = self::api('GET', '/api/v1/billing/plans', null, false);
         $stripe = self::stripe('GET', '/v1/account');
-        $status = ! is_wp_error($api) && ! is_wp_error($stripe) ? 'connections_ok' : 'connections_error';
+        $errors = [];
+        if (is_wp_error($api)) $errors[] = 'API licenze: '.$api->get_error_message();
+        if (is_wp_error($stripe)) $errors[] = 'Account Stripe: '.$stripe->get_error_message();
+        $plans = ! is_wp_error($api) && is_array($api['data'] ?? null) ? $api['data'] : [];
+        if (! is_wp_error($api) && count($plans) !== 3) $errors[] = 'Il listino deve contenere esattamente tre pacchetti attivi.';
+        foreach ($plans as $plan) {
+            $validation = self::validate_plan_price(is_array($plan) ? $plan : []);
+            if (is_wp_error($validation)) $errors[] = ($plan['name'] ?? 'Pacchetto').': '.$validation->get_error_message();
+        }
+        $status = $errors === [] ? 'connections_ok' : 'connections_error';
+        $details = $errors === [] ? ['Tre pacchetti annuali verificati con importo e valuta corrispondenti.'] : $errors;
+        set_transient('cai_connection_test_'.get_current_user_id(), $details, MINUTE_IN_SECONDS);
         wp_safe_redirect(add_query_arg(['page' => 'commerciale-ai-client', 'cai_status' => $status], admin_url('options-general.php')));
         exit;
     }
@@ -320,12 +349,24 @@ final class Commerciale_AI_Client_Area
         $plans = self::api('GET', '/api/v1/billing/plans', null, false); if (is_wp_error($plans)) wp_die('Listino non disponibile.');
         $plan = null; foreach ($plans['data'] ?? [] as $candidate) if (($candidate['slug'] ?? '') === $slug) $plan = $candidate;
         if (! is_array($plan) || empty($plan['stripe_price_id']) || empty($plan['purchasable'])) wp_die('Pacchetto non acquistabile.');
+        $price_validation = self::validate_plan_price($plan);
+        if (is_wp_error($price_validation)) wp_die('Configurazione del prezzo non valida: '.esc_html($price_validation->get_error_message()));
+        $checkout_lock = 'cai_checkout_lock_'.hash('sha256', self::external_id($user_id).'|'.$slug);
+        if (get_transient($checkout_lock)) wp_die('È già in corso l’apertura del pagamento. Attendi qualche secondo e riprova.');
+        set_transient($checkout_lock, '1', 30);
         $user = wp_get_current_user(); $customer = (string) get_user_meta($user->ID, 'cai_stripe_customer_id', true);
-        $body = ['mode' => 'subscription', 'line_items[0][price]' => $plan['stripe_price_id'], 'line_items[0][quantity]' => 1, 'success_url' => add_query_arg('checkout', 'success', self::account_url()).'&session_id={CHECKOUT_SESSION_ID}', 'cancel_url' => add_query_arg('checkout', 'cancelled', self::page_url('cai_pricing_page_id', '/#prezzi')), 'client_reference_id' => self::external_id($user->ID), 'allow_promotion_codes' => 'true', 'metadata[wp_user_id]' => $user->ID, 'metadata[plan_slug]' => $slug, 'subscription_data[metadata][wp_user_id]' => $user->ID, 'subscription_data[metadata][plan_slug]' => $slug];
-        if ($customer !== '') $body['customer'] = $customer; else $body['customer_email'] = $user->user_email;
-        $idempotency = 'checkout-'.hash('sha256', self::external_id($user->ID).'|'.$slug.'|'.gmdate('Y-m-d-H'));
+        $body = ['mode' => 'subscription', 'line_items[0][price]' => $plan['stripe_price_id'], 'line_items[0][quantity]' => 1, 'success_url' => add_query_arg('checkout', 'success', self::account_url()).'&session_id={CHECKOUT_SESSION_ID}', 'cancel_url' => add_query_arg('checkout', 'cancelled', self::page_url('cai_pricing_page_id', '/#prezzi')), 'client_reference_id' => self::external_id($user->ID), 'allow_promotion_codes' => 'true', 'billing_address_collection' => 'required', 'metadata[wp_user_id]' => $user->ID, 'metadata[plan_slug]' => $slug, 'subscription_data[metadata][wp_user_id]' => $user->ID, 'subscription_data[metadata][plan_slug]' => $slug];
+        if (get_option('cai_stripe_automatic_tax', '0') === '1') $body['automatic_tax[enabled]'] = 'true';
+        if (get_option('cai_stripe_collect_tax_id', '1') === '1') $body['tax_id_collection[enabled]'] = 'true';
+        if ($customer !== '') {
+            $body['customer'] = $customer;
+            $body['customer_update[address]'] = 'auto';
+            $body['customer_update[name]'] = 'auto';
+        } else $body['customer_email'] = $user->user_email;
+        $idempotency = 'checkout-'.wp_generate_uuid4();
         $session = self::stripe('POST', '/v1/checkout/sessions', $body, $idempotency);
-        if (is_wp_error($session) || empty($session['url'])) wp_die('Impossibile avviare il pagamento. Verifica la configurazione Stripe.');
+        if (is_wp_error($session) || empty($session['url'])) { delete_transient($checkout_lock); wp_die('Impossibile avviare il pagamento. Verifica la configurazione Stripe.'); }
+        update_user_meta($user_id, 'cai_pending_checkout_session_id', sanitize_text_field((string) ($session['id'] ?? '')));
         wp_redirect(esc_url_raw($session['url'])); exit;
     }
 
@@ -344,9 +385,13 @@ final class Commerciale_AI_Client_Area
         $event = json_decode($payload, true);
         if (! is_array($event) || empty($event['id']) || empty($event['type'])) return new WP_REST_Response(['message' => 'Invalid payload'], 400);
         $type = (string) $event['type'];
-        if (! str_starts_with($type, 'customer.subscription.') && $type !== 'checkout.session.completed') return new WP_REST_Response(['received' => true]);
+        $supported = ['checkout.session.completed', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'];
+        if (! in_array($type, $supported, true)) return new WP_REST_Response(['received' => true]);
         $object = $event['data']['object'] ?? [];
-        if ($type === 'checkout.session.completed' && ! empty($object['subscription'])) $object = self::stripe('GET', '/v1/subscriptions/'.rawurlencode(is_array($object['subscription']) ? ($object['subscription']['id'] ?? '') : $object['subscription']));
+        if ($type === 'checkout.session.completed') {
+            if (empty($object['subscription'])) return new WP_REST_Response(['message' => 'Checkout has no subscription'], 400);
+            $object = self::stripe('GET', '/v1/subscriptions/'.rawurlencode(is_array($object['subscription']) ? ($object['subscription']['id'] ?? '') : $object['subscription']));
+        }
         if (is_wp_error($object) || ! is_array($object)) return new WP_REST_Response(['message' => 'Unable to load subscription'], 502);
         if (! self::sync_subscription($object, (string) $event['id'], $type)) return new WP_REST_Response(['message' => 'Provisioning failed'], 500);
         return new WP_REST_Response(['received' => true]);
@@ -356,10 +401,11 @@ final class Commerciale_AI_Client_Area
     {
         $metadata = is_array($subscription['metadata'] ?? null) ? $subscription['metadata'] : []; $user_id = absint($metadata['wp_user_id'] ?? 0);
         $customer_id = is_array($subscription['customer'] ?? null) ? (string) ($subscription['customer']['id'] ?? '') : (string) ($subscription['customer'] ?? ''); $subscription_id = (string) ($subscription['id'] ?? '');
+        if ($subscription_id === '' || $customer_id === '') return false;
         if ($user_id === 0 && $subscription_id !== '') $user_id = self::find_user_by_meta('cai_stripe_subscription_id', $subscription_id);
         if ($user_id === 0 && $customer_id !== '') $user_id = self::find_user_by_meta('cai_stripe_customer_id', $customer_id);
         $user = $user_id > 0 ? get_user_by('id', $user_id) : false; if (! $user instanceof WP_User) return false;
-        $price_id = (string) ($subscription['items']['data'][0]['price']['id'] ?? ''); $slug = sanitize_key($metadata['plan_slug'] ?? '');
+        $price_id = (string) ($subscription['items']['data'][0]['price']['id'] ?? ''); if ($price_id === '') return false; $slug = sanitize_key($metadata['plan_slug'] ?? '');
         if ($slug === '' && $price_id !== '') $slug = self::plan_slug_for_price($price_id);
         if ($slug === '') $slug = sanitize_key(get_user_meta($user_id, 'cai_plan_slug', true)); if ($slug === '') return false;
         $status = (string) ($subscription['status'] ?? 'suspended'); if (! in_array($status, self::KNOWN_STATUSES, true)) $status = 'suspended';
@@ -367,6 +413,20 @@ final class Commerciale_AI_Client_Area
         $result = self::api('POST', '/api/v1/billing/provision', ['event_id' => $event_id, 'event_type' => $event_type, 'external_account_id' => self::external_id($user_id), 'email' => $user->user_email, 'name' => $user->display_name, 'company' => get_user_meta($user_id, 'cai_company', true), 'plan_slug' => $slug, 'stripe_price_id' => $price_id ?: null, 'stripe_customer_id' => $customer_id ?: null, 'stripe_subscription_id' => $subscription_id ?: null, 'status' => $status, 'starts_at' => ! empty($subscription['start_date']) ? gmdate('c', (int) $subscription['start_date']) : null, 'current_period_ends_at' => $period_timestamp ? gmdate('c', (int) $period_timestamp) : null, 'ends_at' => ! empty($subscription['ended_at']) ? gmdate('c', (int) $subscription['ended_at']) : null, 'cancel_at_period_end' => ! empty($subscription['cancel_at_period_end'])], false);
         if (is_wp_error($result) || empty($result['data'])) return false;
         self::store_license_meta($user_id, $result['data']); update_user_meta($user_id, 'cai_stripe_customer_id', $customer_id); update_user_meta($user_id, 'cai_stripe_subscription_id', $subscription_id); return true;
+    }
+
+    private static function validate_plan_price(array $plan): bool|WP_Error
+    {
+        $price_id = (string) ($plan['stripe_price_id'] ?? '');
+        if ($price_id === '') return new WP_Error('cai_missing_price', 'Price ID Stripe mancante.');
+        $price = self::stripe('GET', '/v1/prices/'.rawurlencode($price_id));
+        if (is_wp_error($price)) return $price;
+        if (empty($price['active'])) return new WP_Error('cai_inactive_price', 'Il prezzo Stripe non è attivo.');
+        if (($price['type'] ?? '') !== 'recurring' || ($price['recurring']['interval'] ?? '') !== 'year' || (int) ($price['recurring']['interval_count'] ?? 0) !== 1) return new WP_Error('cai_wrong_recurrence', 'Il prezzo Stripe deve essere ricorrente annuale.');
+        if (strtoupper((string) ($price['currency'] ?? '')) !== strtoupper((string) ($plan['currency'] ?? ''))) return new WP_Error('cai_wrong_currency', 'La valuta Stripe non corrisponde al listino.');
+        if ((int) ($price['unit_amount'] ?? -1) !== (int) ($plan['annual_price_cents'] ?? -2)) return new WP_Error('cai_wrong_amount', 'L’importo Stripe non corrisponde al prezzo del pacchetto.');
+
+        return true;
     }
 
     private static function refresh_license(int $user_id): void

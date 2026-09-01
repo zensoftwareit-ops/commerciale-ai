@@ -29,8 +29,11 @@ dal ritorno del browser dopo Checkout, ma esclusivamente da un webhook verificat
 
 ## Configurazione Stripe
 
-Creare in Stripe un Price ricorrente annuale per ciascun pacchetto. Inserire il
-relativo `price_…` nel piano corrispondente del pannello licenze Commerciale AI.
+Creare in Stripe tre Price ricorrenti annuali in EUR: Starter €490,
+Professional €990 e Business €1.790. Gli importi sono IVA esclusa/inclusa secondo
+la configurazione fiscale scelta. Inserire i relativi `price_…` nel backend e
+premere **Testa API e Stripe**: il plugin verifica attività, ricorrenza, valuta e
+importo di ogni Price prima di consentire il checkout.
 
 Creare quindi un endpoint webhook verso l'URL mostrato nella pagina impostazioni
 del plugin e abilitare:
@@ -50,8 +53,15 @@ Nel `.env` del backend:
 ```ini
 BILLING_SELF_SERVICE_ENABLED=true
 BILLING_INTEGRATION_KEY=SEGRETO_CASUALE_DI_ALMENO_32_BYTE
+STRIPE_PRICE_STARTER=price_...
+STRIPE_PRICE_PROFESSIONAL=price_...
+STRIPE_PRICE_BUSINESS=price_...
 LICENSE_ENFORCEMENT_ENABLED=true
 ```
+
+Eseguire `php artisan db:seed --class=LicensePlanSeeder --force` dopo aver
+configurato i Price ID. Il comando è idempotente e conserva gli ID già salvati se
+le relative variabili sono vuote.
 
 La chiave deve coincidere con quella configurata nel plugin. Prima di attivare
 l'enforcement verificare che tutte le organizzazioni da mantenere operative
@@ -73,5 +83,8 @@ fornisce l'integrazione grafica completa.
 - chiamate di provisioning idempotenti tramite Stripe Event ID;
 - chiavi segrete mai ristampate nel pannello;
 - Idempotency-Key sulla creazione della Checkout Session;
+- blocco anti doppio clic e controllo preventivo dell'importo Stripe;
 - fallback di riconciliazione tramite subscription ID e customer ID;
+- indirizzo di fatturazione obbligatorio, raccolta ID fiscale configurabile e
+  Stripe Tax opzionale;
 - nessun dato carta memorizzato in WordPress.

@@ -4,7 +4,7 @@ Tags: stripe, subscriptions, licensing, customer portal
 Requires at least: 6.5
 Tested up to: 6.8
 Requires PHP: 8.1
-Stable tag: 1.0.0
+Stable tag: 1.2.0
 License: MIT
 
 Area cliente, Stripe Checkout e provisioning licenze per Commerciale AI.
@@ -22,6 +22,14 @@ abbonamenti annuali e sincronizzare automaticamente le licenze.
 4. Esegui il test connessioni.
 
 == Changelog ==
+
+= 1.2.0 =
+* Verifica dei tre prezzi Stripe prima del checkout.
+* Dati di fatturazione, identificativo fiscale e Stripe Tax opzionale.
+* Protezione dai tentativi di checkout duplicati e webhook più rigorosi.
+
+= 1.1.0 =
+* Area cliente, Customer Portal e sincronizzazione licenze.
 
 = 1.0.0 =
 * Prima release completa.

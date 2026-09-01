@@ -33,17 +33,23 @@ ed evento GA4 da **Richieste sito > Impostazioni**.
 
 ## 2. Configurare il backend
 
-Nel pannello Super Admin di Commerciale AI creare o aggiornare i pacchetti. Per
-ognuno inserire il relativo Stripe Price ID annuale (`price_…`) e renderlo attivo.
+Creare in Stripe tre prezzi ricorrenti annuali in EUR: Starter €490,
+Professional €990 e Business €1.790. Copiare i rispettivi Price ID nel `.env` del
+backend:
 
 Nel `.env`:
 
 ```ini
 BILLING_SELF_SERVICE_ENABLED=true
 BILLING_INTEGRATION_KEY=SEGRETO_CASUALE_DI_ALMENO_32_BYTE
+STRIPE_PRICE_STARTER=price_...
+STRIPE_PRICE_PROFESSIONAL=price_...
+STRIPE_PRICE_BUSINESS=price_...
 ```
 
-Eseguire quindi `php artisan optimize:clear` e `php artisan config:cache`.
+Eseguire quindi `php artisan optimize:clear`,
+`php artisan db:seed --class=LicensePlanSeeder --force` e
+`php artisan config:cache`.
 
 ## 3. Configurare il plugin
 
@@ -55,8 +61,13 @@ Aprire **Impostazioni > Commerciale AI** e compilare:
 - Stripe Webhook Secret: valore `whsec_…` dell'endpoint;
 - URL accesso software: pagina login del backend.
 
+Lasciare abilitata la raccolta dell'identificativo fiscale se si vende ad aziende.
+L'indirizzo di fatturazione è sempre richiesto. Abilitare Stripe Tax soltanto dopo
+aver completato la registrazione e la configurazione fiscale nell'account Stripe.
+
 Le password già salvate non vengono ristampate e un campo lasciato vuoto non le
-cancella. Premere **Testa API e Stripe**.
+cancella. Premere **Testa API e Stripe**: il controllo deve confermare tutti e tre
+i prezzi, inclusi importo, valuta e ricorrenza annuale.
 
 ## 4. Configurare Stripe
 
