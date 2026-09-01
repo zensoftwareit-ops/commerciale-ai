@@ -31,5 +31,10 @@ return [
         'self_service_enabled' => (bool) env('BILLING_SELF_SERVICE_ENABLED', false),
         'integration_key' => env('BILLING_INTEGRATION_KEY'),
         'enforcement_enabled' => (bool) env('LICENSE_ENFORCEMENT_ENABLED', false),
+        'stripe_price_ids' => [
+            'starter' => env('STRIPE_PRICE_STARTER'),
+            'professional' => env('STRIPE_PRICE_PROFESSIONAL'),
+            'business' => env('STRIPE_PRICE_BUSINESS'),
+        ],
     ],
 ];

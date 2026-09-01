@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\LicenseActivationNotification;
 use App\Services\Leads\CreateLead;
 use App\Support\Tenancy\TenantContext;
+use Database\Seeders\LicensePlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
@@ -59,6 +60,83 @@ class LicensingTest extends CommercialeAiTestCase
         $organization = Organization::query()->where('billing_account_ref', 'wp:site:42')->firstOrFail();
         $owner = User::query()->where('email', 'owner@example.test')->firstOrFail();
         $this->assertSame('owner', $owner->roleFor($organization));
+    }
+
+    public function test_license_plan_seeder_creates_the_three_real_packages_idempotently(): void
+    {
+        config()->set('commerciale-ai.billing.stripe_price_ids', [
+            'starter' => 'price_test_starter',
+            'professional' => 'price_test_professional',
+            'business' => 'price_test_business',
+        ]);
+
+        $this->seed(LicensePlanSeeder::class);
+        $this->seed(LicensePlanSeeder::class);
+
+        $this->assertSame(3, LicensePlan::query()->count());
+        $this->assertDatabaseHas('license_plans', ['slug' => 'starter', 'annual_price_cents' => 49000, 'seat_limit' => 1, 'monthly_lead_limit' => 100, 'stripe_price_id' => 'price_test_starter']);
+        $this->assertDatabaseHas('license_plans', ['slug' => 'professional', 'annual_price_cents' => 99000, 'seat_limit' => 3, 'monthly_lead_limit' => 500, 'stripe_price_id' => 'price_test_professional']);
+        $this->assertDatabaseHas('license_plans', ['slug' => 'business', 'annual_price_cents' => 179000, 'seat_limit' => 8, 'monthly_lead_limit' => 2000, 'stripe_price_id' => 'price_test_business']);
+    }
+
+    public function test_billing_api_rejects_a_replayed_event_with_different_data(): void
+    {
+        Notification::fake();
+        config()->set('mail.default', 'smtp');
+        config()->set('commerciale-ai.billing.self_service_enabled', true);
+        config()->set('commerciale-ai.billing.integration_key', 'test-billing-key');
+        LicensePlan::create(['name' => 'Professional', 'slug' => 'professional', 'annual_price_cents' => 99000, 'seat_limit' => 3, 'stripe_price_id' => 'price_test_pro', 'is_active' => true]);
+        $payload = ['event_id' => 'evt_replay', 'event_type' => 'checkout.session.completed', 'external_account_id' => 'wp:site:84', 'email' => 'replay@example.test', 'name' => 'Replay Test', 'plan_slug' => 'professional', 'stripe_price_id' => 'price_test_pro', 'stripe_customer_id' => 'cus_replay', 'stripe_subscription_id' => 'sub_replay', 'status' => 'active'];
+
+        $this->withToken('test-billing-key')->postJson('/api/v1/billing/provision', $payload)->assertOk();
+        $this->withToken('test-billing-key')->postJson('/api/v1/billing/provision', [...$payload, 'status' => 'past_due'])
+            ->assertConflict()
+            ->assertJsonPath('message', 'Lo stesso evento Stripe è già stato ricevuto con dati differenti.');
+    }
+
+    public function test_billing_api_rejects_a_second_active_subscription_for_the_same_account(): void
+    {
+        Notification::fake();
+        config()->set('mail.default', 'smtp');
+        config()->set('commerciale-ai.billing.self_service_enabled', true);
+        config()->set('commerciale-ai.billing.integration_key', 'test-billing-key');
+        LicensePlan::create(['name' => 'Professional', 'slug' => 'professional', 'annual_price_cents' => 99000, 'seat_limit' => 3, 'stripe_price_id' => 'price_test_pro', 'is_active' => true]);
+        $base = ['event_type' => 'checkout.session.completed', 'external_account_id' => 'wp:site:85', 'email' => 'duplicate@example.test', 'name' => 'Duplicate Test', 'plan_slug' => 'professional', 'stripe_price_id' => 'price_test_pro', 'stripe_customer_id' => 'cus_duplicate', 'status' => 'active', 'current_period_ends_at' => now()->addYear()->toIso8601String()];
+
+        $this->withToken('test-billing-key')->postJson('/api/v1/billing/provision', [...$base, 'event_id' => 'evt_first', 'stripe_subscription_id' => 'sub_first'])->assertOk();
+        $this->withToken('test-billing-key')->postJson('/api/v1/billing/provision', [...$base, 'event_id' => 'evt_second', 'stripe_subscription_id' => 'sub_second'])
+            ->assertConflict()
+            ->assertJsonPath('message', 'Questo account possiede già un abbonamento Stripe da gestire nel Customer Portal.');
+        $this->assertSame(1, License::query()->where('external_account_id', 'wp:site:85')->count());
+    }
+
+    public function test_billing_api_reuses_a_canceled_license_for_a_new_subscription(): void
+    {
+        Notification::fake();
+        config()->set('mail.default', 'smtp');
+        config()->set('commerciale-ai.billing.self_service_enabled', true);
+        config()->set('commerciale-ai.billing.integration_key', 'test-billing-key');
+        LicensePlan::create(['name' => 'Starter', 'slug' => 'starter', 'annual_price_cents' => 49000, 'seat_limit' => 1, 'stripe_price_id' => 'price_test_starter', 'is_active' => true]);
+        $base = ['external_account_id' => 'wp:site:86', 'email' => 'renew@example.test', 'name' => 'Renew Test', 'plan_slug' => 'starter', 'stripe_price_id' => 'price_test_starter', 'stripe_customer_id' => 'cus_renew'];
+
+        $this->withToken('test-billing-key')->postJson('/api/v1/billing/provision', [...$base, 'event_id' => 'evt_old', 'event_type' => 'customer.subscription.deleted', 'stripe_subscription_id' => 'sub_old', 'status' => 'canceled'])->assertOk();
+        $this->withToken('test-billing-key')->postJson('/api/v1/billing/provision', [...$base, 'event_id' => 'evt_new', 'event_type' => 'checkout.session.completed', 'stripe_subscription_id' => 'sub_new', 'status' => 'active', 'current_period_ends_at' => now()->addYear()->toIso8601String()])->assertOk();
+
+        $this->assertSame(1, License::query()->where('external_account_id', 'wp:site:86')->count());
+        $this->assertDatabaseHas('licenses', ['external_account_id' => 'wp:site:86', 'stripe_subscription_id' => 'sub_new', 'status' => 'active']);
+    }
+
+    public function test_billing_api_rejects_a_plan_and_price_mismatch(): void
+    {
+        config()->set('commerciale-ai.billing.self_service_enabled', true);
+        config()->set('commerciale-ai.billing.integration_key', 'test-billing-key');
+        LicensePlan::create(['name' => 'Starter', 'slug' => 'starter', 'annual_price_cents' => 49000, 'seat_limit' => 1, 'stripe_price_id' => 'price_test_starter', 'is_active' => true]);
+        LicensePlan::create(['name' => 'Professional', 'slug' => 'professional', 'annual_price_cents' => 99000, 'seat_limit' => 3, 'stripe_price_id' => 'price_test_pro', 'is_active' => true]);
+
+        $payload = ['event_id' => 'evt_mismatch', 'event_type' => 'checkout.session.completed', 'external_account_id' => 'wp:site:87', 'email' => 'mismatch@example.test', 'name' => 'Mismatch Test', 'plan_slug' => 'professional', 'stripe_price_id' => 'price_test_starter', 'stripe_subscription_id' => 'sub_mismatch', 'status' => 'active'];
+        $this->withToken('test-billing-key')->postJson('/api/v1/billing/provision', $payload)
+            ->assertConflict()
+            ->assertJsonPath('message', 'Il pacchetto non corrisponde al prezzo Stripe ricevuto.');
     }
 
     public function test_billing_api_rejects_an_invalid_key(): void

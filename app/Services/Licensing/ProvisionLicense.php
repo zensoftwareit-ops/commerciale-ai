@@ -23,20 +23,44 @@ class ProvisionLicense
     /** @return array{license:License,account_created:bool,reset_link_sent:bool} */
     public function handle(array $data): array
     {
+        $payloadHash = hash('sha256', json_encode($data, JSON_THROW_ON_ERROR));
         $existingEvent = LicenseEvent::query()->where('external_event_id', $data['event_id'])->first();
-        if ($existingEvent?->license) return ['license' => $existingEvent->license->load('plan', 'organization', 'owner'), 'account_created' => false, 'reset_link_sent' => false];
+        if ($existingEvent) {
+            if (! hash_equals($existingEvent->payload_hash, $payloadHash)) {
+                throw new RuntimeException('Lo stesso evento Stripe è già stato ricevuto con dati differenti.');
+            }
+            if (! $existingEvent->license) {
+                throw new RuntimeException('L’evento Stripe è già stato elaborato ma la licenza non è più disponibile.');
+            }
+
+            return ['license' => $existingEvent->license->load('plan', 'organization', 'owner'), 'account_created' => false, 'reset_link_sent' => false];
+        }
 
         $accountCreated = false;
-        $license = DB::transaction(function () use ($data, &$accountCreated): License {
-            $license = filled($data['stripe_subscription_id'] ?? null)
-                ? License::query()->where('stripe_subscription_id', $data['stripe_subscription_id'])->first()
-                : License::query()->where('external_account_id', $data['external_account_id'])->latest()->first();
+        $license = DB::transaction(function () use ($data, $payloadHash, &$accountCreated): License {
+            $subscriptionId = $data['stripe_subscription_id'] ?? null;
+            $license = filled($subscriptionId)
+                ? License::query()->where('stripe_subscription_id', $subscriptionId)->first()
+                : null;
             if ($license && ! hash_equals((string) $license->external_account_id, (string) $data['external_account_id'])) throw new RuntimeException('L’abbonamento appartiene a un altro account.');
-            $planQuery = filled($data['stripe_price_id'] ?? null)
-                ? LicensePlan::query()->where('stripe_price_id', $data['stripe_price_id'])
-                : LicensePlan::query()->where('slug', $data['plan_slug']);
-            if (! $license) $planQuery->where('is_active', true);
-            $plan = $planQuery->firstOrFail();
+
+            if (! $license) {
+                $accountLicense = License::query()->where('external_account_id', $data['external_account_id'])->latest()->first();
+                if ($accountLicense && filled($subscriptionId) && $accountLicense->stripe_subscription_id !== $subscriptionId && ! in_array($accountLicense->status, ['canceled', 'suspended'], true)) {
+                    throw new RuntimeException('Questo account possiede già un abbonamento Stripe da gestire nel Customer Portal.');
+                }
+                $license = $accountLicense;
+            }
+
+            $plan = filled($data['stripe_price_id'] ?? null)
+                ? LicensePlan::query()->where('stripe_price_id', $data['stripe_price_id'])->first()
+                : LicensePlan::query()->where('slug', $data['plan_slug'])->first();
+            if (! $plan && $license && $license->stripe_subscription_id === $subscriptionId) {
+                $plan = $license->plan;
+            }
+            if (! $plan) throw new RuntimeException('Il prezzo Stripe non corrisponde a un pacchetto configurato.');
+            if (! hash_equals($plan->slug, $data['plan_slug'])) throw new RuntimeException('Il pacchetto non corrisponde al prezzo Stripe ricevuto.');
+            if (! $license && ! $plan->is_active) throw new RuntimeException('Il pacchetto selezionato non è acquistabile.');
 
             $email = mb_strtolower(trim($data['email']));
             $user = User::query()->where('email', $email)->first();
@@ -75,7 +99,7 @@ class ProvisionLicense
 
             LicenseEvent::create([
                 'license_id' => $license->id, 'external_event_id' => $data['event_id'], 'source' => 'wordpress_stripe',
-                'type' => $data['event_type'], 'payload_hash' => hash('sha256', json_encode($data, JSON_THROW_ON_ERROR)),
+                'type' => $data['event_type'], 'payload_hash' => $payloadHash,
                 'status' => 'processed', 'payload' => ['status' => $data['status'], 'plan_slug' => $data['plan_slug']], 'processed_at' => now(),
             ]);
 

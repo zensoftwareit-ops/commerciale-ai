@@ -6,7 +6,7 @@ prodotti Stripe e ambiente di produzione sono configurati e collaudati.
 
 ## Step 1 — attivazione manuale dal pannello Super Admin
 
-Il Super Admin configura fino a tre pacchetti e registra personalmente ogni nuovo
+Il Super Admin gestisce i tre pacchetti e registra personalmente ogni nuovo
 cliente. Dal modulo **Registra un nuovo cliente** vengono creati in una sola
 operazione:
 
@@ -60,7 +60,16 @@ php artisan optimize:clear
 php artisan config:cache
 ```
 
-Accedere a `/admin/licensing`, creare i pacchetti e usare il modulo di registrazione
+I pacchetti predefiniti sono Starter (€490/anno, 1 utente, 100 lead e 500.000
+token AI al mese), Professional (€990/anno, 3 utenti, 500 lead e 2.000.000 token)
+e Business (€1.790/anno, 8 utenti, 2.000 lead e 8.000.000 token). Per crearli o
+riallinearli in modo idempotente eseguire:
+
+```bash
+php artisan db:seed --class=LicensePlanSeeder --force
+```
+
+Accedere quindi a `/admin/licensing` e usare il modulo di registrazione
 cliente. La password temporanea dell'amministratore viene mostrata una volta sola;
 va cambiata al primo accesso da `/admin/account`. L'amministratore non appartiene
 ad alcuna organizzazione, non possiede licenze e non può entrare nel software dei
@@ -87,12 +96,25 @@ e attivare esplicitamente il relativo interruttore:
 ```ini
 BILLING_SELF_SERVICE_ENABLED=true
 BILLING_INTEGRATION_KEY=SEGRETO_CASUALE_DI_ALMENO_32_BYTE
+STRIPE_PRICE_STARTER=price_...
+STRIPE_PRICE_PROFESSIONAL=price_...
+STRIPE_PRICE_BUSINESS=price_...
 ```
+
+I tre Price ID devono riferirsi a prezzi Stripe ricorrenti annuali in EUR con
+importi rispettivamente pari a 49000, 99000 e 179000 centesimi. Dopo averli
+impostati, rieseguire `LicensePlanSeeder`, pulire la cache di configurazione e usare
+il pulsante **Testa API e Stripe** nelle impostazioni del plugin WordPress. Il test
+blocca il lancio se numero dei pacchetti, ricorrenza, valuta o importo non coincidono.
 
 Il webhook Stripe firmato arriverà al plugin WordPress, che riconcilierà il pagamento
 con il software tramite API idempotenti. Stripe sarà la fonte dello stato economico;
 Commerciale AI conserverà licenze, organizzazioni, owner, limiti e cronologia degli
 eventi.
+
+Il checkout richiede l'indirizzo di fatturazione e può raccogliere la partita IVA.
+Stripe Tax è opzionale e va attivato nelle impostazioni del plugin soltanto dopo
+aver completato la relativa configurazione nell'account Stripe.
 
 Gli artefatti installabili si trovano in `wordpress/dist`. Il plugin crea le pagine
 **Prezzi** e **Area cliente**, espone il webhook, verifica le connessioni dal pannello

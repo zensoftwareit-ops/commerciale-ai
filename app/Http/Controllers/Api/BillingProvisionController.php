@@ -17,7 +17,8 @@ class BillingProvisionController extends Controller
     public function store(Request $request, ProvisionLicense $provision): JsonResponse
     {
         $data = $request->validate([
-            'event_id' => ['required', 'string', 'max:255'], 'event_type' => ['required', 'string', 'max:80'],
+            'event_id' => ['required', 'string', 'max:255'],
+            'event_type' => ['required', Rule::in(['checkout.session.completed', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'])],
             'external_account_id' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255'],
             'name' => ['required', 'string', 'max:255'], 'company' => ['nullable', 'string', 'max:255'],
             'plan_slug' => ['required', 'string', 'max:100'], 'stripe_price_id' => ['nullable', 'string', 'max:255'],
