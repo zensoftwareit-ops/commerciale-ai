@@ -48,17 +48,39 @@
             <p><strong>Dominio:</strong> {{ $mailbox->resend_domain_name }}<br><span class="muted">ID Resend: {{ $mailbox->resend_domain_id }} · Ultimo controllo: {{ $mailbox->resend_last_checked_at?->format('d/m/Y H:i:s') ?: 'mai' }}</span></p>
 
             @if($mailbox->resend_dns_records)
+                <div class="notice" style="margin-bottom:16px">
+                    <strong>Come leggere la tabella:</strong> “Scopo” spiega a cosa serve il record; “Tipo DNS” è il tipo da selezionare nel pannello DNS.
+                    I record MX e TXT sul nome <code>send</code> sono entrambi necessari: configurano il Return-Path di Resend e non modificano la ricezione IMAP del dominio principale.
+                </div>
                 <div class="table-wrap"><table>
-                    <thead><tr><th>Record</th><th>Tipo</th><th>Nome</th><th>Valore</th><th>Priorità</th><th>Stato</th></tr></thead>
-                    <tbody>@foreach($mailbox->resend_dns_records as $record)<tr>
-                        <td>{{ $record['record'] ?? '—' }}</td>
+                    <thead><tr><th>Scopo</th><th>Tipo DNS</th><th>Nome da inserire</th><th>Destinazione / valore</th><th>Priorità</th><th>Stato</th></tr></thead>
+                    <tbody>@foreach($mailbox->resend_dns_records as $record)
+                    @php
+                        $recordPurpose = $record['record'] ?? '';
+                        $recordType = strtoupper($record['type'] ?? '');
+                        $recordName = trim((string) ($record['name'] ?? ''), '.');
+                        $domainName = trim((string) $mailbox->resend_domain_name, '.');
+                        $fullHostname = $recordName === $domainName || str_ends_with($recordName, '.'.$domainName)
+                            ? $recordName
+                            : $recordName.'.'.$domainName;
+                        $purposeLabel = match (true) {
+                            $recordPurpose === 'DKIM' => 'Firma DKIM',
+                            $recordPurpose === 'SPF' && $recordType === 'MX' => 'Return-Path / bounce',
+                            $recordPurpose === 'SPF' && $recordType === 'TXT' => 'Autorizzazione SPF',
+                            $recordPurpose === 'Tracking' => 'Tracciamento link',
+                            default => $recordPurpose ?: 'Configurazione Resend',
+                        };
+                    @endphp
+                    <tr>
+                        <td><strong>{{ $purposeLabel }}</strong>@if($recordPurpose)<br><span class="muted">Categoria Resend: {{ $recordPurpose }}</span>@endif</td>
                         <td><code>{{ $record['type'] ?? '—' }}</code></td>
-                        <td><code style="word-break:break-all">{{ $record['name'] ?? '—' }}</code></td>
+                        <td><code style="word-break:break-all">{{ $recordName ?: '—' }}</code>@if($recordName)<br><span class="muted">Hostname completo:<br><code style="word-break:break-all">{{ $fullHostname }}</code></span>@endif</td>
                         <td><code style="word-break:break-all">{{ $record['value'] ?? '—' }}</code></td>
                         <td>{{ $record['priority'] ?? '—' }}</td>
                         <td><span class="badge {{ ($record['status'] ?? '') === 'verified' ? 'success' : 'warm' }}">{{ strtoupper($record['status'] ?? 'da inserire') }}</span></td>
                     </tr>@endforeach</tbody>
                 </table></div>
+                <p class="muted">Se il pannello DNS aggiunge automaticamente il dominio della zona, inserisci il nome breve mostrato in alto (per esempio <code>send</code>). Se richiede un FQDN, usa l’hostname completo mostrato sotto.</p>
             @endif
 
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
