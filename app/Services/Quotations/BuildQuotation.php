@@ -77,8 +77,8 @@ class BuildQuotation
         if ($inbound?->sender_differs && $inbound?->match_reason !== 'known_contact') $blockers[] = 'sender_requires_verification';
         if ($lead->replies()->where('delivery_mode', 'automatic')->where('status', 'sent')->count() >= ($settings?->max_automatic_replies ?? 0)) $blockers[] = 'automatic_reply_limit_reached';
         $allowed = collect($settings?->automation_allowed_recipients ?? [])->map(fn ($email) => mb_strtolower(trim((string) $email)));
-        if ($settings?->internal_test_only && ! $allowed->contains($lead->email_normalized)) $blockers[] = 'recipient_not_in_internal_allowlist';
-        if (! $settings?->internal_test_only && ! config('commerciale-ai.automation.external_send_enabled')) $blockers[] = 'external_send_disabled_on_server';
+        $internalOnly = ($settings?->internal_test_only ?? true) || ! config('commerciale-ai.automation.external_send_enabled');
+        if ($internalOnly && ! $allowed->contains($lead->email_normalized)) $blockers[] = 'recipient_not_in_internal_allowlist';
 
         return $blockers;
     }
@@ -88,4 +88,3 @@ class BuildQuotation
         return Str::of($value)->lower()->ascii()->replaceMatches('/[^a-z0-9]+/', ' ')->squish()->value();
     }
 }
-

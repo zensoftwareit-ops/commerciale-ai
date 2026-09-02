@@ -26,6 +26,7 @@ class RunConversationAutomation
                 $settings = OrganizationSetting::query()->first();
                 if (! $settings?->conversation_automation_enabled) continue;
                 $stats['organizations']++;
+                $this->refreshInternalTestEligibility($settings);
                 $maxAttempts = max(1, (int) config('commerciale-ai.automation.delivery_max_attempts', 3));
                 $replies = LeadReply::query()->where('status', 'draft')->whereIn('reply_kind', ['general', 'qualification', 'quotation'])
                     ->where('automation_eligible', true)
@@ -70,5 +71,40 @@ class RunConversationAutomation
             }
         }
         return $stats;
+    }
+
+    private function refreshInternalTestEligibility(OrganizationSetting $settings): void
+    {
+        $internalOnly = $settings->internal_test_only || ! config('commerciale-ai.automation.external_send_enabled');
+        if (! $internalOnly) return;
+
+        $allowed = collect($settings->automation_allowed_recipients ?? [])
+            ->map(fn ($email) => mb_strtolower(trim((string) $email)))
+            ->filter();
+        if ($allowed->isEmpty()) return;
+
+        LeadReply::query()
+            ->with('lead')
+            ->where('status', 'draft')
+            ->whereIn('reply_kind', ['general', 'qualification', 'quotation'])
+            ->where('automation_eligible', false)
+            ->latest()
+            ->limit(500)
+            ->get()
+            ->each(function (LeadReply $reply) use ($allowed): void {
+                if (! $allowed->contains($reply->lead->email_normalized)) return;
+
+                $blockers = collect($reply->automation_blockers ?? []);
+                $refreshed = $blockers->reject(fn ($blocker) => in_array($blocker, [
+                    'external_send_disabled_on_server',
+                    'recipient_not_in_internal_allowlist',
+                ], true))->values();
+                if ($refreshed->count() === $blockers->count()) return;
+
+                $reply->update([
+                    'automation_blockers' => $refreshed->all(),
+                    'automation_eligible' => $refreshed->isEmpty(),
+                ]);
+            });
     }
 }

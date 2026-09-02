@@ -143,6 +143,46 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $this->assertSame('automatic', $reply->fresh()->delivery_mode);
     }
 
+    public function test_server_internal_mode_recovers_and_sends_an_allowlisted_followup_draft(): void
+    {
+        config()->set('mail.default', 'smtp');
+        config()->set('commerciale-ai.automation.external_send_enabled', false);
+        Mail::fake();
+        [$organization] = $this->organizationWithUser();
+        $this->mailboxFor($organization);
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti', 'products_services' => 'Siti web',
+            'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale', 'email_signature' => 'Demo',
+            'conversation_automation_enabled' => true, 'internal_test_only' => false,
+            'automation_allowed_recipients' => ['anna@example.test'], 'max_automatic_replies' => 3,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Consulenza',
+            'source_label' => 'manual', 'request_data' => ['message' => 'Vorrei informazioni'],
+        ]);
+        InboundEmail::create([
+            'lead_id' => $lead->id, 'status' => 'linked', 'match_confidence' => 'high', 'match_reason' => 'thread_id',
+            'message_hash' => hash('sha256', 'server-internal-inbound'), 'message_id' => 'server-internal@example.test',
+            'from_address' => 'anna@example.test', 'subject' => 'Re: Informazioni', 'body' => 'Grazie, mi dica pure.',
+            'received_at' => now(), 'linked_at' => now(),
+        ]);
+        $reply = app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead), null, [
+            'incoming_email' => ['message_id' => 'server-internal@example.test'],
+        ]);
+        $reply->update([
+            'automation_eligible' => false,
+            'automation_blockers' => ['external_send_disabled_on_server'],
+        ]);
+        app(TenantContext::class)->clear();
+
+        $stats = app(RunConversationAutomation::class)->handle();
+
+        $this->assertSame(1, $stats['sent']);
+        $this->assertSame('automatic', $reply->fresh()->delivery_mode);
+        Mail::assertSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('anna@example.test'));
+    }
+
     public function test_after_one_qualification_attempt_it_offers_an_indicative_range_without_more_questions(): void
     {
         [$organization] = $this->organizationWithUser();
