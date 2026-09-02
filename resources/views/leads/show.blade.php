@@ -156,6 +156,31 @@
         <span class="badge">{{ $reply->status === 'sent' ? 'INVIATA' : 'DA APPROVARE' }}</span>
     </div>
     @error('reply')<div class="error">{{ $message }}</div>@enderror
+    @if($reply->status !== 'sent' && $lead->initial_automation_error)
+        <div class="error"><strong>Invio automatico non riuscito.</strong><br>{{ $lead->initial_automation_error }}</div>
+    @elseif($reply->status !== 'sent' && ! $reply->automation_eligible)
+        @php
+            $automationBlockerLabels = [
+                'auto_send_initial_email_disabled' => 'l’invio automatico della prima email non è attivo',
+                'recipient_not_allowed' => 'il destinatario non è nella lista dei test interni',
+                'recipient_not_in_internal_allowlist' => 'il destinatario non è nella lista dei test interni',
+                'sender_domain_not_verified' => 'il dominio mittente non è verificato',
+                'auto_send_quotes_disabled' => 'l’invio automatico dei preventivi non è attivo',
+                'amount_over_limit' => 'il preventivo supera la soglia autorizzata',
+                'missing_required_fields' => 'mancano dati necessari per formulare il preventivo',
+                'ambiguous_pricing_rule' => 'più fasce di prezzo risultano compatibili',
+                'automatic_reply_limit_reached' => 'è stato raggiunto il limite di risposte automatiche',
+                'sender_requires_verification' => 'il mittente della risposta richiede verifica',
+            ];
+            $visibleBlockers = collect($reply->automation_blockers ?? [])
+                ->map(fn ($blocker) => $automationBlockerLabels[$blocker] ?? str_replace('_', ' ', $blocker))
+                ->values();
+        @endphp
+        <div class="warning">
+            <strong>La bozza non è stata inviata automaticamente.</strong>
+            @if($visibleBlockers->isNotEmpty()) Motivo: {{ $visibleBlockers->implode('; ') }}.@endif
+        </div>
+    @endif
     @if($quotation = $lead->quotations->first())
         <div class="notice"><strong>Preventivo v{{ $quotation->version }}:</strong> € {{ number_format($quotation->minimum_price,0,',','.') }}–{{ number_format($quotation->maximum_price,0,',','.') }} + IVA · affidabilità {{ $quotation->confidence }}%. @if($quotation->auto_send_eligible) Idoneo all’automazione interna. @else Invio automatico bloccato: {{ implode(', ',$quotation->automation_blockers ?? []) }}. @endif</div>
     @endif

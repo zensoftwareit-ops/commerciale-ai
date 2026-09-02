@@ -39,19 +39,28 @@ class RunNewLeadAutomation
                 $maxAttempts = max(1, (int) config('commerciale-ai.automation.delivery_max_attempts', 3));
                 $leads = Lead::query()
                     ->whereNotNull('email_normalized')
-                    ->whereNull('initial_automation_completed_at')
-                    ->where('initial_automation_attempts', '<', $maxAttempts)
-                    ->where(fn ($query) => $query->whereNull('initial_automation_next_attempt_at')->orWhere('initial_automation_next_attempt_at', '<=', now()))
-                    ->when($leadId, fn ($query) => $query->whereKey($leadId))
-                    ->when(! $leadId, fn ($query) => $query->where('created_at', '>=', $settings->new_lead_automation_started_at ?? now()))
+                    ->when($leadId, fn ($query) => $query
+                        ->whereKey($leadId)
+                        ->whereDoesntHave('replies', fn ($replies) => $replies
+                            ->where('status', 'sent')
+                            ->whereIn('reply_kind', ['initial', 'initial_qualification', 'initial_quotation'])))
+                    ->when(! $leadId, fn ($query) => $query
+                        ->whereNull('initial_automation_completed_at')
+                        ->where('initial_automation_attempts', '<', $maxAttempts)
+                        ->where(fn ($retry) => $retry->whereNull('initial_automation_next_attempt_at')->orWhere('initial_automation_next_attempt_at', '<=', now()))
+                        ->where('created_at', '>=', $settings->new_lead_automation_started_at ?? now()))
                     ->oldest()->limit(max(1, min($limit, 100)))->get();
 
                 foreach ($leads as $lead) {
                     $stats['candidates']++;
-                    $claimed = Lead::query()->whereKey($lead->id)
-                        ->where('initial_automation_attempts', $lead->initial_automation_attempts)
-                        ->whereNull('initial_automation_completed_at')
-                        ->update(['initial_automation_attempts' => $lead->initial_automation_attempts + 1, 'initial_automation_attempted_at' => now()]);
+                    $claim = Lead::query()->whereKey($lead->id)
+                        ->where('initial_automation_attempts', $lead->initial_automation_attempts);
+                    if (! $leadId) $claim->whereNull('initial_automation_completed_at');
+                    $claimed = $claim->update([
+                        'initial_automation_attempts' => $lead->initial_automation_attempts + 1,
+                        'initial_automation_attempted_at' => now(),
+                        'initial_automation_completed_at' => null,
+                    ]);
                     if ($claimed !== 1) continue;
 
                     try {
@@ -150,7 +159,14 @@ class RunNewLeadAutomation
 
     private function prepareInitialReply(LeadReply $reply, OrganizationSetting $settings): void
     {
-        $blockers = collect($reply->automation_blockers ?? []);
+        // La prima email ha interruttori propri e non deve ereditare i blocchi
+        // dell'automazione delle risposte successive. I controlli di ambiente e
+        // allowlist vengono ricalcolati subito sotto in modo coerente.
+        $blockers = collect($reply->automation_blockers ?? [])->reject(fn ($blocker) => in_array($blocker, [
+            'conversation_automation_disabled',
+            'external_send_disabled_on_server',
+            'recipient_not_in_internal_allowlist',
+        ], true));
         if ($reply->reply_kind === 'initial') {
             $blockers = $blockers->reject(fn ($blocker) => in_array($blocker, ['no_matching_pricing_rule', 'auto_send_quotes_disabled', 'amount_over_limit'], true));
         }

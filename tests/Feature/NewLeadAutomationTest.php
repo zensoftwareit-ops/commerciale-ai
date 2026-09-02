@@ -99,4 +99,77 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         $this->assertNotNull($lead->fresh()->initial_automation_completed_at);
         Mail::assertSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('internal@example.test'));
     }
+
+    public function test_server_internal_mode_uses_allowlist_even_when_organization_internal_checkbox_is_off(): void
+    {
+        config()->set('mail.default', 'smtp');
+        config()->set('commerciale-ai.automation.external_send_enabled', false);
+        Mail::fake();
+        [$organization] = $this->organizationWithUser();
+        $this->mailboxFor($organization);
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti web',
+            'products_services' => 'Siti web', 'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'conversation_automation_enabled' => false,
+            'auto_analyze_new_leads' => true, 'auto_send_initial_email' => true,
+            'internal_test_only' => false, 'automation_allowed_recipients' => ['internal@example.test'],
+            'max_automatic_replies' => 3, 'new_lead_automation_started_at' => now()->subMinute(),
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Test allowlist server', 'email' => 'internal@example.test',
+            'requested_service' => 'Sito web', 'source_label' => 'web',
+        ]);
+        app(TenantContext::class)->clear();
+
+        $stats = app(RunNewLeadAutomation::class)->handle();
+
+        $this->assertSame(1, $stats['sent']);
+        $this->assertDatabaseHas('lead_replies', [
+            'lead_id' => $lead->id,
+            'status' => 'sent',
+            'delivery_mode' => 'automatic',
+        ]);
+        Mail::assertSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('internal@example.test'));
+    }
+
+    public function test_explicit_lead_retry_reuses_and_sends_a_previously_blocked_initial_draft(): void
+    {
+        config()->set('mail.default', 'smtp');
+        Mail::fake();
+        [$organization] = $this->organizationWithUser();
+        $this->mailboxFor($organization);
+        app(TenantContext::class)->set($organization);
+        $settings = OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti web',
+            'products_services' => 'Siti web', 'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'conversation_automation_enabled' => false,
+            'auto_analyze_new_leads' => true, 'auto_send_initial_email' => true,
+            'internal_test_only' => true, 'automation_allowed_recipients' => [],
+            'max_automatic_replies' => 3, 'new_lead_automation_started_at' => now()->subMinute(),
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Test recupero', 'email' => 'internal@example.test',
+            'requested_service' => 'Sito web', 'source_label' => 'web',
+        ]);
+        app(TenantContext::class)->clear();
+
+        $firstRun = app(RunNewLeadAutomation::class)->handle();
+        $this->assertSame(0, $firstRun['sent']);
+        $this->assertSame(1, $lead->replies()->withoutGlobalScopes()->count());
+
+        app(TenantContext::class)->set($organization);
+        $settings->update(['automation_allowed_recipients' => ['internal@example.test']]);
+        app(TenantContext::class)->clear();
+
+        $retry = app(RunNewLeadAutomation::class)->handle(25, $lead->id);
+
+        $this->assertSame(1, $retry['sent']);
+        $this->assertSame(1, $lead->replies()->withoutGlobalScopes()->count());
+        $this->assertDatabaseHas('lead_replies', [
+            'lead_id' => $lead->id,
+            'status' => 'sent',
+            'delivery_mode' => 'automatic',
+        ]);
+    }
 }
