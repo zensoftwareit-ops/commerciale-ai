@@ -39,6 +39,34 @@ class SprintTwoAnalysisTest extends CommercialeAiTestCase
         $this->assertSame(1, KnowledgeDocument::withoutGlobalScopes()->where('organization_id', $organization->id)->count());
     }
 
+    public function test_owner_can_update_one_company_settings_section_without_overwriting_the_others(): void
+    {
+        [$organization, $user] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Nome iniziale', 'industry' => 'Software',
+            'business_description' => 'Descrizione esistente', 'products_services' => 'Servizi esistenti',
+            'ideal_customer' => 'PMI', 'tone_of_voice' => 'diretto', 'email_signature' => 'Firma',
+            'conversation_automation_enabled' => true, 'auto_analyze_new_leads' => true,
+            'auto_send_initial_email' => true, 'max_automatic_replies' => 4, 'data_retention_days' => 730,
+        ]);
+        app(TenantContext::class)->clear();
+
+        $this->actingAs($user)->withSession(['organization_id' => $organization->id])
+            ->put(route('settings.organization.update'), [
+                'section' => 'identity', 'commercial_name' => 'Nome aggiornato',
+                'industry' => 'Consulenza', 'website_url' => 'https://example.test',
+            ])->assertSessionHasNoErrors();
+
+        $settings = OrganizationSetting::withoutGlobalScopes()->where('organization_id', $organization->id)->firstOrFail();
+        $this->assertSame('Nome aggiornato', $settings->commercial_name);
+        $this->assertSame('Descrizione esistente', $settings->business_description);
+        $this->assertTrue($settings->conversation_automation_enabled);
+        $this->assertTrue($settings->auto_send_initial_email);
+        $this->assertSame(4, $settings->max_automatic_replies);
+        $this->assertSame(100, $settings->completeness);
+    }
+
     public function test_analysis_persists_mixed_scores_usage_and_timeline(): void
     {
         [$organization, $user] = $this->organizationWithUser('sales');

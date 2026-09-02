@@ -8,6 +8,7 @@ use App\Support\Tenancy\TenantContext;
 use App\Services\Organizations\OrganizationLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\View\View;
 
 class OrganizationSettingsController extends Controller
@@ -27,7 +28,16 @@ class OrganizationSettingsController extends Controller
 
     public function update(Request $request, OrganizationLifecycle $lifecycle, TenantContext $tenants): RedirectResponse
     {
-        $data = $request->validate([
+        $sectionFields = [
+            'identity' => ['legal_name', 'commercial_name', 'website_url', 'industry', 'service_area'],
+            'offering' => ['business_description', 'products_services', 'ideal_customer', 'pricing_rules', 'differentiators'],
+            'lead_handling' => ['qualification_questions_text', 'exclusion_criteria', 'tone_of_voice', 'email_signature', 'appointment_details', 'promised_response_minutes'],
+            'automation' => ['conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only', 'automation_allowed_recipients_text', 'max_automatic_replies', 'max_auto_quote_amount', 'auto_analyze_new_leads', 'auto_send_initial_email'],
+            'privacy' => ['data_retention_days', 'privacy_cleanup_enabled'],
+        ];
+        $section = (string) $request->input('section', 'all');
+        $request->merge(['section' => $section]);
+        $rules = [
             'legal_name' => ['nullable', 'string', 'max:255'], 'commercial_name' => ['required', 'string', 'max:255'],
             'website_url' => ['nullable', 'url:http,https', 'max:2048'],
             'industry' => ['required', 'string', 'max:255'], 'business_description' => ['required', 'string', 'max:5000'],
@@ -43,25 +53,37 @@ class OrganizationSettingsController extends Controller
             'auto_analyze_new_leads' => ['nullable', 'boolean'], 'auto_send_initial_email' => ['nullable', 'boolean'],
             'data_retention_days' => ['required', 'integer', 'min:30', 'max:3650'],
             'privacy_cleanup_enabled' => ['nullable', 'boolean'],
-        ]);
-        $data['qualification_questions'] = collect(preg_split('/\r\n|\r|\n/', $data['qualification_questions_text'] ?? ''))->map(fn (string $line): string => trim($line))->filter()->values()->all();
-        unset($data['qualification_questions_text']);
-        $data['automation_allowed_recipients'] = collect(preg_split('/[\r\n,]+/', $data['automation_allowed_recipients_text'] ?? ''))->map(fn ($line) => mb_strtolower(trim($line)))->filter()->values()->all();
-        unset($data['automation_allowed_recipients_text']);
-        $data['conversation_automation_enabled'] = (bool) ($data['conversation_automation_enabled'] ?? false);
-        $data['auto_send_quotes_enabled'] = (bool) ($data['auto_send_quotes_enabled'] ?? false);
-        $data['internal_test_only'] = (bool) ($data['internal_test_only'] ?? false);
-        $data['auto_analyze_new_leads'] = (bool) ($data['auto_analyze_new_leads'] ?? false);
-        $data['auto_send_initial_email'] = (bool) ($data['auto_send_initial_email'] ?? false);
-        $data['privacy_cleanup_enabled'] = (bool) ($data['privacy_cleanup_enabled'] ?? false);
+        ];
+        $request->validate(['section' => ['required', 'in:'.implode(',', [...array_keys($sectionFields), 'all'])]]);
+        $data = $request->validate($section === 'all' ? $rules : Arr::only($rules, $sectionFields[$section]));
+
+        if (array_key_exists('qualification_questions_text', $data)) {
+            $data['qualification_questions'] = collect(preg_split('/\r\n|\r|\n/', $data['qualification_questions_text'] ?? ''))->map(fn (string $line): string => trim($line))->filter()->values()->all();
+            unset($data['qualification_questions_text']);
+        }
+        if (array_key_exists('automation_allowed_recipients_text', $data)) {
+            $data['automation_allowed_recipients'] = collect(preg_split('/[\r\n,]+/', $data['automation_allowed_recipients_text'] ?? ''))->map(fn ($line) => mb_strtolower(trim($line)))->filter()->values()->all();
+            unset($data['automation_allowed_recipients_text']);
+        }
+        foreach (['conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only', 'auto_analyze_new_leads', 'auto_send_initial_email', 'privacy_cleanup_enabled'] as $boolean) {
+            if ($section === 'all' || in_array($boolean, $sectionFields[$section], true)) {
+                $data[$boolean] = (bool) ($data[$boolean] ?? false);
+            }
+        }
         $current = OrganizationSetting::query()->first();
-        if ($data['auto_analyze_new_leads'] && ! $current?->auto_analyze_new_leads) {
+        if (($data['auto_analyze_new_leads'] ?? false) && ! $current?->auto_analyze_new_leads) {
             $data['new_lead_automation_started_at'] = now();
         }
-        $data['completeness'] = OrganizationSetting::completenessFor($data);
+        $data['completeness'] = OrganizationSetting::completenessFor(array_merge($current?->toArray() ?? [], $data));
         OrganizationSetting::query()->updateOrCreate(['organization_id' => app(TenantContext::class)->id()], $data);
         $lifecycle->refresh($tenants->requireOrganization());
 
-        return back()->with('status', 'Profilo aziendale aggiornato.');
+        $labels = [
+            'identity' => 'Identità aziendale aggiornata.', 'offering' => 'Offerta commerciale aggiornata.',
+            'lead_handling' => 'Gestione delle richieste aggiornata.', 'automation' => 'Automazioni aggiornate.',
+            'privacy' => 'Impostazioni privacy aggiornate.', 'all' => 'Profilo aziendale aggiornato.',
+        ];
+
+        return back()->with('status', $labels[$section]);
     }
 }
