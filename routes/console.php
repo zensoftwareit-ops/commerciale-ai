@@ -11,6 +11,7 @@ use App\Services\Leads\RunNewLeadAutomation;
 use App\Services\Operations\SystemHealth;
 use App\Services\Operations\PlatformHealthAlert;
 use App\Services\Privacy\PurgeExpiredLeadData;
+use App\Services\Whatsapp\ProcessWhatsappMessages;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -102,6 +103,12 @@ Artisan::command('conversations:automate {--limit=25}', function (RunConversatio
     return $stats['failed'] > 0 ? Command::FAILURE : Command::SUCCESS;
 })->purpose('Invia le risposte che superano tutti i controlli di automazione');
 
+Artisan::command('whatsapp:process {--limit=25}', function (ProcessWhatsappMessages $processor): int {
+    $stats = $processor->handle((int) $this->option('limit'));
+    $this->table(['Account', 'In attesa', 'Elaborati', 'Bozze', 'Passaggi a umano', 'Falliti'], [array_values($stats)]);
+    return $stats['failed'] > 0 ? Command::FAILURE : Command::SUCCESS;
+})->purpose('Elabora i messaggi WhatsApp ricevuti dal webhook');
+
 Artisan::command('leads:automate-new {--limit=25} {--lead= : UUID di un lead interno da collaudare esplicitamente}', function (RunNewLeadAutomation $automation): int {
     $leadId = $this->option('lead');
     $stats = $automation->handle((int) $this->option('limit'), filled($leadId) ? (string) $leadId : null);
@@ -123,6 +130,7 @@ Artisan::command('leads:automation-status', function (RunNewLeadAutomation $auto
 Artisan::command('commerciale:run {--limit=25} {--mail-limit= : Numero massimo di messaggi per casella}', function (
     RunNewLeadAutomation $newLeads,
     SyncInboundEmailReplies $mailSync,
+    ProcessWhatsappMessages $whatsapp,
     RunConversationAutomation $conversations,
 ): int {
     $lock = Cache::lock('commerciale-ai:direct-cron', 300);
@@ -168,6 +176,19 @@ Artisan::command('commerciale:run {--limit=25} {--mail-limit= : Numero massimo d
             $this->error('Posta in ingresso: '.$exception->getMessage());
             $failed++;
             $errors[] = 'Posta in ingresso: '.$exception->getMessage();
+        }
+
+        try {
+            $whatsappStats = $whatsapp->handle((int) $this->option('limit'));
+            $this->info('WhatsApp');
+            $this->table(['Account', 'In attesa', 'Elaborati', 'Bozze', 'Passaggi a umano', 'Falliti'], [array_values($whatsappStats)]);
+            $failed += $whatsappStats['failed'];
+            $summary['whatsapp'] = $whatsappStats;
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->error('WhatsApp: '.$exception->getMessage());
+            $failed++;
+            $errors[] = 'WhatsApp: '.$exception->getMessage();
         }
 
         try {

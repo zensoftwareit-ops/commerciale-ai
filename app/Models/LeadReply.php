@@ -12,7 +12,7 @@ class LeadReply extends Model
     use BelongsToOrganization, HasUuid;
 
     protected $fillable = [
-        'organization_id', 'lead_id', 'ai_analysis_id', 'ai_run_id', 'status', 'reply_kind',
+        'organization_id', 'lead_id', 'ai_analysis_id', 'ai_run_id', 'status', 'channel', 'reply_kind',
         'delivery_mode', 'automation_eligible', 'automation_blockers',
         'automation_attempts', 'automation_next_attempt_at', 'automation_failed_at',
         'outbound_message_id', 'parent_message_id', 'recipient', 'sender_address', 'sender_name', 'reply_to_address', 'subject', 'body',

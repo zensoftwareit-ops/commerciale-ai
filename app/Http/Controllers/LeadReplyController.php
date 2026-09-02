@@ -16,9 +16,12 @@ class LeadReplyController extends Controller
     {
         $lead = Lead::query()->findOrFail($lead);
         $reply = LeadReply::query()->where('lead_id', $lead->id)->findOrFail($reply);
-        abort_if($reply->status === 'sent', 422, 'Una email già inviata non può essere modificata.');
+        abort_if($reply->status === 'sent', 422, 'Una risposta già inviata non può essere modificata.');
+        $recipientRules = $reply->channel === 'whatsapp'
+            ? ['required', 'string', 'max:40', 'regex:/^\+?[0-9][0-9\s().-]{6,38}$/']
+            : ['required', 'email', 'max:255'];
         $data = $request->validate([
-            'recipient' => ['required', 'email', 'max:255'],
+            'recipient' => $recipientRules,
             'subject' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:10000'],
             'follow_up_at' => ['nullable', 'date', 'after:now'],
@@ -32,8 +35,8 @@ class LeadReplyController extends Controller
         Activity::create([
             'organization_id' => $lead->organization_id, 'lead_id' => $lead->id,
             'actor_id' => $request->user()->id, 'type' => 'reply_draft_updated',
-            'title' => 'Bozza email aggiornata',
-            'data' => ['reply_id' => $reply->id, 'follow_up_at' => $data['follow_up_at'] ?? null],
+            'title' => $reply->channel === 'whatsapp' ? 'Bozza WhatsApp aggiornata' : 'Bozza email aggiornata',
+            'data' => ['reply_id' => $reply->id, 'channel' => $reply->channel, 'follow_up_at' => $data['follow_up_at'] ?? null],
             'occurred_at' => now(),
         ]);
 
@@ -44,14 +47,14 @@ class LeadReplyController extends Controller
     {
         $lead = Lead::query()->findOrFail($lead);
         $reply = LeadReply::query()->where('lead_id', $lead->id)->findOrFail($reply);
-        abort_if($reply->status === 'sent', 422, 'Questa email è già stata inviata.');
+        abort_if($reply->status === 'sent', 422, 'Questa risposta è già stata inviata.');
         try {
             $sender->handle($reply, $request->user()->id);
         } catch (Throwable $exception) {
             report($exception);
-            return back()->withErrors(['reply' => 'Invio non riuscito. Controlla la configurazione SMTP e riprova.']);
+            return back()->withErrors(['reply' => 'Invio non riuscito: '.$exception->getMessage()]);
         }
 
-        return back()->with('status', 'Email inviata a '.$reply->recipient.'.');
+        return back()->with('status', ($reply->channel === 'whatsapp' ? 'Messaggio WhatsApp' : 'Email').' inviato a '.$reply->recipient.'.');
     }
 }

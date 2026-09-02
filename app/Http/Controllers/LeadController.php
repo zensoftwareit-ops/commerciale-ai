@@ -52,7 +52,7 @@ class LeadController extends Controller
     public function show(string $lead): View
     {
         $lead = Lead::query()->findOrFail($lead);
-        $lead->load(['stage', 'assignee', 'activities.actor', 'analyses.run', 'replies.approver', 'inboundEmails', 'quotations.rule']);
+        $lead->load(['stage', 'assignee', 'activities.actor', 'analyses.run', 'replies.approver', 'inboundEmails', 'whatsappMessages', 'quotations.rule']);
 
         return view('leads.show', compact('lead'));
     }

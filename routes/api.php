@@ -4,10 +4,13 @@ use App\Http\Controllers\SimpleInboundLeadController;
 use App\Http\Controllers\Api\BillingPlanController;
 use App\Http\Controllers\Api\BillingProvisionController;
 use App\Http\Controllers\Api\PlatformHealthController;
+use App\Http\Controllers\Api\WhatsappWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/v1/inbound/leads/{token}', SimpleInboundLeadController::class)->middleware('throttle:60,1');
 Route::get('/v1/platform-health', PlatformHealthController::class)->middleware('throttle:30,1');
+Route::get('/v1/whatsapp/webhook', [WhatsappWebhookController::class, 'verify'])->middleware('throttle:60,1');
+Route::post('/v1/whatsapp/webhook', [WhatsappWebhookController::class, 'receive'])->middleware('throttle:600,1');
 
 Route::middleware(['billing.selfservice', 'billing.client', 'throttle:120,1'])->prefix('/v1/billing')->group(function (): void {
     Route::get('/plans', BillingPlanController::class);

@@ -16,7 +16,8 @@ class BuildQuotation
         $settings = OrganizationSetting::query()->first();
         $inbound = $lead->inboundEmails()->first();
         $conversationBlockers = $this->conversationBlockers($lead, $settings, $inbound);
-        $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $inbound?->subject, $inbound?->body])));
+        $whatsappText = $lead->whatsappMessages()->where('direction', 'inbound')->pluck('body')->implode(' ');
+        $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $inbound?->subject, $inbound?->body, $whatsappText])));
         $ranked = PricingRule::query()->where('is_active', true)->get()
             ->map(fn (PricingRule $rule) => ['rule' => $rule, 'score' => collect($rule->keywords)->filter(fn ($keyword) => str_contains($haystack, $this->normalize((string) $keyword)))->count()])
             ->filter(fn ($item) => $item['score'] > 0)->sortByDesc('score')->values();
@@ -59,7 +60,9 @@ class BuildQuotation
         if (in_array($field, ['name', 'email', 'phone', 'company', 'requested_service'], true)) return $lead->{$field};
         $value = data_get($lead->request_data, $field);
         if (filled($value)) return $value;
-        $inboundBody = $lead->inboundEmails()->oldest('received_at')->pluck('body')->filter()->implode("\n");
+        $inboundBody = $lead->inboundEmails()->oldest('received_at')->pluck('body')->filter()
+            ->concat($lead->whatsappMessages()->where('direction', 'inbound')->oldest('received_at')->pluck('body')->filter())
+            ->implode("\n");
         $normalizedField = $this->normalize($field);
         $inboundText = $this->normalize($inboundBody);
         if (in_array($normalizedField, ['pages', 'page count', 'numero pagine'], true)

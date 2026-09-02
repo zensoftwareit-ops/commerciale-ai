@@ -31,8 +31,12 @@ class GenerateLeadReply
     {
         $this->licenseGuard->assertAiCapacity();
         $organizationId = app(TenantContext::class)->requireOrganization()->id;
-        if (! filled($lead->email)) {
+        $channel = (string) data_get($extraContext, 'channel', 'email');
+        if ($channel === 'email' && ! filled($lead->email)) {
             throw ValidationException::withMessages(['reply' => 'Il lead non ha un indirizzo email valido.']);
+        }
+        if ($channel === 'whatsapp' && ! filled($lead->phone)) {
+            throw ValidationException::withMessages(['reply' => 'Il lead non ha un numero WhatsApp valido.']);
         }
 
         $settings = OrganizationSetting::query()->first();
@@ -74,7 +78,7 @@ class GenerateLeadReply
             ])->validate();
             $meta = $result['_meta'] ?? [];
 
-            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context, $quotationResult, $settings): LeadReply {
+            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context, $quotationResult, $settings, $channel): LeadReply {
                 $run->update([
                     'status' => 'completed', 'provider' => $meta['provider'] ?? 'unknown',
                     'model' => $meta['model'] ?? 'unknown', 'policy_version' => $meta['policy_version'] ?? 'reply-draft-v1',
@@ -99,7 +103,7 @@ class GenerateLeadReply
                 if (! is_array(data_get($context, 'incoming_email')) && data_get($context, 'automation_stage') !== 'initial') {
                     $automationBlockers[] = 'manual_draft';
                 }
-                $externalAutomation = ! ($settings?->internal_test_only ?? true)
+                $externalAutomation = $channel === 'email' && ! ($settings?->internal_test_only ?? true)
                     && config('commerciale-ai.automation.external_send_enabled');
                 if ($externalAutomation && ! MailboxAccount::query()->where('is_active', true)->where('domain_verification_status', 'verified')->exists()) {
                     $automationBlockers[] = 'sender_domain_not_verified';
@@ -108,19 +112,19 @@ class GenerateLeadReply
                 $reply = LeadReply::create([
                     'organization_id' => $organizationId, 'lead_id' => $lead->id,
                     'ai_analysis_id' => $analysis->id, 'ai_run_id' => $run->id,
-                    'status' => 'draft', 'parent_message_id' => data_get($context, 'incoming_email.message_id'),
+                    'status' => 'draft', 'channel' => $channel, 'parent_message_id' => data_get($context, 'incoming_email.message_id'),
                     'reply_kind' => $replyKind,
                     'automation_eligible' => $automationBlockers === [],
                     'automation_blockers' => $automationBlockers,
-                    'recipient' => $lead->email,
-                    'subject' => $result['subject'], 'body' => $result['body'],
+                    'recipient' => $channel === 'whatsapp' ? $lead->phone : $lead->email,
+                    'subject' => $channel === 'whatsapp' ? 'WhatsApp' : $result['subject'], 'body' => $result['body'],
                 ]);
                 $quotationResult['quotation']?->update(['lead_reply_id' => $reply->id]);
                 $lead->update(['operational_status' => 'awaiting_approval', 'last_activity_at' => now()]);
                 Activity::create([
                     'organization_id' => $organizationId, 'lead_id' => $lead->id, 'actor_id' => $actorId,
-                    'type' => 'reply_draft_created', 'title' => 'Bozza email preparata',
-                    'data' => ['reply_id' => $reply->id, 'analysis_id' => $analysis->id], 'occurred_at' => now(),
+                    'type' => 'reply_draft_created', 'title' => $channel === 'whatsapp' ? 'Bozza WhatsApp preparata' : 'Bozza email preparata',
+                    'data' => ['reply_id' => $reply->id, 'analysis_id' => $analysis->id, 'channel' => $channel], 'occurred_at' => now(),
                 ]);
 
                 return $reply;
@@ -142,9 +146,13 @@ class GenerateLeadReply
         ]);
         $outbound = $lead->replies()->where('status', 'sent')->get()->map(fn ($reply) => [
             'direction' => 'outbound', 'at' => $reply->sent_at?->toIso8601String(),
-            'subject' => $reply->subject, 'body' => mb_substr((string) $reply->body, 0, 6000),
+            'channel' => $reply->channel, 'subject' => $reply->subject, 'body' => mb_substr((string) $reply->body, 0, 6000),
+        ]);
+        $whatsapp = $lead->whatsappMessages()->where('direction', 'inbound')->get()->map(fn ($message) => [
+            'direction' => 'inbound', 'channel' => 'whatsapp', 'at' => $message->received_at?->toIso8601String(),
+            'subject' => null, 'body' => mb_substr((string) $message->body, 0, 6000),
         ]);
 
-        return $inbound->concat($outbound)->sortBy('at')->take(-20)->values()->all();
+        return $inbound->concat($outbound)->concat($whatsapp)->sortBy('at')->take(-20)->values()->all();
     }
 }

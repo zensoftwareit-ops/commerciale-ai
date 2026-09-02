@@ -7,6 +7,7 @@ use App\Models\KnowledgeDocument;
 use App\Models\Lead;
 use App\Models\MailboxAccount;
 use App\Models\Organization;
+use App\Models\WhatsappAccount;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -33,6 +34,11 @@ class OrganizationDataExporter
                     'resend_domain_name', 'resend_domain_status', 'resend_dns_records', 'resend_last_checked_at',
                 ]));
             $knowledge = KnowledgeDocument::withoutGlobalScopes()->where('organization_id', $organization->id)->get();
+            $whatsapp = WhatsappAccount::withoutGlobalScopes()->where('organization_id', $organization->id)->get()
+                ->map(fn (WhatsappAccount $account): array => $account->only([
+                    'id', 'name', 'waba_id', 'phone_number_id', 'display_phone_number', 'is_active',
+                    'auto_reply_enabled', 'internal_test_only', 'allowed_recipients', 'last_tested_at', 'created_at',
+                ]));
 
             echo '{"exported_at":'.json_encode(now()->toIso8601String(), JSON_THROW_ON_ERROR);
             echo ',"organization":'.json_encode($organization->only(['id', 'name', 'slug', 'timezone', 'locale', 'status', 'created_at']), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
@@ -41,6 +47,7 @@ class OrganizationDataExporter
             echo ',"sources":'.json_encode($sources, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
             echo ',"mailboxes":'.json_encode($mailboxes, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
             echo ',"knowledge_documents":'.json_encode($knowledge, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+            echo ',"whatsapp_accounts":'.json_encode($whatsapp, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
             foreach (['pipeline_stages', 'qualification_profiles', 'prompt_policies', 'pricing_rules', 'ai_runs', 'usage_records', 'webhook_receipts', 'commercial_notifications', 'licenses'] as $table) {
                 echo ','.json_encode($table, JSON_THROW_ON_ERROR).':[';
                 $firstRow = true;
@@ -64,6 +71,7 @@ class OrganizationDataExporter
                     'analyses' => fn ($query) => $query->withoutGlobalScopes(),
                     'replies' => fn ($query) => $query->withoutGlobalScopes(),
                     'inboundEmails' => fn ($query) => $query->withoutGlobalScopes(),
+                    'whatsappMessages' => fn ($query) => $query->withoutGlobalScopes(),
                     'quotations' => fn ($query) => $query->withoutGlobalScopes(),
                 ])
                 ->orderBy('id')

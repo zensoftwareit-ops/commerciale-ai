@@ -26,6 +26,15 @@ return [
         'domain_automation_enabled' => (bool) env('RESEND_DOMAIN_AUTOMATION_ENABLED', false),
     ],
 
+    'whatsapp' => [
+        'graph_url' => env('WHATSAPP_GRAPH_URL', 'https://graph.facebook.com'),
+        'graph_version' => env('WHATSAPP_GRAPH_VERSION', 'v23.0'),
+        'webhook_verify_token' => env('WHATSAPP_WEBHOOK_VERIFY_TOKEN'),
+        'app_secret' => env('WHATSAPP_APP_SECRET'),
+        'api_timeout' => (int) env('WHATSAPP_API_TIMEOUT', 20),
+        'beta_external_send_enabled' => (bool) env('WHATSAPP_BETA_EXTERNAL_SEND_ENABLED', false),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

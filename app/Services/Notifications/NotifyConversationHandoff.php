@@ -6,6 +6,7 @@ use App\Mail\ConversationHandoffMail;
 use App\Models\CommercialNotification;
 use App\Models\InboundEmail;
 use App\Models\Lead;
+use App\Models\WhatsappMessage;
 use App\Services\Mail\MailIdentity;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -14,7 +15,7 @@ class NotifyConversationHandoff
 {
     public function __construct(private readonly MailIdentity $identities) {}
 
-    public function handle(Lead $lead, InboundEmail $inbound, string $reason): void
+    public function handle(Lead $lead, InboundEmail|WhatsappMessage $inbound, string $reason): void
     {
         $organization = $lead->organization()->firstOrFail();
         $recipients = $organization->users()->wherePivotIn('role', ['owner', 'sales'])->get();
@@ -27,10 +28,13 @@ class NotifyConversationHandoff
                 'lead_id' => $lead->id,
                 'type' => 'conversation_handoff',
                 'title' => 'Intervento commerciale richiesto',
-                'message' => $lead->name.' ha risposto, ma l’automazione non può proseguire in modo affidabile.',
+                'message' => $lead->name.' ha risposto via '.($inbound instanceof WhatsappMessage ? 'WhatsApp' : 'email').', ma l’automazione non può proseguire in modo affidabile.',
                 'data' => [
-                    'reason' => $reason, 'inbound_email_id' => $inbound->id,
-                    'from' => $inbound->from_address, 'subject' => $inbound->subject,
+                    'reason' => $reason,
+                    'inbound_email_id' => $inbound instanceof InboundEmail ? $inbound->id : null,
+                    'whatsapp_message_id' => $inbound instanceof WhatsappMessage ? $inbound->id : null,
+                    'from' => $inbound instanceof WhatsappMessage ? $inbound->from_number : $inbound->from_address,
+                    'subject' => $inbound instanceof WhatsappMessage ? 'WhatsApp' : $inbound->subject,
                 ],
             ]);
 

@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\TwoFactorController;
 use App\Http\Controllers\AccountTwoFactorController;
 use App\Http\Controllers\OrganizationDataController;
+use App\Http\Controllers\WhatsappAccountController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/leads');
@@ -130,6 +131,9 @@ Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'lic
     Route::post('/settings/mailboxes/{mailbox}/resend-domain/verify', [MailboxAccountController::class, 'verifyResendDomain'])->middleware(['role:owner', 'throttle:6,1'])->name('settings.mailboxes.resend-domain.verify');
     Route::post('/settings/mailboxes/{mailbox}/resend-domain/refresh', [MailboxAccountController::class, 'refreshResendDomain'])->middleware(['role:owner', 'throttle:12,1'])->name('settings.mailboxes.resend-domain.refresh');
     Route::delete('/settings/mailboxes/{mailbox}', [MailboxAccountController::class, 'destroy'])->middleware('role:owner')->name('settings.mailboxes.destroy');
+    Route::get('/settings/whatsapp', [WhatsappAccountController::class, 'edit'])->middleware('role:owner')->name('settings.whatsapp.edit');
+    Route::put('/settings/whatsapp', [WhatsappAccountController::class, 'update'])->middleware('role:owner')->name('settings.whatsapp.update');
+    Route::post('/settings/whatsapp/test', [WhatsappAccountController::class, 'test'])->middleware(['role:owner', 'throttle:6,1'])->name('settings.whatsapp.test');
     Route::post('/settings/pricing-rules', [PricingRuleController::class, 'store'])->middleware('role:owner')->name('settings.pricing-rules.store');
     Route::put('/settings/pricing-rules/{rule}', [PricingRuleController::class, 'update'])->middleware('role:owner')->name('settings.pricing-rules.update');
     Route::get('/settings/sources', [InboundSourceController::class, 'index'])->middleware('role:owner')->name('settings.sources');

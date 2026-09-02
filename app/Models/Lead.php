@@ -73,6 +73,11 @@ class Lead extends Model
         return $this->hasMany(InboundEmail::class)->latest('received_at');
     }
 
+    public function whatsappMessages(): HasMany
+    {
+        return $this->hasMany(WhatsappMessage::class)->latest('received_at');
+    }
+
     public function quotations(): HasMany
     {
         return $this->hasMany(Quotation::class)->latest('version');

@@ -146,12 +146,25 @@
 </section>
 @endif
 
+@if($lead->whatsappMessages->isNotEmpty())
+<section class="card" style="margin-top:1rem">
+    <div class="toolbar"><div><h2>Conversazione WhatsApp <span class="badge warm">BETA</span></h2><p class="muted">Messaggi ricevuti e inviati tramite la WhatsApp Cloud API.</p></div><span class="badge">{{ $lead->whatsappMessages->count() }}</span></div>
+    @foreach($lead->whatsappMessages->sortBy('received_at') as $message)
+        <article class="email-preview" style="margin-left:{{ $message->direction === 'outbound' ? '8%' : '0' }};background:{{ $message->direction === 'outbound' ? '#eaf9f5' : '#fbfcfe' }}">
+            <div class="toolbar" style="margin-bottom:.4rem"><strong>{{ $message->direction === 'outbound' ? 'Daria' : $message->from_number }}</strong><span class="badge {{ $message->direction === 'outbound' ? 'success' : '' }}">{{ $message->direction === 'outbound' ? 'INVIATO' : 'RICEVUTO' }}</span></div>
+            {!! nl2br(e($message->body)) !!}
+            <div class="muted" style="margin-top:8px">{{ ($message->received_at ?? $message->sent_at ?? $message->created_at)->format('d/m/Y H:i') }} · {{ $message->status }}</div>
+        </article>
+    @endforeach
+</section>
+@endif
+
 @if($reply = $lead->replies->first())
 <section class="card" style="margin-top:1rem">
     <div class="toolbar">
         <div>
-            <h2>Risposta al lead</h2>
-            <p class="muted">Bozza generata dall’AI: controllala sempre prima dell’invio.</p>
+            <h2>Risposta al lead @if($reply->channel === 'whatsapp')<span class="badge warm">WHATSAPP BETA</span>@endif</h2>
+            <p class="muted">Bozza generata dall’AI per {{ $reply->channel === 'whatsapp' ? 'WhatsApp' : 'email' }}: controllala prima dell’invio.</p>
         </div>
         <span class="badge">{{ $reply->status === 'sent' ? 'INVIATA' : 'DA APPROVARE' }}</span>
     </div>
@@ -171,6 +184,8 @@
                 'ambiguous_pricing_rule' => 'più fasce di prezzo risultano compatibili',
                 'automatic_reply_limit_reached' => 'è stato raggiunto il limite di risposte automatiche',
                 'sender_requires_verification' => 'il mittente della risposta richiede verifica',
+                'whatsapp_auto_reply_disabled' => 'le risposte automatiche WhatsApp non sono attive',
+                'whatsapp_recipient_not_allowed' => 'il numero non è nella lista dei test WhatsApp',
             ];
             $visibleBlockers = collect($reply->automation_blockers ?? [])
                 ->map(fn ($blocker) => $automationBlockerLabels[$blocker] ?? str_replace('_', ' ', $blocker))
@@ -186,29 +201,29 @@
     @endif
     @if($reply->status === 'sent')
         <p><strong>A:</strong> {{ $reply->recipient }}</p>
-        <p><strong>Oggetto:</strong> {{ $reply->subject }}</p>
+        @if($reply->channel === 'email')<p><strong>Oggetto:</strong> {{ $reply->subject }}</p>@endif
         <div class="email-preview">{!! nl2br(e($reply->body)) !!}</div>
-        <p class="notice">Inviata il {{ $reply->sent_at->format('d/m/Y H:i') }} da {{ $reply->approver?->name ?? 'Operatore' }}.</p>
+        <p class="notice">Inviata via {{ $reply->channel === 'whatsapp' ? 'WhatsApp' : 'email' }} il {{ $reply->sent_at->format('d/m/Y H:i') }} da {{ $reply->approver?->name ?? 'Daria' }}.</p>
         @if($reply->follow_up_at)<p><strong>Follow-up:</strong> {{ $reply->follow_up_at->format('d/m/Y H:i') }}</p>@endif
     @else
-        @if(config('mail.default') === 'log')
+        @if($reply->channel === 'email' && config('mail.default') === 'log')
             <div class="warning">La posta è in modalità <strong>log</strong>: configura SMTP prima di inviare email reali.</div>
         @endif
         <form method="post" action="{{ route('replies.update', [$lead, $reply]) }}">
             @csrf @method('patch')
-            <label>Destinatario</label><input type="email" name="recipient" value="{{ old('recipient', $reply->recipient) }}" required>
-            <label>Oggetto</label><input name="subject" value="{{ old('subject', $reply->subject) }}" required>
+            <label>Destinatario</label><input type="{{ $reply->channel === 'email' ? 'email' : 'text' }}" name="recipient" value="{{ old('recipient', $reply->recipient) }}" required>
+            @if($reply->channel === 'email')<label>Oggetto</label><input name="subject" value="{{ old('subject', $reply->subject) }}" required>@else<input type="hidden" name="subject" value="WhatsApp">@endif
             <label>Testo</label><textarea name="body" rows="12" required>{{ old('body', $reply->body) }}</textarea>
             <label>Follow-up opzionale</label>
             <input type="datetime-local" name="follow_up_at" value="{{ old('follow_up_at', $reply->follow_up_at?->format('Y-m-d\TH:i')) }}">
             <p class="muted">La data verrà mostrata come prossima azione del lead dopo l’invio.</p>
             <button class="btn btn-muted">Salva bozza</button>
         </form>
-        <form method="post" action="{{ route('replies.send', [$lead, $reply]) }}" style="margin-top:1rem" onsubmit="return confirm('Confermi l’approvazione e l’invio di questa email?')">
+        <form method="post" action="{{ route('replies.send', [$lead, $reply]) }}" style="margin-top:1rem" onsubmit="return confirm('Confermi l’approvazione e l’invio di questa risposta?')">
             @csrf
             <button class="btn">Approva e invia la versione salvata</button>
         </form>
-        @if($reply->last_error)<p class="error">Ultimo invio non riuscito. Controlla SMTP e riprova.</p>@endif
+        @if($reply->last_error)<p class="error">Ultimo invio non riuscito: {{ $reply->last_error }}</p>@endif
     @endif
 </section>
 @elseif($lead->analyses->isNotEmpty() && filled($lead->email))
