@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\OrganizationSetting;
 use App\Models\PricingRule;
+use App\Models\Quotation;
 use App\Support\Tenancy\TenantContext;
 use App\Services\Organizations\OrganizationLifecycle;
 use Illuminate\Http\RedirectResponse;
@@ -35,7 +36,7 @@ class OrganizationSettingsController extends Controller
             'lead_handling' => ['qualification_questions_text', 'exclusion_criteria', 'tone_of_voice', 'email_signature', 'appointment_details', 'promised_response_minutes'],
             'automation' => ['conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only', 'automation_allowed_recipients_text', 'max_automatic_replies', 'max_auto_quote_amount', 'auto_analyze_new_leads', 'auto_send_initial_email'],
             'privacy' => ['data_retention_days', 'privacy_cleanup_enabled'],
-            'quotation_document' => ['quotation_logo', 'remove_quotation_logo', 'quotation_company_details', 'quotation_payment_terms', 'quotation_footer'],
+            'quotation_document' => ['quotation_logo', 'remove_quotation_logo', 'quotation_primary_color', 'quotation_header_text', 'quotation_intro_text', 'quotation_company_details', 'quotation_payment_terms', 'quotation_footer', 'quotation_footer_left', 'quotation_footer_center', 'quotation_footer_right', 'quotation_acceptance_text'],
         ];
         $section = (string) $request->input('section', 'all');
         $request->merge(['section' => $section]);
@@ -60,6 +61,13 @@ class OrganizationSettingsController extends Controller
             'quotation_company_details' => ['nullable', 'string', 'max:2000'],
             'quotation_payment_terms' => ['nullable', 'string', 'max:3000'],
             'quotation_footer' => ['nullable', 'string', 'max:1000'],
+            'quotation_primary_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'quotation_header_text' => ['nullable', 'string', 'max:1000'],
+            'quotation_intro_text' => ['nullable', 'string', 'max:2000'],
+            'quotation_footer_left' => ['nullable', 'string', 'max:255'],
+            'quotation_footer_center' => ['nullable', 'string', 'max:255'],
+            'quotation_footer_right' => ['nullable', 'string', 'max:255'],
+            'quotation_acceptance_text' => ['nullable', 'string', 'max:1000'],
         ];
         $request->validate(['section' => ['required', 'in:'.implode(',', [...array_keys($sectionFields), 'all'])]]);
         $data = $request->validate($section === 'all' ? $rules : Arr::only($rules, $sectionFields[$section]));
@@ -95,6 +103,13 @@ class OrganizationSettingsController extends Controller
         }
         $data['completeness'] = OrganizationSetting::completenessFor(array_merge($current?->toArray() ?? [], $data));
         OrganizationSetting::query()->updateOrCreate(['organization_id' => app(TenantContext::class)->id()], $data);
+        if ($section === 'quotation_document') {
+            Quotation::query()->whereNotNull('pdf_path')->whereHas('reply', fn ($query) => $query->where('status', '!=', 'sent'))
+                ->get()->each(function (Quotation $quotation): void {
+                    Storage::disk('local')->delete($quotation->pdf_path);
+                    $quotation->update(['pdf_path' => null, 'pdf_generated_at' => null]);
+                });
+        }
         $lifecycle->refresh($tenants->requireOrganization());
 
         $labels = [

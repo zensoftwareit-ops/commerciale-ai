@@ -73,6 +73,9 @@ class QuotationAutomationTest extends CommercialeAiTestCase
             'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale', 'email_signature' => 'Demo',
             'conversation_automation_enabled' => true, 'auto_send_quotes_enabled' => true, 'internal_test_only' => true,
             'automation_allowed_recipients' => ['anna@example.test'], 'max_automatic_replies' => 2, 'max_auto_quote_amount' => 3000,
+            'quotation_primary_color' => '#112233', 'quotation_header_text' => "+39 02 1234567\ninfo@demo.test",
+            'quotation_footer_left' => 'info@demo.test', 'quotation_footer_center' => 'Demo Srl | P. IVA 12345678901',
+            'quotation_footer_right' => 'www.demo.test',
         ]);
         PricingRule::create(['name' => 'Sito vetrina', 'keywords' => ['sito web'], 'required_fields' => ['pages'], 'minimum_price' => 1500, 'maximum_price' => 2200, 'validity_days' => 15]);
         $lead = app(CreateLead::class)->handle(['name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Sito web', 'source_label' => 'manual', 'request_data' => ['pages' => 5]]);
@@ -88,7 +91,10 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $quote = Quotation::firstOrFail();
         $this->assertNotNull($quote->fresh()->pdf_generated_at);
         Storage::disk('local')->assertExists($quote->fresh()->pdf_path);
-        $this->assertStringStartsWith('%PDF-1.4', Storage::disk('local')->get($quote->fresh()->pdf_path));
+        $pdf = Storage::disk('local')->get($quote->fresh()->pdf_path);
+        $this->assertStringStartsWith('%PDF-1.4', $pdf);
+        $this->assertStringContainsString('+39 02 1234567', $pdf);
+        $this->assertStringContainsString('0.067 0.133 0.200 RG', $pdf);
         Mail::assertSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('anna@example.test')
             && count($mail->attachments()) === 1
             && $mail->quotationPdfFilename === 'Preventivo-'.$quote->document_number.'.pdf');

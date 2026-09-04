@@ -20,6 +20,8 @@ class OrganizationSetting extends Model
         'automation_allowed_recipients', 'max_automatic_replies', 'max_auto_quote_amount',
         'auto_analyze_new_leads', 'auto_send_initial_email', 'new_lead_automation_started_at',
         'quotation_logo_path', 'quotation_company_details', 'quotation_payment_terms', 'quotation_footer',
+        'quotation_primary_color', 'quotation_header_text', 'quotation_intro_text',
+        'quotation_footer_left', 'quotation_footer_center', 'quotation_footer_right', 'quotation_acceptance_text',
     ];
 
     protected function casts(): array

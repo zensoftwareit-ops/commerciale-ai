@@ -4,10 +4,15 @@ Daria genera un PDF privato quando una risposta è classificata come preventivo.
 
 ## Configurazione cliente
 
-In **Azienda e AI > Preventivi PDF** l'owner può impostare:
+Il prodotto usa un unico modello commerciale classico, ispirato alla carta intestata del preventivo di riferimento: riga colorata, logo a sinistra, contatti a destra, contenuto lineare, offerta in grassetto, condizioni e spazio firma. In **Azienda e AI > Preventivi PDF** l'owner può impostare:
 
 - logo aziendale JPEG, massimo 2 MB;
-- dati societari e fiscali per il piè di pagina;
+- colore principale;
+- intestazione superiore su più righe;
+- formula introduttiva con i segnaposto `{{cliente}}` e `{{azienda_cliente}}`;
+- tre campi indipendenti del piè di pagina;
+- testo dello spazio di accettazione;
+- dati societari e fiscali;
 - condizioni economiche e di pagamento;
 - nota finale facoltativa.
 

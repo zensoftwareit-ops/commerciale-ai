@@ -69,23 +69,28 @@ class SimpleQuotationPdf
     private string $content = '';
     private float $y = 0;
     private ?array $image = null;
+    private array $primary = [0.086, 0.608, 0.835];
+    private OrganizationSetting $settings;
 
     public function render(Quotation $quotation, OrganizationSetting $settings, ?string $logoPath): string
     {
+        $this->settings = $settings;
+        $this->primary = $this->color((string) ($settings->quotation_primary_color ?: '#169BD5'));
         $this->image = $this->readJpeg($logoPath);
         $this->newPage($settings);
         $this->metadata($quotation);
-        $this->recipient($quotation);
-        $this->section('Oggetto', $quotation->rule->name);
-        $this->priceBox($quotation);
-        $this->section('Attivita incluse', $quotation->rule->includes ?: 'Da definire e confermare con il referente commerciale.');
+        $this->recipient($quotation, $settings);
+        $this->section(mb_strtoupper($quotation->rule->name), $quotation->rule->includes ?: 'Da definire e confermare con il referente commerciale.');
+        $this->priceLine($quotation);
         if (filled($quotation->rule->excludes)) $this->section('Esclusioni', $quotation->rule->excludes);
         $terms = $settings->quotation_payment_terms ?: 'Importi al netto di IVA. Modalita e tempi di pagamento da concordare in fase di conferma.';
-        $this->section('Condizioni', $terms);
+        $this->section('Pagamento e condizioni', $terms);
         if ((int) $quotation->confidence < 100 || ($quotation->missing_fields ?? []) !== []) {
-            $this->notice('STIMA INDICATIVA', 'La fascia economica si basa sulle informazioni disponibili e sara confermata dal commerciale dopo la verifica finale dei requisiti.');
+            $this->notice('Stima indicativa:', 'la fascia economica si basa sulle informazioni disponibili e sara confermata dal commerciale dopo la verifica finale dei requisiti.');
         }
         if (filled($settings->quotation_footer)) $this->paragraph($settings->quotation_footer, 9, false, 13, [0.35, 0.39, 0.47]);
+        $this->paragraph('La presente offerta e valida fino al '.$quotation->valid_until->format('d/m/Y').'.', 10, false, 15);
+        $this->signature($settings);
         $this->pages[] = $this->content;
 
         return $this->build($settings);
@@ -94,70 +99,82 @@ class SimpleQuotationPdf
     private function newPage(OrganizationSetting $settings): void
     {
         if ($this->content !== '') $this->pages[] = $this->content;
-        $this->content = "q 1 0.39 0.35 rg 0 814 595.28 27 re f Q\n";
+        $this->content = sprintf("q %.3F %.3F %.3F RG 1.6 w 48 805 m 547 805 l S Q\n", ...$this->primary);
         if ($this->image) {
             $ratio = $this->image['width'] / $this->image['height'];
-            $height = 38.0;
-            $width = min(150.0, $height * $ratio);
-            $this->content .= sprintf("q %.2F 0 0 %.2F 48 745 cm /Im1 Do Q\n", $width, $height);
+            $height = 76.0;
+            $width = min(185.0, $height * $ratio);
+            $this->content .= sprintf("q %.2F 0 0 %.2F 48 700 cm /Im1 Do Q\n", $width, $height);
         } else {
-            $this->drawText(self::LEFT, 773, $settings->commercial_name ?: $settings->legal_name ?: 'Azienda', 17, true, [0.08, 0.12, 0.22]);
+            $this->drawText(self::LEFT, 746, $settings->commercial_name ?: $settings->legal_name ?: 'Azienda', 24, true, $this->primary);
         }
-        $this->drawText(410, 775, 'PREVENTIVO', 18, true, [1, 0.39, 0.35]);
-        $this->content .= "0.9 0.91 0.94 RG 48 730 499 0.8 re S\n";
-        $this->y = 704;
+        $header = $settings->quotation_header_text ?: collect([$settings->website_url, $settings->service_area])->filter()->implode("\n");
+        $headerY = 775.0;
+        foreach (preg_split('/\R/u', trim($header)) ?: [] as $line) {
+            $this->drawTextRight(self::RIGHT, $headerY, trim($line), 8, false, [0.1, 0.1, 0.12]);
+            $headerY -= 11;
+        }
+        $this->y = 658;
     }
 
     private function metadata(Quotation $quotation): void
     {
-        $this->drawText(self::LEFT, $this->y, 'Numero', 8, true, [0.4, 0.44, 0.52]);
-        $this->drawText(125, $this->y, $quotation->document_number, 10, true);
-        $this->drawText(310, $this->y, 'Data', 8, true, [0.4, 0.44, 0.52]);
-        $this->drawText(356, $this->y, $quotation->created_at->format('d/m/Y'), 10);
-        $this->drawText(435, $this->y, 'Valido fino al', 8, true, [0.4, 0.44, 0.52]);
-        $this->drawText(502, $this->y, $quotation->valid_until->format('d/m/Y'), 10);
-        $this->y -= 36;
+        $label = 'Preventivo n. '.$quotation->document_number.' del '.$quotation->created_at->format('d/m/Y');
+        $this->drawText(self::LEFT, $this->y, $label, 11, false, [0.08, 0.08, 0.1]);
+        $this->y -= 34;
     }
 
-    private function recipient(Quotation $quotation): void
+    private function recipient(Quotation $quotation, OrganizationSetting $settings): void
     {
-        $this->content .= sprintf("q 0.97 0.97 0.98 rg %.2F %.2F 499 72 re f Q\n", self::LEFT, $this->y - 56);
-        $this->drawText(self::LEFT + 14, $this->y - 17, 'DESTINATARIO', 8, true, [0.4, 0.44, 0.52]);
-        $this->drawText(self::LEFT + 14, $this->y - 36, $quotation->lead->name, 12, true);
-        $detail = mb_strimwidth(collect([$quotation->lead->company, $quotation->lead->email, $quotation->lead->phone])->filter()->implode('  |  '), 0, 92, '...');
-        if ($detail !== '') $this->drawText(self::LEFT + 14, $this->y - 53, $detail, 9, false, [0.3, 0.34, 0.42]);
-        $this->y -= 91;
+        $template = $settings->quotation_intro_text ?: 'Spett. le {{cliente}}, in riferimento alla Vostra cortese richiesta, Vi sottoponiamo la nostra migliore offerta per:';
+        $intro = str_replace(
+            ['{{cliente}}', '{{azienda_cliente}}'],
+            [$quotation->lead->name, $quotation->lead->company ?: $quotation->lead->name],
+            $template,
+        );
+        $this->paragraph($intro, 10.5, false, 15.5, [0.08, 0.08, 0.1]);
+        $this->y -= 13;
     }
 
-    private function priceBox(Quotation $quotation): void
+    private function priceLine(Quotation $quotation): void
     {
-        $this->ensureSpace(90);
-        $this->content .= sprintf("q 1 0.96 0.94 rg %.2F %.2F 499 74 re f Q\n", self::LEFT, $this->y - 58);
-        $this->drawText(self::LEFT + 15, $this->y - 19, 'FASCIA ECONOMICA', 8, true, [0.75, 0.24, 0.2]);
-        $range = 'EUR '.number_format((float) $quotation->minimum_price, 2, ',', '.').' - '.number_format((float) $quotation->maximum_price, 2, ',', '.').' + IVA';
-        $this->drawText(self::LEFT + 15, $this->y - 45, $range, 18, true, [0.08, 0.12, 0.22]);
-        $this->drawText(450, $this->y - 41, 'Affidabilita '.$quotation->confidence.'%', 8, true, [0.4, 0.44, 0.52]);
-        $this->y -= 93;
+        $this->ensureSpace(55);
+        $minimum = number_format((float) $quotation->minimum_price, 2, ',', '.');
+        $maximum = number_format((float) $quotation->maximum_price, 2, ',', '.');
+        $amount = $minimum === $maximum ? 'EUR '.$minimum : 'da EUR '.$minimum.' a EUR '.$maximum;
+        $this->drawText(self::LEFT, $this->y, 'Ns. offerta: '.$amount.' + IVA', 12, true, [0.08, 0.08, 0.1]);
+        $this->y -= 32;
     }
 
     private function section(string $title, string $body): void
     {
         $this->ensureSpace(65);
-        $this->drawText(self::LEFT, $this->y, mb_strtoupper($title), 9, true, [1, 0.39, 0.35]);
-        $this->y -= 18;
-        $this->paragraph($body, 10, false, 15);
-        $this->y -= 12;
+        $this->drawText(self::LEFT, $this->y, $title, 11, true, [0.08, 0.08, 0.1]);
+        $this->y -= 21;
+        $this->paragraph($body, 10, false, 15, [0.08, 0.08, 0.1]);
+        $this->y -= 10;
     }
 
     private function notice(string $title, string $body): void
     {
-        $this->ensureSpace(76);
-        $top = $this->y;
-        $this->content .= sprintf("q 1 0.98 0.88 rg %.2F %.2F 499 66 re f Q\n", self::LEFT, $top - 52);
-        $this->drawText(self::LEFT + 13, $top - 18, $title, 8, true, [0.65, 0.42, 0.02]);
-        $this->y = $top - 34;
-        $this->paragraph($body, 8.5, false, 12, [0.35, 0.29, 0.12], self::LEFT + 13, 470);
-        $this->y = $top - 78;
+        $this->ensureSpace(58);
+        $this->drawText(self::LEFT, $this->y, $title, 9, true, $this->primary);
+        $this->y -= 15;
+        $this->paragraph($body, 9, false, 13, [0.2, 0.22, 0.26]);
+        $this->y -= 8;
+    }
+
+    private function signature(OrganizationSetting $settings): void
+    {
+        $this->ensureSpace(95);
+        $this->y -= 24;
+        $text = $settings->quotation_acceptance_text ?: "Per accettazione\nTIMBRO E FIRMA";
+        foreach (preg_split('/\R/u', trim($text)) ?: [] as $index => $line) {
+            $this->drawTextRight(520, $this->y, trim($line), $index === 0 ? 9 : 11, $index > 0, [0.08, 0.08, 0.1]);
+            $this->y -= 15;
+        }
+        $this->content .= "q 0.25 0.25 0.25 RG 0.7 w 360 ".($this->y - 12)." m 520 ".($this->y - 12)." l S Q\n";
+        $this->y -= 35;
     }
 
     private function paragraph(string $text, float $size = 10, bool $bold = false, float $leading = 15, array $color = [0.12, 0.15, 0.22], float $x = self::LEFT, float $width = 499): void
@@ -178,8 +195,7 @@ class SimpleQuotationPdf
     private function ensureSpace(float $height): void
     {
         if ($this->y - $height >= 70) return;
-        $settings = OrganizationSetting::query()->firstOrFail();
-        $this->newPage($settings);
+        $this->newPage($this->settings);
     }
 
     /** @return array<int, string> */
@@ -209,16 +225,25 @@ class SimpleQuotationPdf
         $this->content .= sprintf("BT /%s %.2F Tf %.3F %.3F %.3F rg %.2F %.2F Td (%s) Tj ET\n", $bold ? 'F2' : 'F1', $size, $color[0], $color[1], $color[2], $x, $y, $encoded);
     }
 
+    private function drawTextRight(float $right, float $y, string $text, float $size, bool $bold = false, array $color = [0.12, 0.15, 0.22]): void
+    {
+        $estimatedWidth = mb_strlen($text) * $size * 0.49;
+        $this->drawText(max(self::LEFT, $right - $estimatedWidth), $y, $text, $size, $bold, $color);
+    }
+
     private function build(OrganizationSetting $settings): string
     {
         $pageCount = count($this->pages);
         foreach ($this->pages as $index => &$page) {
-            $footer = $settings->quotation_company_details ?: collect([$settings->legal_name ?: $settings->commercial_name, $settings->website_url])->filter()->implode(' | ');
-            $footer = mb_strimwidth($footer, 0, 110, '...');
+            $left = $settings->quotation_footer_left ?: '';
+            $center = $settings->quotation_footer_center ?: ($settings->quotation_company_details ?: ($settings->legal_name ?: $settings->commercial_name));
+            $right = $settings->quotation_footer_right ?: ($settings->website_url ?: '');
             $this->content = '';
-            $this->drawText(self::LEFT, 37, $footer, 7.5, false, [0.42, 0.46, 0.53]);
-            $this->drawText(500, 37, ($index + 1).' / '.$pageCount, 7.5, true, [0.42, 0.46, 0.53]);
-            $page .= "0.9 0.91 0.94 RG 48 53 499 0.5 re S\n".$this->content;
+            $this->drawText(self::LEFT, 35, mb_strimwidth($left, 0, 42, '...'), 7.2, false, [0.16, 0.16, 0.18]);
+            $this->drawText(220, 35, mb_strimwidth($center, 0, 60, '...'), 7.2, false, [0.16, 0.16, 0.18]);
+            $this->drawTextRight(self::RIGHT, 35, mb_strimwidth($right, 0, 42, '...'), 7.2, false, [0.16, 0.16, 0.18]);
+            $this->drawTextRight(self::RIGHT, 22, ($index + 1).' / '.$pageCount, 6.5, false, [0.45, 0.45, 0.48]);
+            $page .= sprintf("q %.3F %.3F %.3F RG 1.6 w 48 51 m 547 51 l S Q\n", ...$this->primary).$this->content;
         }
         unset($page);
 
@@ -264,5 +289,11 @@ class SimpleQuotationPdf
         $data = @file_get_contents($path);
         if ($data === false) return null;
         return ['data' => $data, 'width' => $info[0], 'height' => $info[1], 'color' => ($info['channels'] ?? 3) === 1 ? 'DeviceGray' : 'DeviceRGB'];
+    }
+
+    private function color(string $hex): array
+    {
+        if (! preg_match('/^#([0-9a-f]{6})$/i', $hex, $matches)) return [0.086, 0.608, 0.835];
+        return [hexdec(substr($matches[1], 0, 2)) / 255, hexdec(substr($matches[1], 2, 2)) / 255, hexdec(substr($matches[1], 4, 2)) / 255];
     }
 }
