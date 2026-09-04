@@ -12,6 +12,7 @@ use App\Models\LeadReply;
 use App\Models\MailboxAccount;
 use App\Models\OrganizationSetting;
 use App\Services\Quotations\BuildQuotation;
+use App\Services\Quotations\QuotationPdfGenerator;
 use App\Services\Licensing\LicenseUsageGuard;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ class GenerateLeadReply
     public function __construct(
         private readonly LeadReplyGenerator $generator,
         private readonly BuildQuotation $quotationBuilder,
+        private readonly QuotationPdfGenerator $quotationPdfs,
         private readonly LicenseUsageGuard $licenseGuard,
         private readonly RecordAiUsage $usageRecorder,
     ) {}
@@ -82,7 +84,7 @@ class GenerateLeadReply
             ])->validate();
             $meta = $result['_meta'] ?? [];
 
-            return DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context, $quotationResult, $settings, $channel): LeadReply {
+            $reply = DB::transaction(function () use ($organizationId, $lead, $analysis, $actorId, $run, $result, $meta, $context, $quotationResult, $settings, $channel): LeadReply {
                 $run->update([
                     'status' => 'completed', 'provider' => $meta['provider'] ?? 'unknown',
                     'model' => $meta['model'] ?? 'unknown', 'policy_version' => $meta['policy_version'] ?? 'reply-draft-v1',
@@ -133,6 +135,12 @@ class GenerateLeadReply
 
                 return $reply;
             });
+
+            if ($channel === 'email' && $quotationResult['quotation'] && str_contains($reply->reply_kind, 'quotation')) {
+                $this->quotationPdfs->ensure($quotationResult['quotation']->fresh());
+            }
+
+            return $reply;
         } catch (Throwable $exception) {
             $run->update([
                 'status' => 'failed', 'error_code' => 'reply_generation_failed',

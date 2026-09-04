@@ -43,6 +43,7 @@ class QuotationAutomationTest extends CommercialeAiTestCase
 
     public function test_it_builds_a_deterministic_quote_but_keeps_it_as_draft_by_default(): void
     {
+        Storage::fake('local');
         [$organization] = $this->organizationWithUser();
         app(TenantContext::class)->set($organization);
         OrganizationSetting::create(['commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti', 'products_services' => 'Siti web', 'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale', 'email_signature' => 'Demo']);
@@ -58,6 +59,8 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $this->assertContains('conversation_automation_disabled', $quote->automation_blockers);
         $this->assertSame('quotation', $reply->reply_kind);
         $this->assertFalse($reply->automation_eligible);
+        $this->assertNotNull($quote->fresh()->pdf_generated_at);
+        Storage::disk('local')->assertExists($quote->fresh()->pdf_path);
     }
 
     public function test_internal_allowlist_can_enable_and_send_a_fully_reliable_quote(): void
