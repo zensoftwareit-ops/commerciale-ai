@@ -17,12 +17,12 @@ class FakeLeadReplyGenerator implements LeadReplyGenerator
         $quotation = $context['quotation'] ?? null;
 
         if ($quotation && (empty($quotation['missing_fields']) || ($quotation['indicative'] ?? false))) {
-            $minimum = number_format($quotation['minimum_price'], 0, ',', '.');
-            $maximum = number_format($quotation['maximum_price'], 0, ',', '.');
+            $estimated = number_format($quotation['estimated_price'] ?? $quotation['maximum_price'], 0, ',', '.');
+            $scope = $quotation['scope_description'] ?? $service;
 
             return [
                 'subject' => $incomingSubject ? 'Re: '.preg_replace('/^re:\s*/i', '', $incomingSubject) : 'Stima economica per '.$service,
-                'body' => "Buongiorno {$lead->name},\n\nper la richiesta descritta stimiamo una fascia indicativa tra {$minimum} e {$maximum} euro + IVA. La stima è valida fino al {$quotation['valid_until']} e sarà confermata dal commerciale dopo la verifica finale dei requisiti.\n\nCordiali saluti,\n{$signature}",
+                'body' => "Buongiorno {$lead->name},\n\nper {$scope} stimiamo un importo di {$estimated} euro + IVA. La stima è valida fino al {$quotation['valid_until']} e sarà confermata dopo la verifica finale dei requisiti.\n\nCordiali saluti,\n{$signature}",
                 '_meta' => ['provider' => 'fake', 'model' => 'deterministic-v1', 'policy_version' => 'quotation-draft-v1', 'input_units' => 0, 'output_units' => 0, 'estimated_cost' => 0],
             ];
         }
@@ -58,4 +58,3 @@ class FakeLeadReplyGenerator implements LeadReplyGenerator
         ];
     }
 }
-

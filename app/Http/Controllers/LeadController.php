@@ -82,9 +82,6 @@ class LeadController extends Controller
             return back()->withErrors(['reply' => 'Non ci sono una risposta ricevuta e un’analisi utilizzabili per riprendere la conversazione.']);
         }
         $existingDraft = $lead->replies()->where('status', 'draft')->where('parent_message_id', $inbound->message_id)->first();
-        if ($existingDraft && $existingDraft->reply_kind !== 'general') {
-            return back()->with('status', 'Esiste già una bozza di preventivo o qualificazione per l’ultima risposta del cliente.');
-        }
         if ($existingDraft) {
             $existingDraft->delete();
         }

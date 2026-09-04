@@ -55,12 +55,18 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $quote = Quotation::firstOrFail();
         $this->assertSame('1500.00', $quote->minimum_price);
         $this->assertSame('2200.00', $quote->maximum_price);
+        $this->assertSame('1850.00', $quote->estimated_price);
+        $this->assertSame(50, $quote->complexity_score);
+        $this->assertNotEmpty($quote->scope_description);
         $this->assertFalse($quote->auto_send_eligible);
         $this->assertContains('conversation_automation_disabled', $quote->automation_blockers);
         $this->assertSame('quotation', $reply->reply_kind);
         $this->assertFalse($reply->automation_eligible);
         $this->assertNotNull($quote->fresh()->pdf_generated_at);
         Storage::disk('local')->assertExists($quote->fresh()->pdf_path);
+        $pdf = Storage::disk('local')->get($quote->fresh()->pdf_path);
+        $this->assertStringContainsString('Ns. offerta stimata: EUR 1.850,00 + IVA', $pdf);
+        $this->assertStringNotContainsString('Da definire e confermare', $pdf);
     }
 
     public function test_internal_allowlist_can_enable_and_send_a_fully_reliable_quote(): void
@@ -250,7 +256,7 @@ class QuotationAutomationTest extends CommercialeAiTestCase
 
         $this->assertSame('quotation', $offer->reply_kind);
         $this->assertTrue($offer->automation_eligible);
-        $this->assertStringContainsString('fascia indicativa', $offer->body);
+        $this->assertStringContainsString('1.850', $offer->body);
         $this->assertStringNotContainsString('Può indicare', $offer->body);
     }
 

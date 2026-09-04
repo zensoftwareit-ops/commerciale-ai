@@ -6,12 +6,15 @@ use App\Contracts\InboundMailbox;
 use App\Contracts\LeadAnalyzer;
 use App\Contracts\LeadReplyGenerator;
 use App\Contracts\SetupWizardGenerator;
+use App\Contracts\QuotationEstimator;
 use App\Services\Ai\FakeLeadAnalyzer;
 use App\Services\Ai\FakeLeadReplyGenerator;
 use App\Services\Ai\OpenAiLeadAnalyzer;
 use App\Services\Ai\OpenAiLeadReplyGenerator;
 use App\Services\Ai\FakeSetupWizardGenerator;
 use App\Services\Ai\OpenAiSetupWizardGenerator;
+use App\Services\Quotations\FakeQuotationEstimator;
+use App\Services\Quotations\OpenAiQuotationEstimator;
 use App\Services\Mail\WebklexInboundMailbox;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SetupWizardGenerator::class, fn ($app) => config('commerciale-ai.ai_provider') === 'openai'
             ? $app->make(OpenAiSetupWizardGenerator::class)
             : $app->make(FakeSetupWizardGenerator::class));
+        $this->app->singleton(QuotationEstimator::class, fn ($app) => config('commerciale-ai.ai_provider') === 'openai'
+            ? $app->make(OpenAiQuotationEstimator::class)
+            : $app->make(FakeQuotationEstimator::class));
         $this->app->singleton(InboundMailbox::class, WebklexInboundMailbox::class);
         $this->app->singleton(TenantContext::class);
     }

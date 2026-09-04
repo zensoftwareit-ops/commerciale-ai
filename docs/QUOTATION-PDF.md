@@ -16,13 +16,13 @@ Il prodotto usa un unico modello commerciale classico, ispirato alla carta intes
 - condizioni economiche e di pagamento;
 - nota finale facoltativa.
 
-Il documento usa esclusivamente prezzi, inclusioni, esclusioni e validità della regola di listino associata. Se la quotazione è indicativa, il PDF lo dichiara espressamente.
+Il listino definisce i limiti economici autorizzati. Per ogni richiesta, OpenAI sintetizza l'ambito e assegna un livello di complessità da 0 a 100 usando i requisiti del lead e la conversazione. Daria trasforma il livello di complessità in un importo stimato compreso tra minimo e massimo: il modello non può proporre direttamente un prezzo fuori listino. Descrizione, attività comprese e ipotesi riportano soltanto elementi dichiarati dal cliente o autorizzati nella regola. Se la quotazione è indicativa, il PDF lo dichiara espressamente.
 
 ## Numerazione e archiviazione
 
 Ogni organizzazione ha una numerazione annuale indipendente nel formato `OFF-2026-00001`. Il file viene archiviato nel disco Laravel `local`, quindi non è pubblicamente accessibile. Il download passa da una rotta autenticata e soggetta all'isolamento tenant.
 
-Il PDF viene generato al primo download o immediatamente prima dell'invio della mail, poi viene riutilizzato senza rigenerazioni. Eliminando definitivamente il lead vengono eliminati anche i relativi file PDF.
+Il PDF viene generato insieme alla bozza del preventivo e poi riutilizzato per download e invio. Eliminando definitivamente il lead vengono eliminati anche i relativi file PDF.
 
 ## Invio
 

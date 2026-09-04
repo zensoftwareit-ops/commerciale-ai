@@ -124,7 +124,7 @@ class SendLeadReply
             if (! $settings->auto_send_quotes_enabled) throw new RuntimeException('Invio automatico preventivi disabilitato.');
             $quotation = Quotation::query()->where('lead_reply_id', $reply->id)->first();
             if (! $quotation || ! $quotation->auto_send_eligible) throw new RuntimeException('Preventivo non idoneo all’invio automatico.');
-            if ($settings->max_auto_quote_amount === null || (float) $quotation->maximum_price > (float) $settings->max_auto_quote_amount) throw new RuntimeException('Preventivo oltre la soglia automatica corrente.');
+            if ($settings->max_auto_quote_amount === null || (float) ($quotation->estimated_price ?? $quotation->maximum_price) > (float) $settings->max_auto_quote_amount) throw new RuntimeException('Preventivo oltre la soglia automatica corrente.');
         }
     }
 }

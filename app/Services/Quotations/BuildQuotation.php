@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class BuildQuotation
 {
-    public function __construct(private readonly QuotationNumberGenerator $numbers) {}
+    public function __construct(private readonly QuotationNumberGenerator $numbers, private readonly EstimateQuotation $estimator) {}
 
     /** @return array{quotation:Quotation|null,context:array|null,blockers:array,conversation_blockers:array} */
     public function handle(Lead $lead, ?AiAnalysis $analysis = null): array
@@ -42,19 +42,34 @@ class BuildQuotation
             ->where('status', 'sent')
             ->whereIn('reply_kind', ['qualification', 'initial_qualification'])
             ->exists();
+        $estimate = ($missing === [] || $qualificationExhausted) && $analysis
+            ? $this->estimator->handle($lead, $analysis, $rule)
+            : null;
+        $estimatedPrice = $estimate ? $this->estimatedPrice(
+            (float) $rule->minimum_price,
+            (float) $rule->maximum_price,
+            (int) $estimate['complexity_score'],
+        ) : null;
         $blockers = $conversationBlockers;
         if ($missing !== [] && ! $qualificationExhausted) $blockers[] = 'missing_required_fields';
         if (! $settings?->auto_send_quotes_enabled) $blockers[] = 'auto_send_quotes_disabled';
-        if ($settings?->max_auto_quote_amount === null || (float) $rule->maximum_price > (float) $settings->max_auto_quote_amount) $blockers[] = 'amount_over_limit';
+        if ($settings?->max_auto_quote_amount === null || (float) ($estimatedPrice ?? $rule->maximum_price) > (float) $settings->max_auto_quote_amount) $blockers[] = 'amount_over_limit';
 
         $version = ((int) $lead->quotations()->max('version')) + 1;
         $confidence = $missing === [] ? 100 : max(50, 100 - count($missing) * 15);
+        if ($estimate) $confidence = min($confidence, (int) round((float) $estimate['confidence'] * 100));
         $document = $this->numbers->next($lead->organization_id);
         $validUntil = now()->addDays($rule->validity_days)->toDateString();
         $quotation = Quotation::create([
             'organization_id' => $lead->organization_id, 'lead_id' => $lead->id, 'pricing_rule_id' => $rule->id,
             'version' => $version, 'minimum_price' => $rule->minimum_price, 'maximum_price' => $rule->maximum_price,
-            'confidence' => $confidence, 'input_snapshot' => ['requested_service' => $lead->requested_service, 'request_data' => $lead->request_data, 'inbound_email_id' => $inbound?->id],
+            'estimated_price' => $estimatedPrice, 'confidence' => $confidence,
+            'complexity_score' => $estimate['complexity_score'] ?? null,
+            'scope_title' => $estimate['scope_title'] ?? $rule->name,
+            'scope_description' => $estimate['scope_description'] ?? null,
+            'line_items' => $estimate['deliverables'] ?? [], 'assumptions' => $estimate['assumptions'] ?? [],
+            'estimate_rationale' => $estimate['rationale'] ?? null,
+            'input_snapshot' => ['requested_service' => $lead->requested_service, 'request_data' => $lead->request_data, 'inbound_email_id' => $inbound?->id],
             'missing_fields' => $missing, 'auto_send_eligible' => $blockers === [], 'automation_blockers' => $blockers,
             'document_year' => $document['year'], 'document_sequence' => $document['sequence'],
             'document_number' => $document['number'], 'valid_until' => $validUntil,
@@ -62,7 +77,11 @@ class BuildQuotation
 
         return ['quotation' => $quotation, 'context' => [
             'version' => $version, 'rule_name' => $rule->name, 'minimum_price' => (float) $rule->minimum_price,
-            'maximum_price' => (float) $rule->maximum_price, 'currency' => 'EUR', 'includes' => $rule->includes,
+            'maximum_price' => (float) $rule->maximum_price, 'estimated_price' => $estimatedPrice,
+            'scope_title' => $estimate['scope_title'] ?? $rule->name,
+            'scope_description' => $estimate['scope_description'] ?? null,
+            'line_items' => $estimate['deliverables'] ?? [], 'assumptions' => $estimate['assumptions'] ?? [],
+            'currency' => 'EUR', 'includes' => $rule->includes,
             'excludes' => $rule->excludes, 'valid_until' => $validUntil,
             'missing_fields' => $missing, 'confidence' => $confidence,
             'indicative' => $qualificationExhausted,
@@ -155,5 +174,14 @@ class BuildQuotation
             ->filter(fn (string $token) => mb_strlen($token) >= 3 && ! in_array($token, $stopWords, true))
             ->map(fn (string $token) => $aliases[$token] ?? $token)
             ->unique()->values()->all();
+    }
+
+    private function estimatedPrice(float $minimum, float $maximum, int $complexity): float
+    {
+        if ($maximum <= $minimum) return round($minimum, 2);
+        $raw = $minimum + (($maximum - $minimum) * (max(0, min(100, $complexity)) / 100));
+        $increment = ($maximum - $minimum) >= 500 ? 50 : 10;
+
+        return round(max($minimum, min($maximum, round($raw / $increment) * $increment)), 2);
     }
 }

@@ -80,7 +80,16 @@ class SimpleQuotationPdf
         $this->newPage($settings);
         $this->metadata($quotation);
         $this->recipient($quotation, $settings);
-        $this->section(mb_strtoupper($quotation->rule->name), $quotation->rule->includes ?: 'Da definire e confermare con il referente commerciale.');
+        $this->section(
+            mb_strtoupper($quotation->scope_title ?: $quotation->rule->name),
+            $quotation->scope_description ?: ($quotation->rule->includes ?: 'Servizio descritto nella richiesta del cliente.'),
+        );
+        if (($quotation->line_items ?? []) !== []) {
+            $this->section('Attività comprese', collect($quotation->line_items)->map(fn ($item) => '- '.trim((string) $item))->implode("\n"));
+        }
+        if (($quotation->assumptions ?? []) !== []) {
+            $this->section('Ipotesi della stima', collect($quotation->assumptions)->map(fn ($item) => '- '.trim((string) $item))->implode("\n"));
+        }
         $this->priceLine($quotation);
         if (filled($quotation->rule->excludes)) $this->section('Esclusioni', $quotation->rule->excludes);
         $terms = $settings->quotation_payment_terms ?: 'Importi al netto di IVA. Modalita e tempi di pagamento da concordare in fase di conferma.';
@@ -139,10 +148,8 @@ class SimpleQuotationPdf
     private function priceLine(Quotation $quotation): void
     {
         $this->ensureSpace(55);
-        $minimum = number_format((float) $quotation->minimum_price, 2, ',', '.');
-        $maximum = number_format((float) $quotation->maximum_price, 2, ',', '.');
-        $amount = $minimum === $maximum ? 'EUR '.$minimum : 'da EUR '.$minimum.' a EUR '.$maximum;
-        $this->drawText(self::LEFT, $this->y, 'Ns. offerta: '.$amount.' + IVA', 12, true, [0.08, 0.08, 0.1]);
+        $amount = number_format((float) ($quotation->estimated_price ?? $quotation->maximum_price), 2, ',', '.');
+        $this->drawText(self::LEFT, $this->y, 'Ns. offerta stimata: EUR '.$amount.' + IVA', 12, true, [0.08, 0.08, 0.1]);
         $this->y -= 32;
     }
 
