@@ -9,13 +9,18 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Queue\SerializesModels;
 
 class LeadReplyMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public readonly LeadReply $reply) {}
+    public function __construct(
+        public readonly LeadReply $reply,
+        public readonly ?string $quotationPdfPath = null,
+        public readonly ?string $quotationPdfFilename = null,
+    ) {}
 
     public function envelope(): Envelope
     {
@@ -40,5 +45,15 @@ class LeadReplyMail extends Mailable
             references: $parent ? [$parent] : [],
             text: $parent ? ['In-Reply-To' => '<'.$parent.'>'] : [],
         );
+    }
+
+    /** @return array<int, Attachment> */
+    public function attachments(): array
+    {
+        if (! $this->quotationPdfPath) return [];
+
+        return [Attachment::fromStorageDisk('local', $this->quotationPdfPath)
+            ->as($this->quotationPdfFilename ?: 'Preventivo.pdf')
+            ->withMime('application/pdf')];
     }
 }

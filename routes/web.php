@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\TwoFactorController;
 use App\Http\Controllers\AccountTwoFactorController;
 use App\Http\Controllers\OrganizationDataController;
 use App\Http\Controllers\WhatsappAccountController;
+use App\Http\Controllers\QuotationDocumentController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/leads');
@@ -108,6 +109,7 @@ Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'lic
     Route::get('/leads/create', [LeadController::class, 'create'])->middleware('role:owner,sales')->name('leads.create');
     Route::post('/leads', [LeadController::class, 'store'])->middleware('role:owner,sales')->name('leads.store');
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
+    Route::get('/leads/{lead}/quotations/{quotation}/pdf', QuotationDocumentController::class)->name('leads.quotations.pdf');
     Route::patch('/leads/{lead}', [LeadController::class, 'update'])->middleware('role:owner,sales')->name('leads.update');
     Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->middleware('role:owner')->name('leads.destroy');
     Route::get('/inbound-emails', [InboundEmailController::class, 'index'])->middleware('role:owner,sales')->name('inbound-emails.index');

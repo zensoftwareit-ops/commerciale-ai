@@ -57,15 +57,26 @@
         </form></div>
     </details>
 
+    <details class="card config-panel" @if($errors->any() && old('section') === 'quotation_document') open @endif>
+        <summary><div class="config-title"><span class="config-number">5</span><div><h2>Preventivi PDF</h2><div class="config-summary">{{ $settings->quotation_logo_path ? 'Logo personalizzato' : 'Intestazione testuale' }} · numerazione automatica · allegato alle email di offerta</div></div></div><span class="config-action">Modifica</span></summary>
+        <div class="config-body"><form method="post" enctype="multipart/form-data" action="{{ route('settings.organization.update') }}">@csrf @method('put')<input type="hidden" name="section" value="quotation_document">
+            <div class="notice">Il PDF viene generato dai dati del listino, archiviato in area privata e allegato automaticamente soltanto alle email che contengono un preventivo.</div>
+            <div class="grid grid-2"><div><label>Logo aziendale JPEG</label><input type="file" name="quotation_logo" accept="image/jpeg"><small class="muted">Massimo 2 MB. Per un risultato nitido usa un logo orizzontale su sfondo bianco.</small>@if($settings->quotation_logo_path)<label style="font-weight:400"><input style="width:auto" type="checkbox" name="remove_quotation_logo" value="1"> Rimuovi il logo attuale</label>@endif</div><div><label>Dati aziendali nel piè di pagina</label><textarea name="quotation_company_details" rows="4" placeholder="Ragione sociale · P. IVA · indirizzo · contatti">{{ old('quotation_company_details',$settings->quotation_company_details) }}</textarea></div></div>
+            <label>Condizioni economiche e di pagamento</label><textarea name="quotation_payment_terms" rows="4" placeholder="IVA, acconto, saldo, tempi di consegna e altre condizioni">{{ old('quotation_payment_terms',$settings->quotation_payment_terms) }}</textarea>
+            <label>Nota finale facoltativa</label><textarea name="quotation_footer" rows="3" placeholder="Eventuali precisazioni da mostrare dopo le condizioni">{{ old('quotation_footer',$settings->quotation_footer) }}</textarea>
+            @if($errors->any() && old('section') === 'quotation_document') @foreach($errors->all() as $error)<div class="error">{{ $error }}</div>@endforeach @endif<div class="section-actions"><button class="btn">Salva modello PDF</button></div>
+        </form></div>
+    </details>
+
     <details class="card config-panel" @if($errors->any() && old('section') === 'privacy') open @endif>
-        <summary><div class="config-title"><span class="config-number">5</span><div><h2>Privacy e conservazione</h2><div class="config-summary">Lead chiusi conservati per {{ $settings->data_retention_days ?? 730 }} giorni · cancellazione automatica {{ $settings->privacy_cleanup_enabled ? 'attiva' : 'disattivata' }}</div></div></div><span class="config-action">Modifica</span></summary>
+        <summary><div class="config-title"><span class="config-number">6</span><div><h2>Privacy e conservazione</h2><div class="config-summary">Lead chiusi conservati per {{ $settings->data_retention_days ?? 730 }} giorni · cancellazione automatica {{ $settings->privacy_cleanup_enabled ? 'attiva' : 'disattivata' }}</div></div></div><span class="config-action">Modifica</span></summary>
         <div class="config-body"><form method="post" action="{{ route('settings.organization.update') }}">@csrf @method('put')<input type="hidden" name="section" value="privacy"><p class="muted">La cancellazione automatica riguarda esclusivamente i lead chiusi e si applica solo quando viene abilitata.</p><div class="grid grid-2"><div><label>Conservazione lead chiusi (giorni)</label><input type="number" name="data_retention_days" min="30" max="3650" required value="{{ old('data_retention_days',$settings->data_retention_days ?? 730) }}"></div><div class="setting-check" style="margin-top:15px"><input id="privacy_cleanup_enabled" type="checkbox" name="privacy_cleanup_enabled" value="1" @checked(old('privacy_cleanup_enabled',$settings->privacy_cleanup_enabled))><label for="privacy_cleanup_enabled">Cancellazione automatica alla scadenza</label></div></div>
             @if($errors->any() && old('section') === 'privacy') @foreach($errors->all() as $error)<div class="error">{{ $error }}</div>@endforeach @endif<div class="section-actions"><a class="btn btn-muted" href="{{ route('account.data-export') }}">Esporta dati</a><button class="btn">Salva privacy</button></div>
         </form></div>
     </details>
 
     <details class="card config-panel" @if(str_starts_with((string) old('_editor'), 'pricing')) open @endif>
-        <summary><div class="config-title"><span class="config-number">6</span><div><h2>Listino strutturato</h2><div class="config-summary">{{ $pricingRules->count() }} {{ $pricingRules->count() === 1 ? 'regola' : 'regole' }} · {{ $pricingRules->where('is_active',true)->count() }} attive. I prezzi comunicati da Daria provengono da qui.</div></div></div><span class="config-action">Gestisci</span></summary>
+        <summary><div class="config-title"><span class="config-number">7</span><div><h2>Listino strutturato</h2><div class="config-summary">{{ $pricingRules->count() }} {{ $pricingRules->count() === 1 ? 'regola' : 'regole' }} · {{ $pricingRules->where('is_active',true)->count() }} attive. I prezzi comunicati da Daria provengono da qui.</div></div></div><span class="config-action">Gestisci</span></summary>
         <div class="config-body">
             @if($pricingRules->isEmpty())<div class="empty-state">Non hai ancora creato fasce di prezzo strutturate.</div>@endif
             <div class="rule-list">

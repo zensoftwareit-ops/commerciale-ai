@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -88,6 +89,7 @@ class OrganizationController extends Controller
                 'organization' => 'Il cliente ha una licenza Stripe: annulla prima l’abbonamento dal sistema di fatturazione.',
             ]);
         }
+        $privateDirectory = 'organizations/'.$organization->id;
 
         DB::transaction(function () use ($organization): void {
             $members = $organization->users()->get(['users.id', 'users.email']);
@@ -108,6 +110,7 @@ class OrganizationController extends Controller
                 $user->delete();
             }
         });
+        Storage::disk('local')->deleteDirectory($privateDirectory);
 
         return back()->with('status', 'Cliente eliminato definitivamente con tutti i dati associati.');
     }

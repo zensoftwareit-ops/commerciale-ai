@@ -14,6 +14,7 @@ use App\Services\Mail\RunConversationAutomation;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class QuotationAutomationTest extends CommercialeAiTestCase
 {
@@ -63,6 +64,7 @@ class QuotationAutomationTest extends CommercialeAiTestCase
     {
         config()->set('mail.default', 'smtp');
         Mail::fake();
+        Storage::fake('local');
         [$organization] = $this->organizationWithUser();
         $this->mailboxFor($organization);
         app(TenantContext::class)->set($organization);
@@ -83,7 +85,35 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $stats = app(RunConversationAutomation::class)->handle();
         $this->assertSame(1, $stats['sent']);
         $this->assertSame('automatic', $reply->fresh()->delivery_mode);
-        Mail::assertSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('anna@example.test'));
+        $quote = Quotation::firstOrFail();
+        $this->assertNotNull($quote->fresh()->pdf_generated_at);
+        Storage::disk('local')->assertExists($quote->fresh()->pdf_path);
+        $this->assertStringStartsWith('%PDF-1.4', Storage::disk('local')->get($quote->fresh()->pdf_path));
+        Mail::assertSent(LeadReplyMail::class, fn ($mail) => $mail->hasTo('anna@example.test')
+            && count($mail->attachments()) === 1
+            && $mail->quotationPdfFilename === 'Preventivo-'.$quote->document_number.'.pdf');
+    }
+
+    public function test_customer_can_download_only_a_quote_belonging_to_the_selected_lead(): void
+    {
+        Storage::fake('local');
+        [$organization, $user] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti',
+            'products_services' => 'Siti web', 'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'quotation_company_details' => 'Demo Srl | P. IVA 12345678901',
+        ]);
+        PricingRule::create(['name' => 'Sito vetrina', 'keywords' => ['sito web'], 'required_fields' => [], 'minimum_price' => 1500, 'maximum_price' => 2200]);
+        $lead = app(CreateLead::class)->handle(['name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Sito web', 'source_label' => 'manual']);
+        app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead));
+        $quote = Quotation::firstOrFail();
+        app(TenantContext::class)->clear();
+
+        $response = $this->actingAs($user)->get(route('leads.quotations.pdf', [$lead, $quote]));
+
+        $response->assertOk()->assertHeader('content-type', 'application/pdf');
+        Storage::disk('local')->assertExists($quote->fresh()->pdf_path);
     }
 
     public function test_missing_required_data_creates_an_automatable_question_not_a_quote(): void

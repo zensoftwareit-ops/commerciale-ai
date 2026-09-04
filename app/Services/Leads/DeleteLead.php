@@ -7,11 +7,13 @@ use App\Models\InboundEmail;
 use App\Models\Lead;
 use App\Models\WebhookReceipt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class DeleteLead
 {
     public function handle(Lead $lead): void
     {
+        $quotationFiles = $lead->quotations()->pluck('pdf_path')->filter()->all();
         DB::transaction(function () use ($lead): void {
             $aiRunIds = AiRun::query()->where('lead_id', $lead->id)->pluck('id');
 
@@ -21,5 +23,6 @@ class DeleteLead
 
             AiRun::query()->whereIn('id', $aiRunIds)->delete();
         });
+        Storage::disk('local')->delete($quotationFiles);
     }
 }

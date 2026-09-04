@@ -11,6 +11,7 @@ use App\Models\Quotation;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappMessage;
 use App\Services\Whatsapp\WhatsappCloudApi;
+use App\Services\Quotations\QuotationPdfGenerator;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Throwable;
@@ -20,6 +21,7 @@ class SendLeadReply
     public function __construct(
         private readonly MailIdentity $identities,
         private readonly WhatsappCloudApi $whatsapp,
+        private readonly QuotationPdfGenerator $quotationPdfs,
     ) {}
 
     public function handle(LeadReply $reply, ?int $actorId = null, bool $automatic = false): void
@@ -60,7 +62,10 @@ class SendLeadReply
                 ]);
             } else {
                 $reply->ensureOutboundMessageId();
-                Mail::to($reply->recipient)->send(new LeadReplyMail($reply));
+                $quotation = str_contains($reply->reply_kind, 'quotation') ? $reply->quotation : null;
+                $pdfPath = $quotation ? $this->quotationPdfs->ensure($quotation) : null;
+                $pdfFilename = $quotation ? $this->quotationPdfs->filename($quotation) : null;
+                Mail::to($reply->recipient)->send(new LeadReplyMail($reply, $pdfPath, $pdfFilename));
             }
         } catch (Throwable $exception) {
             $reply->update(['status' => 'draft', 'last_error' => mb_substr($exception->getMessage(), 0, 2000)]);

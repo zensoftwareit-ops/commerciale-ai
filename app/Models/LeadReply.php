@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToOrganization;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class LeadReply extends Model
 {
@@ -48,6 +49,11 @@ class LeadReply extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function quotation(): HasOne
+    {
+        return $this->hasOne(Quotation::class);
     }
 
     public function ensureOutboundMessageId(): string

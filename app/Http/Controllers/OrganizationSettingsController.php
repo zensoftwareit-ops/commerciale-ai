@@ -9,6 +9,7 @@ use App\Services\Organizations\OrganizationLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class OrganizationSettingsController extends Controller
@@ -34,6 +35,7 @@ class OrganizationSettingsController extends Controller
             'lead_handling' => ['qualification_questions_text', 'exclusion_criteria', 'tone_of_voice', 'email_signature', 'appointment_details', 'promised_response_minutes'],
             'automation' => ['conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only', 'automation_allowed_recipients_text', 'max_automatic_replies', 'max_auto_quote_amount', 'auto_analyze_new_leads', 'auto_send_initial_email'],
             'privacy' => ['data_retention_days', 'privacy_cleanup_enabled'],
+            'quotation_document' => ['quotation_logo', 'remove_quotation_logo', 'quotation_company_details', 'quotation_payment_terms', 'quotation_footer'],
         ];
         $section = (string) $request->input('section', 'all');
         $request->merge(['section' => $section]);
@@ -53,6 +55,11 @@ class OrganizationSettingsController extends Controller
             'auto_analyze_new_leads' => ['nullable', 'boolean'], 'auto_send_initial_email' => ['nullable', 'boolean'],
             'data_retention_days' => ['required', 'integer', 'min:30', 'max:3650'],
             'privacy_cleanup_enabled' => ['nullable', 'boolean'],
+            'quotation_logo' => ['nullable', 'file', 'mimes:jpg,jpeg', 'max:2048'],
+            'remove_quotation_logo' => ['nullable', 'boolean'],
+            'quotation_company_details' => ['nullable', 'string', 'max:2000'],
+            'quotation_payment_terms' => ['nullable', 'string', 'max:3000'],
+            'quotation_footer' => ['nullable', 'string', 'max:1000'],
         ];
         $request->validate(['section' => ['required', 'in:'.implode(',', [...array_keys($sectionFields), 'all'])]]);
         $data = $request->validate($section === 'all' ? $rules : Arr::only($rules, $sectionFields[$section]));
@@ -71,6 +78,18 @@ class OrganizationSettingsController extends Controller
             }
         }
         $current = OrganizationSetting::query()->first();
+        if (($data['remove_quotation_logo'] ?? false) && $current?->quotation_logo_path) {
+            Storage::disk('local')->delete($current->quotation_logo_path);
+            $data['quotation_logo_path'] = null;
+        }
+        unset($data['remove_quotation_logo']);
+        if ($request->hasFile('quotation_logo')) {
+            if ($current?->quotation_logo_path) Storage::disk('local')->delete($current->quotation_logo_path);
+            $data['quotation_logo_path'] = $request->file('quotation_logo')->storeAs(
+                'organizations/'.$tenants->requireOrganization()->id.'/branding', 'quotation-logo.jpg', 'local'
+            );
+        }
+        unset($data['quotation_logo']);
         if (($data['auto_analyze_new_leads'] ?? false) && ! $current?->auto_analyze_new_leads) {
             $data['new_lead_automation_started_at'] = now();
         }
@@ -82,6 +101,7 @@ class OrganizationSettingsController extends Controller
             'identity' => 'Identità aziendale aggiornata.', 'offering' => 'Offerta commerciale aggiornata.',
             'lead_handling' => 'Gestione delle richieste aggiornata.', 'automation' => 'Automazioni aggiornate.',
             'privacy' => 'Impostazioni privacy aggiornate.', 'all' => 'Profilo aziendale aggiornato.',
+            'quotation_document' => 'Modello PDF dei preventivi aggiornato.',
         ];
 
         return back()->with('status', $labels[$section]);

@@ -10,6 +10,8 @@ use Illuminate\Support\Str;
 
 class BuildQuotation
 {
+    public function __construct(private readonly QuotationNumberGenerator $numbers) {}
+
     /** @return array{quotation:Quotation|null,context:array|null,blockers:array,conversation_blockers:array} */
     public function handle(Lead $lead): array
     {
@@ -39,17 +41,21 @@ class BuildQuotation
 
         $version = ((int) $lead->quotations()->max('version')) + 1;
         $confidence = $missing === [] ? 100 : max(50, 100 - count($missing) * 15);
+        $document = $this->numbers->next($lead->organization_id);
+        $validUntil = now()->addDays($rule->validity_days)->toDateString();
         $quotation = Quotation::create([
             'organization_id' => $lead->organization_id, 'lead_id' => $lead->id, 'pricing_rule_id' => $rule->id,
             'version' => $version, 'minimum_price' => $rule->minimum_price, 'maximum_price' => $rule->maximum_price,
             'confidence' => $confidence, 'input_snapshot' => ['requested_service' => $lead->requested_service, 'request_data' => $lead->request_data, 'inbound_email_id' => $inbound?->id],
             'missing_fields' => $missing, 'auto_send_eligible' => $blockers === [], 'automation_blockers' => $blockers,
+            'document_year' => $document['year'], 'document_sequence' => $document['sequence'],
+            'document_number' => $document['number'], 'valid_until' => $validUntil,
         ]);
 
         return ['quotation' => $quotation, 'context' => [
             'version' => $version, 'rule_name' => $rule->name, 'minimum_price' => (float) $rule->minimum_price,
             'maximum_price' => (float) $rule->maximum_price, 'currency' => 'EUR', 'includes' => $rule->includes,
-            'excludes' => $rule->excludes, 'valid_until' => now()->addDays($rule->validity_days)->toDateString(),
+            'excludes' => $rule->excludes, 'valid_until' => $validUntil,
             'missing_fields' => $missing, 'confidence' => $confidence,
             'indicative' => $qualificationExhausted,
         ], 'blockers' => $blockers, 'conversation_blockers' => $conversationBlockers];
