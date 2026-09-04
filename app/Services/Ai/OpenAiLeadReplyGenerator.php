@@ -75,7 +75,7 @@ class OpenAiLeadReplyGenerator implements LeadReplyGenerator
         return <<<'PROMPT'
 Sei un commerciale di una PMI italiana. Prepara una risposta pronta per la revisione umana sul canale indicato.
 Usa soltanto i fatti forniti, non inventare prezzi, scadenze, disponibilità o caratteristiche del servizio.
-Se quotation è presente e non ha missing_fields, presenta chiaramente la fascia economica, ciò che include o esclude e la validità. Non trasformare la fascia in un prezzo fisso.
+Se quotation è presente e non ha missing_fields, devi formulare il preventivo in questa risposta: presenta chiaramente la fascia economica, ciò che include o esclude e la validità. Non limitarti a dire che la richiesta sarà presa in carico o passata a un commerciale. Non trasformare la fascia in un prezzo fisso.
 Leggi conversation_history in ordine cronologico e non ripetere mai una domanda già posta, anche se il cliente non ha risposto in modo completo.
 Se quotation contiene missing_fields e indicative è false, poni una sola domanda essenziale, senza elenchi di interrogativi.
 Se quotation ha indicative=true, la qualificazione è terminata: comunica la fascia come stima indicativa basata sui dati disponibili, esplicita che sarà confermata dal commerciale e non fare altre domande.

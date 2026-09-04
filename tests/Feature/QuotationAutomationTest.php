@@ -291,4 +291,36 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $this->assertSame('quotation', $reply->reply_kind);
         $this->assertSame('E-commerce', Quotation::latest('created_at')->firstOrFail()->rule->name);
     }
+
+    public function test_a_site_request_matches_a_semantically_equivalent_price_rule(): void
+    {
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti', 'products_services' => 'Siti web',
+            'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale', 'email_signature' => 'Demo',
+            'conversation_automation_enabled' => true, 'auto_send_quotes_enabled' => true, 'internal_test_only' => true,
+            'automation_allowed_recipients' => ['anna@example.test'], 'max_automatic_replies' => 5, 'max_auto_quote_amount' => 5000,
+        ]);
+        PricingRule::create([
+            'name' => 'Creazione sito web', 'keywords' => ['realizzazione website'], 'required_fields' => [],
+            'minimum_price' => 1200, 'maximum_price' => 2000,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Presenza digitale',
+            'source_label' => 'manual', 'request_data' => ['message' => 'Vorrei un nuovo sito internet per la mia azienda.'],
+        ]);
+
+        $reply = app(GenerateLeadReply::class)->handle($lead, app(AnalyzeLead::class)->handle($lead), null, [
+            'incoming_email' => [
+                'message_id' => 'site-quote@example.test',
+                'subject' => 'Re: Richiesta',
+                'body' => 'A questo punto vorrei ricevere il preventivo per il sito internet.',
+            ],
+        ]);
+
+        $this->assertSame('quotation', $reply->reply_kind);
+        $this->assertStringContainsString('1.200', $reply->body);
+        $this->assertSame('Creazione sito web', Quotation::firstOrFail()->rule->name);
+    }
 }

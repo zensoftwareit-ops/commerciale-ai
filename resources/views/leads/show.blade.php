@@ -214,6 +214,15 @@
             @if($visibleBlockers->isNotEmpty()) Motivo: {{ $visibleBlockers->implode('; ') }}.@endif
         </div>
     @endif
+    @if($reply->reply_kind === 'general' && $lead->inboundEmails->isNotEmpty())
+        <div class="notice">
+            <strong>La risposta non contiene ancora un preventivo.</strong> Puoi far riesaminare l’intera conversazione alla luce del listino aggiornato.
+            <form method="post" action="{{ route('leads.retry-conversation', $lead) }}" style="margin-top:12px">
+                @csrf
+                <button class="btn btn-muted" type="submit">Ricalcola dal listino</button>
+            </form>
+        </div>
+    @endif
     @if($quotation = $lead->quotations->first())
         <div class="notice"><div class="toolbar" style="margin:0"><div><strong>Preventivo {{ $quotation->document_number ?: 'v'.$quotation->version }}:</strong> € {{ number_format($quotation->minimum_price,0,',','.') }}–{{ number_format($quotation->maximum_price,0,',','.') }} + IVA · affidabilità {{ $quotation->confidence }}%. @if($quotation->valid_until) Valido fino al {{ $quotation->valid_until->format('d/m/Y') }}. @endif @if($quotation->auto_send_eligible) Idoneo all’automazione interna. @else Invio automatico bloccato: {{ implode(', ',$quotation->automation_blockers ?? []) }}. @endif</div>@if($quotation->reply && str_contains($quotation->reply->reply_kind,'quotation'))<a class="btn btn-muted" href="{{ route('leads.quotations.pdf',[$lead,$quotation]) }}">Scarica PDF</a>@endif</div></div>
     @endif

@@ -2,6 +2,7 @@
 
 namespace App\Services\Quotations;
 
+use App\Models\AiAnalysis;
 use App\Models\Lead;
 use App\Models\OrganizationSetting;
 use App\Models\PricingRule;
@@ -13,7 +14,7 @@ class BuildQuotation
     public function __construct(private readonly QuotationNumberGenerator $numbers) {}
 
     /** @return array{quotation:Quotation|null,context:array|null,blockers:array,conversation_blockers:array} */
-    public function handle(Lead $lead): array
+    public function handle(Lead $lead, ?AiAnalysis $analysis = null): array
     {
         $settings = OrganizationSetting::query()->first();
         $inbound = $lead->inboundEmails()->latest('received_at')->first();
@@ -21,9 +22,14 @@ class BuildQuotation
         $inboundText = $lead->inboundEmails()->oldest('received_at')->get(['subject', 'body'])
             ->flatMap(fn ($email) => [$email->subject, $email->body])->filter()->implode(' ');
         $whatsappText = $lead->whatsappMessages()->where('direction', 'inbound')->pluck('body')->implode(' ');
-        $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $inboundText, $whatsappText])));
+        $analysisText = implode(' ', array_filter([
+            implode(' ', $analysis?->requested_services ?? []),
+            $analysis?->summary,
+            $analysis?->intent,
+        ]));
+        $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $analysisText, $inboundText, $whatsappText])));
         $ranked = PricingRule::query()->where('is_active', true)->get()
-            ->map(fn (PricingRule $rule) => ['rule' => $rule, 'score' => collect($rule->keywords)->filter(fn ($keyword) => str_contains($haystack, $this->normalize((string) $keyword)))->count()])
+            ->map(fn (PricingRule $rule) => ['rule' => $rule, 'score' => $this->ruleScore($rule, $haystack)])
             ->filter(fn ($item) => $item['score'] > 0)->sortByDesc('score')->values();
 
         if ($ranked->isEmpty()) return ['quotation' => null, 'context' => null, 'blockers' => [...$conversationBlockers, 'no_matching_pricing_rule'], 'conversation_blockers' => $conversationBlockers];
@@ -97,5 +103,57 @@ class BuildQuotation
     private function normalize(string $value): string
     {
         return Str::of($value)->lower()->ascii()->replaceMatches('/[^a-z0-9]+/', ' ')->squish()->value();
+    }
+
+    private function ruleScore(PricingRule $rule, string $haystack): int
+    {
+        $score = $this->candidateScore((string) $rule->name, $haystack, 80, 40);
+
+        foreach ($rule->keywords ?? [] as $keyword) {
+            $score += $this->candidateScore((string) $keyword, $haystack, 120, 50);
+        }
+
+        return $score;
+    }
+
+    private function candidateScore(string $candidate, string $haystack, int $exactScore, int $tokenScore): int
+    {
+        $normalized = $this->normalize($candidate);
+        if ($normalized === '') {
+            return 0;
+        }
+        if (str_contains(' '.$haystack.' ', ' '.$normalized.' ')) {
+            return $exactScore;
+        }
+
+        $candidateTokens = $this->distinctiveTokens($normalized);
+        $haystackTokens = $this->distinctiveTokens($haystack);
+        if ($candidateTokens === [] || $haystackTokens === []) {
+            return 0;
+        }
+
+        $matches = count(array_intersect($candidateTokens, $haystackTokens));
+        $coverage = $matches / count($candidateTokens);
+        if ($matches === 0 || ($matches < 2 && $coverage < 0.66)) {
+            return 0;
+        }
+
+        return max(1, (int) round($tokenScore * $coverage));
+    }
+
+    /** @return list<string> */
+    private function distinctiveTokens(string $value): array
+    {
+        $stopWords = ['con', 'del', 'della', 'delle', 'dei', 'degli', 'per', 'una', 'uno', 'the', 'and', 'servizio', 'servizi', 'creazione', 'realizzazione', 'sviluppo', 'nuovo', 'nuova', 'richiesta'];
+        $aliases = [
+            'siti' => 'sito', 'website' => 'sito', 'websites' => 'sito',
+            'internet' => 'web', 'pagine' => 'pagina', 'pages' => 'pagina',
+            'commerce' => 'ecommerce', 'ecommerce' => 'ecommerce',
+        ];
+
+        return collect(explode(' ', $this->normalize($value)))
+            ->filter(fn (string $token) => mb_strlen($token) >= 3 && ! in_array($token, $stopWords, true))
+            ->map(fn (string $token) => $aliases[$token] ?? $token)
+            ->unique()->values()->all();
     }
 }

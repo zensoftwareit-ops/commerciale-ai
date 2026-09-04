@@ -41,7 +41,7 @@ class GenerateLeadReply
         }
 
         $settings = OrganizationSetting::query()->first();
-        $quotationResult = $this->quotationBuilder->handle($lead);
+        $quotationResult = $this->quotationBuilder->handle($lead, $analysis);
         $isInboundConversation = is_array(data_get($extraContext, 'incoming_email'));
         $completedGeneralTurns = $lead->replies()->where('status', 'sent')->where('delivery_mode', 'automatic')
             ->where('reply_kind', 'general')->count();
