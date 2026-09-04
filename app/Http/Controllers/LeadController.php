@@ -7,6 +7,7 @@ use App\Models\KnowledgeDocument;
 use App\Models\Lead;
 use App\Models\OrganizationSetting;
 use App\Models\PipelineStage;
+use App\Services\Ai\GenerateLeadReply;
 use App\Services\Leads\CreateLead;
 use App\Services\Leads\DeleteLead;
 use Illuminate\Http\RedirectResponse;
@@ -69,6 +70,38 @@ class LeadController extends Controller
         $lead->activities()->create(['organization_id' => $lead->organization_id, 'actor_id' => $request->user()->id, 'type' => 'lead_updated', 'title' => 'Stato del lead aggiornato', 'data' => $data, 'occurred_at' => now()]);
 
         return back()->with('status', 'Stato aggiornato.');
+    }
+
+    public function retryConversation(Request $request, string $lead, GenerateLeadReply $replyGenerator): RedirectResponse
+    {
+        $lead = Lead::query()->findOrFail($lead);
+        $inbound = $lead->inboundEmails()->where('status', 'linked')->latest('received_at')->first();
+        $analysis = $lead->analyses()->first();
+
+        if (! $inbound || ! $analysis) {
+            return back()->withErrors(['reply' => 'Non ci sono una risposta ricevuta e un’analisi utilizzabili per riprendere la conversazione.']);
+        }
+        if ($lead->replies()->where('status', 'draft')->where('parent_message_id', $inbound->message_id)->exists()) {
+            return back()->with('status', 'Esiste già una bozza per l’ultima risposta del cliente.');
+        }
+
+        try {
+            $reply = $replyGenerator->handle($lead, $analysis, $request->user()->id, [
+                'incoming_email' => [
+                    'message_id' => $inbound->message_id,
+                    'from' => $inbound->from_address,
+                    'subject' => $inbound->subject,
+                    'body' => mb_substr((string) $inbound->body, 0, 12000),
+                    'received_at' => $inbound->received_at->toIso8601String(),
+                ],
+            ]);
+        } catch (\App\Exceptions\ConversationHandoffRequired $exception) {
+            return back()->withErrors(['reply' => 'Daria conferma che è necessario l’intervento umano per questa risposta.']);
+        }
+
+        return back()->with('status', $reply->automation_eligible
+            ? 'Conversazione ripresa. La nuova bozza verrà inviata dalla cron di automazione.'
+            : 'Conversazione ripresa e nuova bozza preparata; controllala prima dell’invio.');
     }
 
     public function destroy(Request $request, string $lead, DeleteLead $deleter): RedirectResponse

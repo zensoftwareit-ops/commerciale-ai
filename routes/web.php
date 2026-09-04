@@ -111,6 +111,7 @@ Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'lic
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
     Route::get('/leads/{lead}/quotations/{quotation}/pdf', QuotationDocumentController::class)->name('leads.quotations.pdf');
     Route::patch('/leads/{lead}', [LeadController::class, 'update'])->middleware('role:owner,sales')->name('leads.update');
+    Route::post('/leads/{lead}/retry-conversation', [LeadController::class, 'retryConversation'])->middleware('role:owner,sales')->name('leads.retry-conversation');
     Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->middleware('role:owner')->name('leads.destroy');
     Route::get('/inbound-emails', [InboundEmailController::class, 'index'])->middleware('role:owner,sales')->name('inbound-emails.index');
     Route::post('/inbound-emails/{email}/link', [InboundEmailController::class, 'link'])->middleware('role:owner,sales')->name('inbound-emails.link');

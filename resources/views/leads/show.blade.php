@@ -25,7 +25,15 @@
         'unsupported_whatsapp_message_type' => 'Il messaggio WhatsApp ricevuto non è testuale.',
         default => 'Daria non può proseguire questa conversazione in modo affidabile.',
     })
-    <div class="warning" style="margin-bottom:16px"><strong>Intervento umano richiesto.</strong> {{ $handoffReason }} Un commerciale deve valutare la risposta e decidere come proseguire.</div>
+    <div class="warning" style="margin-bottom:16px">
+        <strong>Intervento umano richiesto.</strong> {{ $handoffReason }} Un commerciale deve valutare la risposta e decidere come proseguire.
+        @if(data_get($handoffActivity->data, 'inbound_email_id'))
+            <form method="post" action="{{ route('leads.retry-conversation', $lead) }}" style="margin-top:12px">
+                @csrf
+                <button class="btn btn-muted" type="submit">Riprova con Daria</button>
+            </form>
+        @endif
+    </div>
 @endif
 
 <div class="grid grid-2">
