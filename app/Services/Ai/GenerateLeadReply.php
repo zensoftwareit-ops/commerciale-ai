@@ -15,6 +15,7 @@ use App\Services\Quotations\BuildQuotation;
 use App\Services\Licensing\LicenseUsageGuard;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -44,7 +45,10 @@ class GenerateLeadReply
         $isInboundConversation = is_array(data_get($extraContext, 'incoming_email'));
         $completedGeneralTurns = $lead->replies()->where('status', 'sent')->where('delivery_mode', 'automatic')
             ->where('reply_kind', 'general')->count();
-        if ($isInboundConversation && ! $quotationResult['quotation'] && $completedGeneralTurns >= 1) {
+        if ($isInboundConversation
+            && ! $quotationResult['quotation']
+            && $completedGeneralTurns >= 1
+            && $this->isExplicitPricingRequest($extraContext)) {
             throw new ConversationHandoffRequired('no_pricing_rule_after_conversation_turn');
         }
         $qualificationAttempts = $lead->replies()->where('status', 'sent')
@@ -154,5 +158,24 @@ class GenerateLeadReply
         ]);
 
         return $inbound->concat($outbound)->concat($whatsapp)->sortBy('at')->take(-20)->values()->all();
+    }
+
+    private function isExplicitPricingRequest(array $context): bool
+    {
+        $incoming = data_get($context, 'incoming_email');
+        if (! is_array($incoming)) {
+            return false;
+        }
+
+        // The subject is deliberately excluded: every reply in a thread can keep
+        // a subject such as "Re: Preventivo" even when the current message is only
+        // confirming an appointment or supplying a harmless detail.
+        $message = Str::of((string) data_get($incoming, 'body'))
+            ->lower()->ascii()->squish()->value();
+
+        return preg_match(
+            '/\b(preventiv[oi]|quotazion[ei]|offerta(?:\s+economica)?|prezz[oi]|cost[oi]|tariff[ae]|budget|price|pricing|quote|quotation|cost)\b/i',
+            $message,
+        ) === 1;
     }
 }

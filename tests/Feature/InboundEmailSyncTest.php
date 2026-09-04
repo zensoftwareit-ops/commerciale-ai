@@ -175,7 +175,7 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         $this->assertSame(['401'], $mailbox->seen);
     }
 
-    public function test_a_conversation_without_a_pricing_rule_is_handed_to_a_human_after_one_automatic_turn(): void
+    public function test_a_pricing_request_without_a_pricing_rule_is_handed_to_a_human_after_one_automatic_turn(): void
     {
         Mail::fake();
         PlatformSetting::create([
@@ -192,7 +192,7 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
             new InboundEmailMessage(
                 identifier: '501', messageId: 'handoff-501@example.test', inReplyTo: $sentReply->outbound_message_id,
                 references: [], fromAddress: 'anna@example.test', fromName: 'Anna', subject: 'Re: Informazioni',
-                body: 'Non ho altri dettagli da aggiungere.', receivedAt: CarbonImmutable::now(),
+                body: 'La richiesta è chiara: potete inviarmi un preventivo con il prezzo?', receivedAt: CarbonImmutable::now(),
             ),
         ]);
 
@@ -204,9 +204,33 @@ class InboundEmailSyncTest extends CommercialeAiTestCase
         $this->assertDatabaseHas('activities', ['lead_id' => $lead->id, 'type' => 'conversation_handoff']);
         $notification = CommercialNotification::withoutGlobalScopes()->where('lead_id', $lead->id)->firstOrFail();
         $this->assertSame($user->id, $notification->user_id);
+        $this->assertStringContainsString('non esiste un listino applicabile', $notification->message);
         Mail::assertSent(ConversationHandoffMail::class, fn ($mail) => $mail->hasTo($user->email));
         $this->actingAs($user)->withSession(['organization_id' => $organization->id])
             ->get(route('notifications.index'))->assertOk()->assertSee('Intervento commerciale richiesto');
+    }
+
+    public function test_a_clear_non_pricing_reply_continues_after_one_automatic_general_turn(): void
+    {
+        [$organization] = $this->organizationWithUser();
+        [$lead, $sentReply] = $this->sentReplyWithFollowUp($organization);
+        app(TenantContext::class)->set($organization);
+        $sentReply->update(['reply_kind' => 'general', 'delivery_mode' => 'automatic']);
+        app(TenantContext::class)->clear();
+        $mailbox = new FakeInboundMailbox([
+            new InboundEmailMessage(
+                identifier: '502', messageId: 'continue-502@example.test', inReplyTo: $sentReply->outbound_message_id,
+                references: [], fromAddress: 'anna@example.test', fromName: 'Anna', subject: 'Re: Informazioni',
+                body: 'Va bene, possiamo sentirci domani alle 15.', receivedAt: CarbonImmutable::now(),
+            ),
+        ]);
+
+        $stats = (new SyncInboundEmailReplies($mailbox, app(GenerateLeadReply::class)))->handle();
+
+        $this->assertSame(0, $stats['handoffs']);
+        $this->assertSame(1, $stats['drafts']);
+        $this->assertSame('awaiting_approval', $lead->fresh()->operational_status);
+        $this->assertDatabaseMissing('activities', ['lead_id' => $lead->id, 'type' => 'conversation_handoff']);
     }
 
     public function test_a_mailbox_can_only_match_leads_from_its_organization(): void

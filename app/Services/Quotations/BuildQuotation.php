@@ -16,10 +16,12 @@ class BuildQuotation
     public function handle(Lead $lead): array
     {
         $settings = OrganizationSetting::query()->first();
-        $inbound = $lead->inboundEmails()->first();
+        $inbound = $lead->inboundEmails()->latest('received_at')->first();
         $conversationBlockers = $this->conversationBlockers($lead, $settings, $inbound);
+        $inboundText = $lead->inboundEmails()->oldest('received_at')->get(['subject', 'body'])
+            ->flatMap(fn ($email) => [$email->subject, $email->body])->filter()->implode(' ');
         $whatsappText = $lead->whatsappMessages()->where('direction', 'inbound')->pluck('body')->implode(' ');
-        $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $inbound?->subject, $inbound?->body, $whatsappText])));
+        $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $inboundText, $whatsappText])));
         $ranked = PricingRule::query()->where('is_active', true)->get()
             ->map(fn (PricingRule $rule) => ['rule' => $rule, 'score' => collect($rule->keywords)->filter(fn ($keyword) => str_contains($haystack, $this->normalize((string) $keyword)))->count()])
             ->filter(fn ($item) => $item['score'] > 0)->sortByDesc('score')->values();

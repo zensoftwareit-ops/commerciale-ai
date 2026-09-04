@@ -250,4 +250,45 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $this->assertStringContainsString('fascia indicativa', $offer->body);
         $this->assertStringNotContainsString('Può indicare', $offer->body);
     }
+
+    public function test_a_later_customer_clarification_can_match_a_pricing_rule(): void
+    {
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Web', 'business_description' => 'Siti', 'products_services' => 'Siti web',
+            'ideal_customer' => 'PMI', 'tone_of_voice' => 'professionale', 'email_signature' => 'Demo',
+            'conversation_automation_enabled' => true, 'auto_send_quotes_enabled' => true, 'internal_test_only' => true,
+            'automation_allowed_recipients' => ['anna@example.test'], 'max_automatic_replies' => 5, 'max_auto_quote_amount' => 5000,
+        ]);
+        PricingRule::create([
+            'name' => 'E-commerce', 'keywords' => ['negozio online'], 'required_fields' => [],
+            'minimum_price' => 2500, 'maximum_price' => 4000,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Anna', 'email' => 'anna@example.test', 'requested_service' => 'Consulenza',
+            'source_label' => 'manual', 'request_data' => ['message' => 'Vorrei informazioni'],
+        ]);
+        $analysis = app(AnalyzeLead::class)->handle($lead);
+        $firstReply = app(GenerateLeadReply::class)->handle($lead, $analysis);
+        $firstReply->update(['status' => 'sent', 'delivery_mode' => 'automatic', 'sent_at' => now()]);
+        InboundEmail::create([
+            'lead_id' => $lead->id, 'status' => 'linked', 'match_confidence' => 'high', 'match_reason' => 'thread_id',
+            'message_hash' => hash('sha256', 'late-service-detail'), 'message_id' => 'late-detail@example.test',
+            'from_address' => 'anna@example.test', 'subject' => 'Re: Richiesta',
+            'body' => 'Confermo che mi serve un negozio online e vorrei il preventivo.',
+            'received_at' => now(), 'linked_at' => now(),
+        ]);
+
+        $reply = app(GenerateLeadReply::class)->handle($lead, $analysis, null, [
+            'incoming_email' => [
+                'message_id' => 'late-detail@example.test',
+                'subject' => 'Re: Richiesta',
+                'body' => 'Confermo che mi serve un negozio online e vorrei il preventivo.',
+            ],
+        ]);
+
+        $this->assertSame('quotation', $reply->reply_kind);
+        $this->assertSame('E-commerce', Quotation::latest('created_at')->firstOrFail()->rule->name);
+    }
 }

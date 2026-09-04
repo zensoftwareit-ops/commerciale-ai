@@ -17,8 +17,15 @@
     <span class="badge {{ $lead->temperature }}">{{ strtoupper($lead->temperature) }} · Score {{ $lead->score }}/100</span>
 </div>
 
-@if($lead->activities->first()?->type === 'conversation_handoff')
-    <div class="warning" style="margin-bottom:16px"><strong>Intervento umano richiesto.</strong> L’automazione ha interrotto la conversazione per evitare altre domande ripetitive. Un commerciale deve ora valutare la risposta ricevuta e decidere come proseguire.</div>
+@php($handoffActivity = $lead->activities->firstWhere('type', 'conversation_handoff'))
+@if($lead->operational_status === 'needs_action' && $handoffActivity)
+    @php($handoffReason = match(data_get($handoffActivity->data, 'reason')) {
+        'no_pricing_rule_after_conversation_turn' => 'Il cliente ha richiesto un prezzo, ma non esiste un listino applicabile.',
+        'qualification_limit_reached' => 'Mancano dati essenziali dopo il tentativo di qualificazione.',
+        'unsupported_whatsapp_message_type' => 'Il messaggio WhatsApp ricevuto non è testuale.',
+        default => 'Daria non può proseguire questa conversazione in modo affidabile.',
+    })
+    <div class="warning" style="margin-bottom:16px"><strong>Intervento umano richiesto.</strong> {{ $handoffReason }} Un commerciale deve valutare la risposta e decidere come proseguire.</div>
 @endif
 
 <div class="grid grid-2">

@@ -28,7 +28,7 @@ class NotifyConversationHandoff
                 'lead_id' => $lead->id,
                 'type' => 'conversation_handoff',
                 'title' => 'Intervento commerciale richiesto',
-                'message' => $lead->name.' ha risposto via '.($inbound instanceof WhatsappMessage ? 'WhatsApp' : 'email').', ma l’automazione non può proseguire in modo affidabile.',
+                'message' => $lead->name.' ha risposto via '.($inbound instanceof WhatsappMessage ? 'WhatsApp' : 'email').', ma l’automazione non può proseguire in modo affidabile. Motivo: '.$this->reasonLabel($reason),
                 'data' => [
                     'reason' => $reason,
                     'inbound_email_id' => $inbound instanceof InboundEmail ? $inbound->id : null,
@@ -45,5 +45,15 @@ class NotifyConversationHandoff
                 report($exception);
             }
         }
+    }
+
+    private function reasonLabel(string $reason): string
+    {
+        return match ($reason) {
+            'no_pricing_rule_after_conversation_turn' => 'ha richiesto un prezzo, ma non esiste un listino applicabile.',
+            'qualification_limit_reached' => 'mancano dati essenziali dopo il tentativo di qualificazione.',
+            'unsupported_whatsapp_message_type' => 'il messaggio WhatsApp ricevuto non è testuale.',
+            default => 'è necessaria una valutazione umana.',
+        };
     }
 }
