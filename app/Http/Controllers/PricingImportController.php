@@ -91,6 +91,8 @@ class PricingImportController extends Controller
                 'name' => 'required|string|max:255', 'keywords_text' => 'required|string|max:2000',
                 'minimum_price' => 'required|numeric|min:0|max:99999999.99',
                 'maximum_price' => 'required|numeric|gte:minimum_price|max:99999999.99',
+                'daily_rate_tiers_text' => 'nullable|string|max:5000', 'origin_address' => 'nullable|string|max:500',
+                'distance_rate_per_km' => 'nullable|numeric|min:0|max:10000', 'distance_round_trip' => 'nullable|boolean',
                 'includes' => 'nullable|string|max:5000', 'excludes' => 'nullable|string|max:5000',
                 'validity_days' => 'required|integer|min:1|max:365', 'is_active' => 'nullable|boolean',
             ], ['required' => 'Compila :attribute.', 'gte' => 'Il prezzo massimo deve essere almeno pari al minimo.',
@@ -101,7 +103,9 @@ class PricingImportController extends Controller
             $values = $validated->validated();
             $values['keywords'] = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $values['keywords_text'])), fn ($word) => $word !== ''));
             if ($values['keywords'] === []) throw ValidationException::withMessages(['items.'.$index => 'Inserisci almeno una parola chiave per la voce '.($index + 1).'.']);
-            unset($values['keywords_text']);
+            $values['daily_rate_tiers'] = $this->tiers($values['daily_rate_tiers_text'] ?? '', $index);
+            $values['distance_round_trip'] = (bool) ($values['distance_round_trip'] ?? false);
+            unset($values['keywords_text'], $values['daily_rate_tiers_text']);
             $values['required_fields'] = [];
             $values['is_active'] = (bool) ($values['is_active'] ?? false);
             $selected[] = $values;
@@ -119,5 +123,16 @@ class PricingImportController extends Controller
             $run->update(['output' => $run->output + ['applied_at' => now()->toIso8601String()]]);
         });
         return redirect()->route('settings.organization')->with('status', 'Listini e regole selezionati salvati. Puoi modificarli in Azienda e AI e nella Knowledge base.');
+    }
+
+    private function tiers(string $text, int|string $index): array
+    {
+        return collect(preg_split('/\R/u', $text))->map(function ($line) use ($index): ?array {
+            if (trim((string) $line) === '') return null;
+            if (! preg_match('/^\s*(\d+)\s*(?:-|a)\s*(\d+|\*)\s*[:=]\s*([0-9]+(?:[.,][0-9]+)?)\s*$/iu', (string) $line, $match)) {
+                throw ValidationException::withMessages(['items.'.$index => 'Scaglione non valido. Usa ad esempio 1-3: 550.']);
+            }
+            return ['min_days' => (int) $match[1], 'max_days' => $match[2] === '*' ? null : (int) $match[2], 'rate_per_day' => (float) str_replace(',', '.', $match[3])];
+        })->filter()->values()->all();
     }
 }

@@ -16,7 +16,9 @@ Il prodotto usa un unico modello commerciale classico, ispirato alla carta intes
 - condizioni economiche e di pagamento;
 - nota finale facoltativa.
 
-Il listino definisce i limiti economici autorizzati. Per ogni richiesta, OpenAI sintetizza l'ambito e assegna un livello di complessità da 0 a 100 usando i requisiti del lead e la conversazione. Daria trasforma il livello di complessità in un importo stimato compreso tra minimo e massimo: il modello non può proporre direttamente un prezzo fuori listino. Descrizione, attività comprese e ipotesi riportano soltanto elementi dichiarati dal cliente o autorizzati nella regola. Se la quotazione è indicativa, il PDF lo dichiara espressamente.
+Il listino definisce i limiti economici autorizzati. Le regole semplici possono ancora usare una fascia minima/massima e un livello di complessità. Per noleggi e servizi misurabili sono disponibili formule deterministiche: scaglioni di tariffa giornaliera (`1-3: 550`, `4-8: 500`), località di partenza, costo chilometrico e scelta fra sola andata o andata/ritorno. Daria legge durata e destinazione dal modulo, applica lo scaglione, calcola la distanza stradale e somma i subtotali; OpenAI descrive l'ambito ma non decide né modifica i numeri.
+
+Il calcolo stradale usa openrouteservice e richiede i parametri globali `OPENROUTESERVICE_API_KEY`, `OPENROUTESERVICE_API_URL` e `OPENROUTESERVICE_TIMEOUT`. Le regole specifiche di ciascun cliente rimangono nel database e si configurano in **Azienda e AI > Listino strutturato**.
 
 ## Numerazione e archiviazione
 

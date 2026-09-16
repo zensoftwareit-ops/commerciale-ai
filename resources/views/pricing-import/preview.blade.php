@@ -14,6 +14,7 @@
     @php
         $prefix = 'items.'.$index.'.';
         $missingPrice = $item['minimum_price'] === null || $item['maximum_price'] === null;
+        $tiersText = collect($item['daily_rate_tiers'] ?? [])->map(fn($tier) => $tier['min_days'].'-'.($tier['max_days'] ?? '*').': '.$tier['rate_per_day'])->implode("\n");
     @endphp
     <details class="card" @if($missingPrice || $errors->has('items.'.$index)) open @endif>
         <summary style="cursor:pointer"><strong>{{ $item['name'] }}</strong> — {{ $missingPrice ? 'Prezzo da completare' : 'Proposta da verificare' }}</summary>
@@ -24,6 +25,8 @@
             <div><label for="keywords-{{ $index }}">Parole chiave, separate da virgola</label><input id="keywords-{{ $index }}" name="items[{{ $index }}][keywords_text]" maxlength="2000" value="{{ old($prefix.'keywords_text', $item['keywords_text']) }}"></div>
             <div><label for="min-{{ $index }}">Prezzo minimo (€)</label><input id="min-{{ $index }}" type="number" min="0" max="99999999.99" step="0.01" name="items[{{ $index }}][minimum_price]" value="{{ old($prefix.'minimum_price', $item['minimum_price']) }}"></div>
             <div><label for="max-{{ $index }}">Prezzo massimo (€)</label><input id="max-{{ $index }}" type="number" min="0" max="99999999.99" step="0.01" name="items[{{ $index }}][maximum_price]" value="{{ old($prefix.'maximum_price', $item['maximum_price']) }}"></div>
+            <div><label>Tariffe giornaliere per scaglione</label><textarea rows="5" name="items[{{ $index }}][daily_rate_tiers_text]" placeholder="1-3: 550&#10;4-8: 500&#10;9-*: 450">{{ old($prefix.'daily_rate_tiers_text', $tiersText) }}</textarea></div>
+            <div><label>Località di partenza</label><input name="items[{{ $index }}][origin_address]" value="{{ old($prefix.'origin_address', $item['origin_address'] ?? '') }}"><label>Costo per km (€)</label><input type="number" min="0" step="0.01" name="items[{{ $index }}][distance_rate_per_km]" value="{{ old($prefix.'distance_rate_per_km', $item['distance_rate_per_km'] ?? '') }}"><label><input style="width:auto" type="checkbox" name="items[{{ $index }}][distance_round_trip]" value="1" @checked(old($prefix.'distance_round_trip', $item['distance_round_trip'] ?? true))> Calcola andata e ritorno</label></div>
             <div><label for="includes-{{ $index }}">Descrizione, inclusioni e condizioni</label><textarea id="includes-{{ $index }}" rows="5" maxlength="5000" name="items[{{ $index }}][includes]">{{ old($prefix.'includes', $item['includes']) }}</textarea></div>
             <div><label for="excludes-{{ $index }}">Esclusioni e limiti</label><textarea id="excludes-{{ $index }}" rows="5" maxlength="5000" name="items[{{ $index }}][excludes]">{{ old($prefix.'excludes', $item['excludes']) }}</textarea></div>
             <div><label for="validity-{{ $index }}">Validità del preventivo (giorni)</label><input id="validity-{{ $index }}" type="number" min="1" max="365" name="items[{{ $index }}][validity_days]" value="{{ old($prefix.'validity_days', $item['validity_days'] ?? 15) }}"></div>
@@ -36,7 +39,7 @@
     <details class="card" open><summary style="cursor:pointer"><strong>Regole commerciali e criteri di preventivazione</strong></summary>
         <label for="guidance">Indicazioni modificabili per Daria</label><textarea id="guidance" rows="10" name="guidance" maxlength="20000">{{ old('guidance', $draft['guidance']) }}</textarea>
         <label><input style="width:auto" type="checkbox" name="save_guidance" value="1" @checked(old('save_guidance', session()->hasOldInput() ? false : filled($draft['guidance'])))> Salva queste regole nella Knowledge base</label>
-        <p class="muted">Saranno aggiunte come documento attivo e resteranno modificabili nella Knowledge base. Sono indicazioni per l’AI, non formule di calcolo eseguite automaticamente. Le automazioni esistenti non vengono abilitate o cambiate.</p>
+        <p class="muted">Saranno aggiunte come documento attivo e resteranno modificabili nella Knowledge base. Scaglioni giornalieri e costi chilometrici riconosciuti sopra vengono invece salvati come formule eseguibili dal motore di preventivazione. Le automazioni esistenti non vengono abilitate o cambiate.</p>
     </details>
     <button class="btn">Conferma e salva le voci selezionate</button>
 </form>

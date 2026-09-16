@@ -28,6 +28,11 @@ return [
         'healthcheck_token' => env('HEALTHCHECK_TOKEN'),
         'health_alert_cooldown_minutes' => (int) env('HEALTH_ALERT_COOLDOWN_MINUTES', 360),
     ],
+    'routing' => [
+        'api_key' => env('OPENROUTESERVICE_API_KEY'),
+        'api_url' => env('OPENROUTESERVICE_API_URL', 'https://api.openrouteservice.org'),
+        'timeout' => (int) env('OPENROUTESERVICE_TIMEOUT', 20),
+    ],
     'billing' => [
         'self_service_enabled' => (bool) env('BILLING_SELF_SERVICE_ENABLED', false),
         'integration_key' => env('BILLING_INTEGRATION_KEY'),

@@ -14,6 +14,7 @@ use App\Services\Leads\RunNewLeadAutomation;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class NewLeadAutomationTest extends CommercialeAiTestCase
@@ -272,6 +273,54 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         $this->assertContains('Ape Lineare', $rule->fresh()->keywords);
         $this->assertSame('awaiting_approval', $lead->fresh()->operational_status);
         $this->assertSame(0, $lead->replies()->withoutGlobalScopes()->count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_formula_pricing_calculates_daily_tier_and_round_trip_distance_deterministically(): void
+    {
+        Mail::fake(); Storage::fake('local');
+        config()->set('commerciale-ai.routing.api_key', 'ors-test-key');
+        config()->set('commerciale-ai.routing.api_url', 'https://api.openrouteservice.org');
+        Http::fakeSequence()
+            ->push(['features' => [['geometry' => ['coordinates' => [9.19, 45.46]]]]])
+            ->push(['features' => [['geometry' => ['coordinates' => [10.02, 45.13]]]]])
+            ->push(['routes' => [['summary' => ['distance' => 100000, 'duration' => 5000]]]]);
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Street food',
+            'products_services' => 'Ape Lineare', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'auto_analyze_new_leads' => true, 'quotation_review_mode' => true,
+            'new_lead_automation_started_at' => now()->subMinute(),
+        ]);
+        PricingRule::create([
+            'name' => 'Ape Lineare', 'keywords' => ['ape lineare'], 'required_fields' => [],
+            'daily_rate_tiers' => [
+                ['min_days' => 1, 'max_days' => 3, 'rate_per_day' => 550],
+                ['min_days' => 4, 'max_days' => 8, 'rate_per_day' => 500],
+            ],
+            'origin_address' => 'Milano, MI', 'distance_rate_per_km' => 2, 'distance_round_trip' => true,
+            'minimum_price' => 500, 'maximum_price' => 10000, 'is_active' => true,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Calcolo formula', 'email' => 'cliente@example.test', 'requested_service' => 'Ape Lineare',
+            'source_label' => 'WPForms', 'request_data' => [
+                'Per quanti giorni ti occorre il mezzo?' => '4',
+                'Quale località deve raggiungere il mezzo?' => 'Cremona',
+            ],
+        ]);
+        app(TenantContext::class)->clear();
+
+        app(RunNewLeadAutomation::class)->handle();
+
+        $quotation = Quotation::withoutGlobalScopes()->where('lead_id', $lead->id)->firstOrFail();
+        $this->assertSame('2400.00', $quotation->estimated_price);
+        $this->assertSame(4, data_get($quotation->input_snapshot, 'pricing_calculation.rental.days'));
+        $this->assertEquals(200.0, data_get($quotation->input_snapshot, 'pricing_calculation.transport.billable_km'));
+        $this->assertStringContainsString('4 giorni', implode(' ', $quotation->line_items));
+        $this->assertStringContainsString('200,0 km', implode(' ', $quotation->line_items));
+        $this->assertNotNull($quotation->pdf_generated_at);
+        Http::assertSentCount(3);
         Mail::assertNothingSent();
     }
 

@@ -12,7 +12,7 @@ use Illuminate\Support\Arr;
 
 class BuildQuotation
 {
-    public function __construct(private readonly QuotationNumberGenerator $numbers, private readonly EstimateQuotation $estimator) {}
+    public function __construct(private readonly QuotationNumberGenerator $numbers, private readonly EstimateQuotation $estimator, private readonly CalculatePricingFormula $formulas) {}
 
     /** @return array{quotation:Quotation|null,context:array|null,blockers:array,conversation_blockers:array,candidate_rules:array} */
     public function handle(Lead $lead, ?AiAnalysis $analysis = null, bool $allowIncompleteEstimate = false, ?string $forcedPricingRuleId = null): array
@@ -59,6 +59,8 @@ class BuildQuotation
         /** @var PricingRule $rule */
         $rule = $ranked[0]['rule'];
         $missing = collect($rule->required_fields ?? [])->filter(fn ($field) => blank($this->fieldValue($lead, (string) $field)))->values()->all();
+        $formula = $this->formulas->handle($lead, $rule);
+        $missing = array_values(array_unique([...$missing, ...$formula['missing']]));
         $qualificationExhausted = $missing !== [] && $lead->replies()
             ->where('status', 'sent')
             ->whereIn('reply_kind', ['qualification', 'initial_qualification'])
@@ -66,11 +68,9 @@ class BuildQuotation
         $estimate = ($missing === [] || $qualificationExhausted || $allowIncompleteEstimate) && $analysis
             ? $this->estimator->handle($lead, $analysis, $rule)
             : null;
-        $estimatedPrice = $estimate ? $this->estimatedPrice(
-            (float) $rule->minimum_price,
-            (float) $rule->maximum_price,
-            (int) $estimate['complexity_score'],
-        ) : null;
+        $estimatedPrice = $formula['applicable']
+            ? $formula['total']
+            : ($estimate ? $this->estimatedPrice((float) $rule->minimum_price, (float) $rule->maximum_price, (int) $estimate['complexity_score']) : null);
         $blockers = $conversationBlockers;
         if ($missing !== [] && ! $qualificationExhausted) $blockers[] = 'missing_required_fields';
         if (! $settings?->auto_send_quotes_enabled) $blockers[] = 'auto_send_quotes_disabled';
@@ -88,9 +88,10 @@ class BuildQuotation
             'complexity_score' => $estimate['complexity_score'] ?? null,
             'scope_title' => $estimate['scope_title'] ?? $rule->name,
             'scope_description' => $estimate['scope_description'] ?? null,
-            'line_items' => $estimate['deliverables'] ?? [], 'assumptions' => $estimate['assumptions'] ?? [],
+            'line_items' => array_values(array_unique([...($formula['line_items'] ?? []), ...($estimate['deliverables'] ?? [])])),
+            'assumptions' => array_values(array_unique([...($formula['assumptions'] ?? []), ...($estimate['assumptions'] ?? [])])),
             'estimate_rationale' => $estimate['rationale'] ?? null,
-            'input_snapshot' => ['requested_service' => $lead->requested_service, 'request_data' => $lead->request_data, 'inbound_email_id' => $inbound?->id],
+            'input_snapshot' => ['requested_service' => $lead->requested_service, 'request_data' => $lead->request_data, 'inbound_email_id' => $inbound?->id, 'pricing_calculation' => $formula['calculation']],
             'missing_fields' => $missing, 'auto_send_eligible' => $blockers === [], 'automation_blockers' => $blockers,
             'document_year' => $document['year'], 'document_sequence' => $document['sequence'],
             'document_number' => $document['number'], 'valid_until' => $validUntil,
@@ -101,7 +102,8 @@ class BuildQuotation
             'maximum_price' => (float) $rule->maximum_price, 'estimated_price' => $estimatedPrice,
             'scope_title' => $estimate['scope_title'] ?? $rule->name,
             'scope_description' => $estimate['scope_description'] ?? null,
-            'line_items' => $estimate['deliverables'] ?? [], 'assumptions' => $estimate['assumptions'] ?? [],
+            'line_items' => array_values(array_unique([...($formula['line_items'] ?? []), ...($estimate['deliverables'] ?? [])])),
+            'assumptions' => array_values(array_unique([...($formula['assumptions'] ?? []), ...($estimate['assumptions'] ?? [])])),
             'currency' => 'EUR', 'includes' => $rule->includes,
             'excludes' => $rule->excludes, 'valid_until' => $validUntil,
             'missing_fields' => $missing, 'confidence' => $confidence,
