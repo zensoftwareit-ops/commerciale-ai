@@ -11,6 +11,7 @@ use App\Models\Lead;
 use App\Models\OrganizationSetting;
 use App\Models\PipelineStage;
 use App\Models\PromptPolicy;
+use App\Models\PricingRule;
 use App\Models\QualificationProfile;
 use App\Support\Tenancy\TenantContext;
 use App\Services\Licensing\LicenseUsageGuard;
@@ -35,10 +36,16 @@ class AnalyzeLead
         $profile = QualificationProfile::query()->where('is_active', true)->first();
         $policy = PromptPolicy::query()->where('operation', 'lead_analysis')->where('is_active', true)->latest()->first();
         $knowledge = KnowledgeDocument::query()->where('status', 'active')->latest('updated_at')->limit(20)->get(['id', 'title', 'type', 'content', 'updated_at']);
+        $pricingRules = PricingRule::query()->where('is_active', true)->limit(50)->get([
+            'name', 'keywords', 'required_fields', 'minimum_price', 'maximum_price', 'includes', 'excludes', 'validity_days',
+        ]);
         $context = [
             'organization' => $settings?->only(['industry', 'business_description', 'products_services', 'ideal_customer', 'pricing_rules', 'exclusion_criteria', 'tone_of_voice']),
             'knowledge' => $knowledge->map->only(['id', 'title', 'type', 'content', 'updated_at'])->all(),
-            'policy' => $policy?->only(['version', 'instructions']) ?? ['version' => 'lead-analysis-v1'],
+            'structured_pricing_rules' => $pricingRules->map->only([
+                'name', 'keywords', 'required_fields', 'minimum_price', 'maximum_price', 'includes', 'excludes', 'validity_days',
+            ])->all(),
+            'policy' => $policy?->only(['version', 'instructions']) ?? ['version' => 'default'],
         ];
         $run = AiRun::create([
             'organization_id' => $organizationId,

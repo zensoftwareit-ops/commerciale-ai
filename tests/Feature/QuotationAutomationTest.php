@@ -69,6 +69,31 @@ class QuotationAutomationTest extends CommercialeAiTestCase
         $this->assertStringNotContainsString('Da definire e confermare', $pdf);
     }
 
+    public function test_wpforms_captions_satisfy_semantic_required_fields_for_a_quote(): void
+    {
+        Storage::fake('local');
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create(['commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Mezzi promozionali',
+            'products_services' => 'Ape Lineare', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale', 'email_signature' => 'Demo']);
+        PricingRule::create(['name' => 'Ape Lineare', 'keywords' => ['ape lineare'],
+            'required_fields' => ['start_date', 'end_date', 'destination', 'accessories'],
+            'minimum_price' => 500, 'maximum_price' => 1200, 'validity_days' => 15, 'is_active' => true]);
+        $lead = app(CreateLead::class)->handle(['name' => 'Federico', 'email' => 'federico@example.test',
+            'requested_service' => 'Ape Lineare', 'source_label' => 'WPForms', 'request_data' => [
+                'Dal giorno' => '12-10-2026', 'Al giorno' => '16-10-2026',
+                'Quale località deve raggiungere il mezzo?' => 'Cremona',
+                'Quali servizi ti occorrono?' => "Decorazione parziale\nLogistica\nTrasporto",
+            ]]);
+        $analysis = app(AnalyzeLead::class)->handle($lead);
+        app(GenerateLeadReply::class)->handle($lead, $analysis);
+
+        $quote = Quotation::firstOrFail();
+        $this->assertSame([], $quote->missing_fields);
+        $this->assertNotNull($quote->estimated_price);
+        $this->assertSame('quotation', $lead->replies()->firstOrFail()->reply_kind);
+    }
+
     public function test_internal_allowlist_can_enable_and_send_a_fully_reliable_quote(): void
     {
         config()->set('mail.default', 'smtp');

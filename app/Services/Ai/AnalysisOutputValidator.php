@@ -25,7 +25,7 @@ class AnalysisOutputValidator
             'missing_information' => ['present', 'array'],
             'risk_flags' => ['present', 'array'],
             'recommended_next_action' => ['required', 'string', 'max:3000'],
-            'qualification_questions' => ['present', 'array'],
+            'qualification_questions' => ['present', 'array', 'max:1'],
             'confidence' => ['required', 'numeric', 'between:0,1'],
             '_meta' => ['sometimes', 'array'],
         ]);

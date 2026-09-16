@@ -59,6 +59,37 @@ class OpenAiLeadAnalyzerTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_it_keeps_dates_and_structured_quote_requirements_while_redacting_phone_numbers(): void
+    {
+        config()->set('commerciale-ai.openai', [
+            'api_key' => 'test-key', 'model' => 'gpt-5.6-terra', 'reasoning_effort' => 'low',
+            'timeout' => 10, 'input_cost_per_million' => 2, 'output_cost_per_million' => 12,
+        ]);
+        Http::fake(fn () => Http::response([
+            'model' => 'gpt-5.6-terra',
+            'output' => [['type' => 'message', 'content' => [['type' => 'output_text', 'text' => json_encode($this->validOutput(), JSON_THROW_ON_ERROR)]]]],
+            'usage' => ['input_tokens' => 100, 'output_tokens' => 50],
+        ]));
+        $lead = new Lead([
+            'source_label' => 'WPForms', 'requested_service' => 'Ape Lineare', 'phone' => '+39 333 1234567',
+            'request_data' => ['Dal giorno' => '12-10-2026', 'Al giorno' => '16-10-2026',
+                'Destinazione' => 'Cremona', 'Telefono alternativo' => '+39 333 1234567'],
+        ]);
+        app(OpenAiLeadAnalyzer::class)->analyze($lead, ['structured_pricing_rules' => [[
+            'name' => 'Ape Lineare', 'keywords' => ['ape'], 'required_fields' => ['start_date', 'end_date', 'destination'],
+            'minimum_price' => 500, 'maximum_price' => 1000, 'includes' => 'Noleggio', 'excludes' => '', 'validity_days' => 15,
+        ]]]);
+
+        Http::assertSent(function (Request $request): bool {
+            $input = json_decode($request->data()['input'][1]['content'], true, 512, JSON_THROW_ON_ERROR);
+            return data_get($input, 'lead.request.Dal giorno') === '12-10-2026'
+                && data_get($input, 'lead.request.Al giorno') === '16-10-2026'
+                && data_get($input, 'lead.request.Destinazione') === 'Cremona'
+                && data_get($input, 'lead.request.Telefono alternativo') === '[phone-redacted]'
+                && data_get($input, 'structured_pricing_rules.0.required_fields') === ['start_date', 'end_date', 'destination'];
+        });
+    }
+
     private function validOutput(): array
     {
         return [

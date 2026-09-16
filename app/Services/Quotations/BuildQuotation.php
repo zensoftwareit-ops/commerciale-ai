@@ -8,6 +8,7 @@ use App\Models\OrganizationSetting;
 use App\Models\PricingRule;
 use App\Models\Quotation;
 use Illuminate\Support\Str;
+use Illuminate\Support\Arr;
 
 class BuildQuotation
 {
@@ -93,10 +94,21 @@ class BuildQuotation
         if (in_array($field, ['name', 'email', 'phone', 'company', 'requested_service'], true)) return $lead->{$field};
         $value = data_get($lead->request_data, $field);
         if (filled($value)) return $value;
+        $normalizedField = $this->normalize($field);
+        $semanticField = $this->semanticField($normalizedField);
+        foreach (Arr::dot($lead->request_data ?? []) as $path => $candidate) {
+            if (! filled($candidate) || ! is_scalar($candidate)) continue;
+            $normalizedPath = $this->normalize((string) $path);
+            if ($normalizedPath === $normalizedField
+                || str_ends_with($normalizedPath, ' '.$normalizedField)
+                || ($semanticField !== null && $semanticField === $this->semanticField($normalizedPath))) {
+                return $candidate;
+            }
+        }
+        if ($semanticField === 'vehicle' && filled($lead->requested_service)) return $lead->requested_service;
         $inboundBody = $lead->inboundEmails()->oldest('received_at')->pluck('body')->filter()
             ->concat($lead->whatsappMessages()->where('direction', 'inbound')->oldest('received_at')->pluck('body')->filter())
             ->implode("\n");
-        $normalizedField = $this->normalize($field);
         $inboundText = $this->normalize($inboundBody);
         if (in_array($normalizedField, ['pages', 'page count', 'numero pagine'], true)
             && preg_match('/\b(\d{1,3})\s*(?:pagine|pagina|pages?)\b/iu', $inboundBody, $matches)) return (int) $matches[1];
@@ -104,6 +116,23 @@ class BuildQuotation
             && preg_match('/(?:budget|spesa)[^0-9]{0,15}([0-9][0-9.,]*)/iu', $inboundBody, $matches)) return $matches[1];
 
         return str_contains($inboundText, $normalizedField) ? $inboundText : null;
+    }
+
+    private function semanticField(string $field): ?string
+    {
+        $patterns = [
+            'start_date' => '/\b(?:start date|date start|data inizio|inizio noleggio|dal giorno|decorrenza)\b/',
+            'end_date' => '/\b(?:end date|date end|data fine|fine noleggio|al giorno)\b/',
+            'duration' => '/\b(?:duration|durata|days|giorni)\b/',
+            'destination' => '/\b(?:destination|destinazione|localita|luogo|location|consegna|indirizzo)\b/',
+            'accessories' => '/\b(?:accessor\w*|accessori\w*|attrezzatur\w*|equipment|optional\w*|servizi(?: [a-z]+){0,3} (?:richiesti|occorrono)|extra)\b/',
+            'vehicle' => '/\b(?:vehicle|veicolo|mezzo|product|prodotto)\b/',
+        ];
+        foreach ($patterns as $semantic => $pattern) {
+            if (preg_match($pattern, $field)) return $semantic;
+        }
+
+        return null;
     }
 
     private function conversationBlockers(Lead $lead, ?OrganizationSetting $settings, mixed $inbound): array
