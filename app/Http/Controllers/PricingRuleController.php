@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\PricingRule;
+use App\Services\Quotations\PricingFormulaValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use JsonException;
 
 class PricingRuleController extends Controller
 {
@@ -29,16 +32,34 @@ class PricingRuleController extends Controller
             'excludes' => ['nullable', 'string', 'max:5000'], 'validity_days' => ['required', 'integer', 'min:1', 'max:365'],
             'daily_rate_tiers_text' => ['nullable', 'string', 'max:5000'], 'origin_address' => ['nullable', 'string', 'max:500'],
             'distance_rate_per_km' => ['nullable', 'numeric', 'min:0', 'max:10000'], 'distance_round_trip' => ['nullable', 'boolean'],
+            'pricing_formula_text' => ['nullable', 'string', 'max:50000'],
             'is_active' => ['nullable', 'boolean'],
         ]);
         $lines = fn (string $value) => collect(preg_split('/[\r\n,]+/', $value))->map(fn ($line) => trim($line))->filter()->values()->all();
         $data['keywords'] = $lines($data['keywords_text']);
         $data['required_fields'] = $lines($data['required_fields_text'] ?? '');
         $data['daily_rate_tiers'] = $this->tiers($data['daily_rate_tiers_text'] ?? '');
+        $data['pricing_formula'] = $this->formula($data['pricing_formula_text'] ?? '');
         $data['distance_round_trip'] = (bool) ($data['distance_round_trip'] ?? false);
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
-        unset($data['keywords_text'], $data['required_fields_text'], $data['daily_rate_tiers_text']);
+        unset($data['keywords_text'], $data['required_fields_text'], $data['daily_rate_tiers_text'], $data['pricing_formula_text']);
         return $data;
+    }
+
+    private function formula(string $text): ?array
+    {
+        if (trim($text) === '') return null;
+        try {
+            $formula = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw ValidationException::withMessages(['pricing_formula_text' => 'La ricetta di calcolo non è un JSON valido. Correggila oppure rigenerala dai documenti.']);
+        }
+        if (! is_array($formula)) throw ValidationException::withMessages(['pricing_formula_text' => 'La ricetta di calcolo deve essere un oggetto JSON.']);
+        try {
+            return app(PricingFormulaValidator::class)->validate($formula);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(['pricing_formula_text' => 'Ricetta non valida: '.implode(' ', $e->errors()['pricing_formula'] ?? collect($e->errors())->flatten()->all())]);
+        }
     }
 
     private function tiers(string $text): array

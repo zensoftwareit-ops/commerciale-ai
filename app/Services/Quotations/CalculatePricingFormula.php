@@ -10,11 +10,13 @@ use Illuminate\Support\Str;
 
 class CalculatePricingFormula
 {
-    public function __construct(private readonly RoadDistanceCalculator $distances) {}
+    public function __construct(private readonly RoadDistanceCalculator $distances, private readonly UniversalPricingCalculator $universal) {}
 
     /** @return array{applicable:bool,total:?float,line_items:array,assumptions:array,missing:array,calculation:array} */
     public function handle(Lead $lead, PricingRule $rule): array
     {
+        $universal = $this->universal->handle($lead, $rule);
+        if ($universal['applicable']) return $universal;
         $tiers = collect($rule->daily_rate_tiers ?? [])->filter(fn ($tier) => is_array($tier));
         $distanceRate = $rule->distance_rate_per_km !== null ? (float) $rule->distance_rate_per_km : null;
         if ($tiers->isEmpty() && $distanceRate === null) return ['applicable' => false, 'total' => null, 'line_items' => [], 'assumptions' => [], 'missing' => [], 'calculation' => []];

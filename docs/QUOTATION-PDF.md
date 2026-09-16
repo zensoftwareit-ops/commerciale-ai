@@ -16,9 +16,11 @@ Il prodotto usa un unico modello commerciale classico, ispirato alla carta intes
 - condizioni economiche e di pagamento;
 - nota finale facoltativa.
 
-Il listino definisce i limiti economici autorizzati. Le regole semplici possono ancora usare una fascia minima/massima e un livello di complessità. Per noleggi e servizi misurabili sono disponibili formule deterministiche: scaglioni di tariffa giornaliera (`1-3: 550`, `4-8: 500`), località di partenza, costo chilometrico e scelta fra sola andata o andata/ritorno. Daria legge durata e destinazione dal modulo, applica lo scaglione, calcola la distanza stradale e somma i subtotali; OpenAI descrive l'ambito ma non decide né modifica i numeri.
+Il listino definisce i limiti economici autorizzati. Le regole semplici possono ancora usare una fascia minima/massima. Le regole evolute contengono invece una **ricetta universale di prezzo**: variabili lette dal lead, unità e conversioni, importi fissi, quantità per prezzo unitario, scaglioni, opzioni selezionabili, condizioni, maggiorazioni e sconti percentuali. Una variabile può anche rappresentare una distanza stradale, con origine configurata e scelta fra sola andata o andata/ritorno.
 
-Il calcolo stradale usa openrouteservice e richiede i parametri globali `OPENROUTESERVICE_API_KEY`, `OPENROUTESERVICE_API_URL` e `OPENROUTESERVICE_TIMEOUT`. Le regole specifiche di ciascun cliente rimangono nel database e si configurano in **Azienda e AI > Listino strutturato**.
+Lo stesso motore può quindi comporre, per esempio, un noleggio a giorni con trasporto e accessori oppure una vendita a kg/quintali con imballaggio e sconto quantità. OpenAI traduce documenti e spiegazioni nella ricetta; prima del salvataggio la struttura viene validata. Durante il preventivo il calcolo è eseguito dal software, non dal modello, e nel PDF vengono riportati i singoli passaggi e subtotali. Se manca una variabile obbligatoria o nessuno scaglione è applicabile, il preventivo non viene inventato e passa alla verifica umana.
+
+Il calcolo stradale usa openrouteservice e richiede i parametri globali `OPENROUTESERVICE_API_KEY`, `OPENROUTESERVICE_API_URL` e `OPENROUTESERVICE_TIMEOUT`. Le ricette specifiche di ciascun cliente rimangono nel database e si configurano in **Azienda e AI > Listino strutturato**; non vengono inserite nel file `.env` e non richiedono codice personalizzato per cliente.
 
 ## Numerazione e archiviazione
 

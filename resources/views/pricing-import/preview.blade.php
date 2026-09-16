@@ -15,6 +15,7 @@
         $prefix = 'items.'.$index.'.';
         $missingPrice = $item['minimum_price'] === null || $item['maximum_price'] === null;
         $tiersText = collect($item['daily_rate_tiers'] ?? [])->map(fn($tier) => $tier['min_days'].'-'.($tier['max_days'] ?? '*').': '.$tier['rate_per_day'])->implode("\n");
+        $formulaText = ($item['pricing_formula'] ?? null) ? json_encode($item['pricing_formula'], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) : '';
     @endphp
     <details class="card" @if($missingPrice || $errors->has('items.'.$index)) open @endif>
         <summary style="cursor:pointer"><strong>{{ $item['name'] }}</strong> — {{ $missingPrice ? 'Prezzo da completare' : 'Proposta da verificare' }}</summary>
@@ -27,6 +28,7 @@
             <div><label for="max-{{ $index }}">Prezzo massimo (€)</label><input id="max-{{ $index }}" type="number" min="0" max="99999999.99" step="0.01" name="items[{{ $index }}][maximum_price]" value="{{ old($prefix.'maximum_price', $item['maximum_price']) }}"></div>
             <div><label>Tariffe giornaliere per scaglione</label><textarea rows="5" name="items[{{ $index }}][daily_rate_tiers_text]" placeholder="1-3: 550&#10;4-8: 500&#10;9-*: 450">{{ old($prefix.'daily_rate_tiers_text', $tiersText) }}</textarea></div>
             <div><label>Località di partenza</label><input name="items[{{ $index }}][origin_address]" value="{{ old($prefix.'origin_address', $item['origin_address'] ?? '') }}"><label>Costo per km (€)</label><input type="number" min="0" step="0.01" name="items[{{ $index }}][distance_rate_per_km]" value="{{ old($prefix.'distance_rate_per_km', $item['distance_rate_per_km'] ?? '') }}"><label><input style="width:auto" type="checkbox" name="items[{{ $index }}][distance_round_trip]" value="1" @checked(old($prefix.'distance_round_trip', $item['distance_round_trip'] ?? true))> Calcola andata e ritorno</label></div>
+            <div style="grid-column:1/-1"><label>Ricetta universale di calcolo</label><textarea rows="14" name="items[{{ $index }}][pricing_formula_text]" spellcheck="false">{{ old($prefix.'pricing_formula_text', $formulaText) }}</textarea><p class="muted">Contiene variabili, unità, scaglioni, opzioni, condizioni e percentuali che Daria eseguirà in modo deterministico. Se è vuota, resterà disponibile soltanto la fascia di prezzo descrittiva.</p></div>
             <div><label for="includes-{{ $index }}">Descrizione, inclusioni e condizioni</label><textarea id="includes-{{ $index }}" rows="5" maxlength="5000" name="items[{{ $index }}][includes]">{{ old($prefix.'includes', $item['includes']) }}</textarea></div>
             <div><label for="excludes-{{ $index }}">Esclusioni e limiti</label><textarea id="excludes-{{ $index }}" rows="5" maxlength="5000" name="items[{{ $index }}][excludes]">{{ old($prefix.'excludes', $item['excludes']) }}</textarea></div>
             <div><label for="validity-{{ $index }}">Validità del preventivo (giorni)</label><input id="validity-{{ $index }}" type="number" min="1" max="365" name="items[{{ $index }}][validity_days]" value="{{ old($prefix.'validity_days', $item['validity_days'] ?? 15) }}"></div>

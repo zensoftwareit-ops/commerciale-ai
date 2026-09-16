@@ -6,10 +6,12 @@ use App\Models\AiRun;
 use App\Models\KnowledgeDocument;
 use App\Models\PricingRule;
 use App\Services\Ai\ImportPricingDocuments;
+use App\Services\Quotations\PricingFormulaValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use JsonException;
 use Throwable;
 
 class PricingImportController extends Controller
@@ -93,6 +95,7 @@ class PricingImportController extends Controller
                 'maximum_price' => 'required|numeric|gte:minimum_price|max:99999999.99',
                 'daily_rate_tiers_text' => 'nullable|string|max:5000', 'origin_address' => 'nullable|string|max:500',
                 'distance_rate_per_km' => 'nullable|numeric|min:0|max:10000', 'distance_round_trip' => 'nullable|boolean',
+                'pricing_formula_text' => 'nullable|string|max:50000',
                 'includes' => 'nullable|string|max:5000', 'excludes' => 'nullable|string|max:5000',
                 'validity_days' => 'required|integer|min:1|max:365', 'is_active' => 'nullable|boolean',
             ], ['required' => 'Compila :attribute.', 'gte' => 'Il prezzo massimo deve essere almeno pari al minimo.',
@@ -104,8 +107,9 @@ class PricingImportController extends Controller
             $values['keywords'] = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $values['keywords_text'])), fn ($word) => $word !== ''));
             if ($values['keywords'] === []) throw ValidationException::withMessages(['items.'.$index => 'Inserisci almeno una parola chiave per la voce '.($index + 1).'.']);
             $values['daily_rate_tiers'] = $this->tiers($values['daily_rate_tiers_text'] ?? '', $index);
+            $values['pricing_formula'] = $this->formula($values['pricing_formula_text'] ?? '', $index);
             $values['distance_round_trip'] = (bool) ($values['distance_round_trip'] ?? false);
-            unset($values['keywords_text'], $values['daily_rate_tiers_text']);
+            unset($values['keywords_text'], $values['daily_rate_tiers_text'], $values['pricing_formula_text']);
             $values['required_fields'] = [];
             $values['is_active'] = (bool) ($values['is_active'] ?? false);
             $selected[] = $values;
@@ -134,5 +138,19 @@ class PricingImportController extends Controller
             }
             return ['min_days' => (int) $match[1], 'max_days' => $match[2] === '*' ? null : (int) $match[2], 'rate_per_day' => (float) str_replace(',', '.', $match[3])];
         })->filter()->values()->all();
+    }
+
+    private function formula(string $text, int|string $index): ?array
+    {
+        if (trim($text) === '') return null;
+        try {
+            $formula = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
+            if (! is_array($formula)) throw new JsonException;
+            return app(PricingFormulaValidator::class)->validate($formula);
+        } catch (JsonException) {
+            throw ValidationException::withMessages(['items.'.$index => 'La ricetta di calcolo non contiene un JSON valido.']);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(['items.'.$index => 'Ricetta di calcolo non valida: '.implode(' ', collect($e->errors())->flatten()->all())]);
+        }
     }
 }

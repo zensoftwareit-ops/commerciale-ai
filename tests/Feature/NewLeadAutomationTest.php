@@ -11,6 +11,7 @@ use App\Models\PricingRule;
 use App\Models\Quotation;
 use App\Services\Leads\CreateLead;
 use App\Services\Leads\RunNewLeadAutomation;
+use App\Services\Quotations\CalculatePricingFormula;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -322,6 +323,84 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         $this->assertNotNull($quotation->pdf_generated_at);
         Http::assertSentCount(3);
         Mail::assertNothingSent();
+    }
+
+    public function test_universal_recipe_combines_tiers_distance_and_selected_options(): void
+    {
+        config()->set('commerciale-ai.routing.api_key', 'ors-test-key');
+        config()->set('commerciale-ai.routing.api_url', 'https://api.openrouteservice.org');
+        Http::fakeSequence()
+            ->push(['features' => [['geometry' => ['coordinates' => [9.19, 45.46]]]]])
+            ->push(['features' => [['geometry' => ['coordinates' => [10.02, 45.13]]]]])
+            ->push(['routes' => [['summary' => ['distance' => 100000, 'duration' => 5000]]]]);
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        $rule = PricingRule::create([
+            'name' => 'Noleggio configurabile', 'keywords' => ['ape'], 'required_fields' => [],
+            'minimum_price' => 1, 'maximum_price' => 20000, 'is_active' => true,
+            'pricing_formula' => [
+                'version' => 1,
+                'variables' => [
+                    ['key' => 'days', 'label' => 'Giorni', 'type' => 'number', 'aliases' => ['per quanti giorni'], 'required' => true],
+                    ['key' => 'destination', 'label' => 'Destinazione', 'type' => 'distance_km', 'aliases' => ['località deve raggiungere'], 'required' => true, 'origin_address' => 'Milano', 'round_trip' => true],
+                    ['key' => 'services', 'label' => 'Servizi', 'type' => 'text', 'aliases' => ['servizi ti occorrono'], 'required' => false],
+                ],
+                'components' => [
+                    ['key' => 'rental', 'label' => 'Noleggio', 'operation' => 'tiered', 'quantity_variable' => 'days', 'tiers' => [
+                        ['min' => 1, 'max' => 3, 'unit_price' => 550], ['min' => 4, 'max' => 8, 'unit_price' => 500],
+                    ]],
+                    ['key' => 'transport', 'label' => 'Trasporto', 'operation' => 'multiply', 'quantity_variable' => 'destination', 'unit_price' => 2],
+                    ['key' => 'extras', 'label' => 'Servizi selezionati', 'operation' => 'lookup', 'quantity_variable' => 'services', 'options' => [
+                        ['value' => 'Decorazione parziale', 'aliases' => ['decorazione'], 'amount' => 350],
+                        ['value' => 'Friggitrice', 'aliases' => [], 'amount' => 100],
+                    ]],
+                ],
+            ],
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Cliente noleggio', 'email' => 'rent@example.test', 'requested_service' => 'Ape', 'source_label' => 'form',
+            'request_data' => ['Per quanti giorni ti occorre il mezzo?' => '4', 'Quale località deve raggiungere il mezzo?' => 'Cremona',
+                'Quali servizi ti occorrono?' => "Decorazione parziale\nFriggitrice"],
+        ]);
+
+        $result = app(CalculatePricingFormula::class)->handle($lead, $rule);
+
+        $this->assertTrue($result['applicable']);
+        $this->assertSame(2850.0, $result['total']);
+        $this->assertEquals(['rental' => 2000.0, 'transport' => 400.0, 'extras' => 450.0], $result['calculation']['components']);
+        $this->assertStringContainsString('4,00 × € 500,00', implode(' ', $result['line_items']));
+        Http::assertSentCount(3);
+    }
+
+    public function test_same_engine_prices_goods_by_quantity_with_a_fixed_fee_and_percentage_discount(): void
+    {
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        $rule = PricingRule::create([
+            'name' => 'Riso sfuso', 'keywords' => ['riso'], 'required_fields' => [],
+            'minimum_price' => 1, 'maximum_price' => 20000, 'is_active' => true,
+            'pricing_formula' => [
+                'version' => 1,
+                'variables' => [['key' => 'quintals', 'label' => 'Quantità in quintali', 'type' => 'number', 'aliases' => ['quintali', 'quantità'], 'required' => true, 'unit' => 'q']],
+                'components' => [
+                    ['key' => 'rice', 'label' => 'Riso', 'operation' => 'multiply', 'quantity_variable' => 'quintals', 'unit_price' => 145],
+                    ['key' => 'delivery', 'label' => 'Consegna', 'operation' => 'fixed', 'amount' => 30],
+                    ['key' => 'volume_discount', 'label' => 'Sconto quantità', 'operation' => 'percentage', 'rate_percent' => -5, 'base_components' => ['rice'],
+                        'condition' => ['variable' => 'quintals', 'operator' => 'gte', 'value' => 5]],
+                ],
+            ],
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Negozio', 'email' => 'shop@example.test', 'requested_service' => 'Riso', 'source_label' => 'form',
+            'request_data' => ['Quantità richiesta in quintali' => '8'],
+        ]);
+
+        $result = app(CalculatePricingFormula::class)->handle($lead, $rule);
+
+        $this->assertSame(1132.0, $result['total']);
+        $this->assertEquals(['rice' => 1160.0, 'delivery' => 30.0, 'volume_discount' => -58.0], $result['calculation']['components']);
+        $this->assertStringContainsString('-5,00%', implode(' ', $result['line_items']));
+        Http::assertNothingSent();
     }
 
     public function test_it_analyzes_all_new_leads_but_sends_only_to_internal_allowed_leads(): void
