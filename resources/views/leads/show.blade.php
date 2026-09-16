@@ -1,5 +1,15 @@
 @extends('layouts.app')
 @section('title', $lead->name.' · Daria')
+@push('styles')
+<style>
+.request-fields{display:grid;gap:0;margin-top:14px;border:1px solid #eaecf0;border-radius:10px;overflow:hidden}
+.request-field{min-width:0;padding:13px 15px;border-bottom:1px solid #eaecf0;background:#fff}
+.request-field:last-child{border-bottom:0}.request-field:nth-child(odd){background:#fafbfc}
+.request-field-label{color:#667085;font-size:10px;line-height:1.45;text-transform:uppercase;letter-spacing:.07em;font-weight:750;overflow-wrap:anywhere}
+.request-field-value{margin-top:6px;color:#101828;font-size:14px;line-height:1.55;font-weight:550;white-space:normal;overflow-wrap:anywhere}
+.request-field-value.is-empty{color:#98a2b3;font-weight:400}
+</style>
+@endpush
 @section('content')
 <div class="toolbar">
     <div>
@@ -66,14 +76,15 @@
         <p><strong>Servizio:</strong> {{ $lead->requested_service ?: 'Non indicato' }}</p>
         @if(filled(data_get($lead->request_data, 'message')))<p>{{ data_get($lead->request_data, 'message') }}</p>@endif
         @if(filled($lead->request_data))
-            <table><tbody>
+            <div class="request-fields">
             @foreach($requestRows as [$key, $value])
                 @continue($key === 'message')
-                <tr><th>{{ str($key)->replace('_', ' ')->title() }}</th><td>
-                    {!! nl2br(e($value)) !!}
-                </td></tr>
+                <div class="request-field">
+                    <div class="request-field-label">{{ str($key)->replace('_', ' ')->title() }}</div>
+                    <div class="request-field-value @if($value === '—') is-empty @endif">{!! nl2br(e($value)) !!}</div>
+                </div>
             @endforeach
-            </tbody></table>
+            </div>
         @endif
         <form method="post" action="{{ route('leads.update', $lead) }}">
             @csrf @method('patch')

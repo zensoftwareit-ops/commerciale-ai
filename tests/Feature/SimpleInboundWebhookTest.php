@@ -115,7 +115,9 @@ class SimpleInboundWebhookTest extends CommercialeAiTestCase
         $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
             ->get(route('leads.show', $response->json('lead_id')))
             ->assertOk()->assertSee('Ape Lineare')->assertSee('Cremona')
-            ->assertSee('Decorazione parziale')->assertSee('Logistica')->assertSee('Trasporto');
+            ->assertSee('Decorazione parziale')->assertSee('Logistica')->assertSee('Trasporto')
+            ->assertSee('request-field-value', false)
+            ->assertSeeInOrder(['Quale Mezzo Ti Occorre?', 'Ape Lineare']);
     }
 
     public function test_it_preserves_wpforms_label_value_field_lists_and_json_wrappers(): void
