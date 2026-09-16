@@ -21,7 +21,7 @@ class PrepareDirectQuotation
         $result = $this->builder->handle($lead, $analysis);
         $quotation = $result['quotation'];
         if (! $quotation) {
-            return $this->handoff($lead, null, $this->reason($result['blockers']));
+            return $this->handoff($lead, null, $this->reason($lead, $result['blockers'], $result['candidate_rules'] ?? []));
         }
         if (($quotation->missing_fields ?? []) !== []) {
             return $this->handoff($lead, $quotation, 'Mancano dati obbligatori del listino: '.implode(', ', $quotation->missing_fields).'.');
@@ -84,10 +84,19 @@ class PrepareDirectQuotation
         }
     }
 
-    private function reason(array $blockers): string
+    private function reason(Lead $lead, array $blockers, array $candidates): string
     {
-        if (in_array('ambiguous_pricing_rule', $blockers, true)) return 'Più regole di listino risultano compatibili.';
-        if (in_array('no_matching_pricing_rule', $blockers, true)) return 'Non esiste una regola di listino compatibile.';
+        if (in_array('ambiguous_pricing_rule', $blockers, true)) {
+            return 'Più regole di listino risultano equivalenti: '.implode(', ', $candidates).'. Specifica parole chiave differenti nelle regole.';
+        }
+        if (in_array('no_matching_pricing_rule', $blockers, true)) {
+            $activeRules = \App\Models\PricingRule::query()->where('is_active', true)->pluck('name')->take(8);
+            if ($activeRules->isEmpty()) {
+                return 'Non esiste alcuna regola attiva nel Listino strutturato. I documenti della Knowledge base, da soli, non contengono una fascia di prezzo applicabile.';
+            }
+
+            return 'Nessuna regola attiva corrisponde al servizio “'.($lead->requested_service ?: 'non riconosciuto').'”. Regole disponibili: '.$activeRules->implode(', ').'.';
+        }
 
         return 'La richiesta richiede una valutazione commerciale.';
     }

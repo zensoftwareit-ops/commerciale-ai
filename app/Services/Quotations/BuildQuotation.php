@@ -14,7 +14,7 @@ class BuildQuotation
 {
     public function __construct(private readonly QuotationNumberGenerator $numbers, private readonly EstimateQuotation $estimator) {}
 
-    /** @return array{quotation:Quotation|null,context:array|null,blockers:array,conversation_blockers:array} */
+    /** @return array{quotation:Quotation|null,context:array|null,blockers:array,conversation_blockers:array,candidate_rules:array} */
     public function handle(Lead $lead, ?AiAnalysis $analysis = null): array
     {
         $settings = OrganizationSetting::query()->first();
@@ -29,12 +29,29 @@ class BuildQuotation
             $analysis?->intent,
         ]));
         $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $analysisText, $inboundText, $whatsappText])));
+        $identityHaystack = $this->identityHaystack($lead);
         $ranked = PricingRule::query()->where('is_active', true)->get()
-            ->map(fn (PricingRule $rule) => ['rule' => $rule, 'score' => $this->ruleScore($rule, $haystack)])
-            ->filter(fn ($item) => $item['score'] > 0)->sortByDesc('score')->values();
+            ->map(fn (PricingRule $rule) => [
+                'rule' => $rule,
+                'identity_score' => $this->ruleScore($rule, $identityHaystack),
+                'score' => $this->ruleScore($rule, $haystack),
+            ])
+            ->filter(fn ($item) => $item['identity_score'] > 0 || $item['score'] > 0)
+            ->sort(fn ($left, $right) => [$right['identity_score'], $right['score']] <=> [$left['identity_score'], $left['score']])
+            ->values();
 
-        if ($ranked->isEmpty()) return ['quotation' => null, 'context' => null, 'blockers' => [...$conversationBlockers, 'no_matching_pricing_rule'], 'conversation_blockers' => $conversationBlockers];
-        if ($ranked->count() > 1 && $ranked[0]['score'] === $ranked[1]['score']) return ['quotation' => null, 'context' => null, 'blockers' => [...$conversationBlockers, 'ambiguous_pricing_rule'], 'conversation_blockers' => $conversationBlockers];
+        if ($ranked->isEmpty()) return ['quotation' => null, 'context' => null, 'blockers' => [...$conversationBlockers, 'no_matching_pricing_rule'], 'conversation_blockers' => $conversationBlockers, 'candidate_rules' => []];
+        if ($ranked->count() > 1
+            && $ranked[0]['identity_score'] === $ranked[1]['identity_score']
+            && $ranked[0]['score'] === $ranked[1]['score']) {
+            return [
+                'quotation' => null, 'context' => null,
+                'blockers' => [...$conversationBlockers, 'ambiguous_pricing_rule'],
+                'conversation_blockers' => $conversationBlockers,
+                'candidate_rules' => $ranked->takeWhile(fn ($item) => $item['identity_score'] === $ranked[0]['identity_score'] && $item['score'] === $ranked[0]['score'])
+                    ->pluck('rule.name')->values()->all(),
+            ];
+        }
 
         /** @var PricingRule $rule */
         $rule = $ranked[0]['rule'];
@@ -86,7 +103,19 @@ class BuildQuotation
             'excludes' => $rule->excludes, 'valid_until' => $validUntil,
             'missing_fields' => $missing, 'confidence' => $confidence,
             'indicative' => $qualificationExhausted,
-        ], 'blockers' => $blockers, 'conversation_blockers' => $conversationBlockers];
+        ], 'blockers' => $blockers, 'conversation_blockers' => $conversationBlockers, 'candidate_rules' => [$rule->name]];
+    }
+
+    private function identityHaystack(Lead $lead): string
+    {
+        $values = collect([$lead->requested_service]);
+        foreach (Arr::dot($lead->request_data ?? []) as $path => $value) {
+            if (filled($value) && is_scalar($value) && $this->semanticField($this->normalize((string) $path)) === 'vehicle') {
+                $values->push((string) $value);
+            }
+        }
+
+        return $this->normalize($values->filter()->implode(' '));
     }
 
     private function fieldValue(Lead $lead, string $field): mixed

@@ -180,6 +180,34 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         Mail::assertNothingSent();
     }
 
+    public function test_direct_quote_prefers_the_vehicle_selected_in_the_form_over_generic_shared_terms(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Street food',
+            'products_services' => 'Mezzi street food', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'auto_analyze_new_leads' => true, 'quotation_review_mode' => true,
+            'new_lead_automation_started_at' => now()->subMinute(),
+        ]);
+        PricingRule::create(['name' => 'Ape Lineare', 'keywords' => ['noleggio street food', 'ape lineare'], 'required_fields' => [], 'minimum_price' => 500, 'maximum_price' => 1200, 'is_active' => true]);
+        PricingRule::create(['name' => 'Ape Vetrina', 'keywords' => ['noleggio street food', 'ape vetrina'], 'required_fields' => [], 'minimum_price' => 800, 'maximum_price' => 1500, 'is_active' => true]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Selezione prodotto', 'email' => 'cliente@example.test', 'requested_service' => 'Noleggio street food',
+            'source_label' => 'WPForms', 'request_data' => ['Quale mezzo ti occorre?' => 'Ape Lineare'],
+        ]);
+        app(TenantContext::class)->clear();
+
+        app(RunNewLeadAutomation::class)->handle();
+
+        $quotation = Quotation::withoutGlobalScopes()->where('lead_id', $lead->id)->firstOrFail();
+        $this->assertSame('Ape Lineare', $quotation->rule()->withoutGlobalScopes()->firstOrFail()->name);
+        $this->assertNotNull($quotation->pdf_generated_at);
+        Mail::assertNothingSent();
+    }
+
     public function test_it_analyzes_all_new_leads_but_sends_only_to_internal_allowed_leads(): void
     {
         config()->set('mail.default', 'smtp');
