@@ -30,6 +30,8 @@ Non servono nuove dipendenze Composer, migrazioni o cron. Pubblicare il branch `
 
 È necessario il provider OpenAI già configurato, con un modello che supporti input visivi e Structured Outputs. L'operazione compare come `pricing_import` nei consumi AI e rispetta il limite di utilizzo della licenza.
 
+L'analisi dei file può richiedere più tempo delle normali risposte testuali. Il timeout dedicato predefinito è 180 secondi e può essere regolato globalmente con `OPENAI_FILE_TIMEOUT=180`. Dopo una modifica al file `.env`, eseguire `php artisan optimize:clear`.
+
 Per usare il limite massimo di upload, verificare nelle impostazioni PHP del sottodominio: `file_uploads=On`, `upload_max_filesize=10M` (o superiore), `post_max_size=24M` (o superiore), `max_file_uploads>=5`, `memory_limit>=256M`. Il timeout PHP/FPM e del proxy deve essere maggiore del timeout OpenAI configurato. Anche eventuali limiti nginx devono ammettere la richiesta. Non disabilitare globalmente i limiti di upload.
 
 ## Riservatezza e accesso

@@ -50,8 +50,8 @@ class PricingImportController extends Controller
             $message = $e instanceof ValidationException
                 ? ($e->validator->errors()->has('license') ? $e->validator->errors()->first('license')
                     : 'OpenAI ha restituito una proposta incompleta o non valida. Prova con documenti più brevi e una spiegazione più dettagliata.')
-                : ($e instanceof \RuntimeException && ! ($e instanceof \Illuminate\Http\Client\HttpClientException)
-                    ? $e->getMessage() : 'Analisi non completata. Controlla la configurazione OpenAI o riprova con allegati più piccoli.');
+                : ($e instanceof \RuntimeException ? $e->getMessage()
+                    : 'Analisi non completata. Consulta il log applicativo e riprova.');
             return back()->withInput(['explanation' => $data['explanation']])->withErrors(['import' => $message]);
         }
         return redirect()->route('pricing-import.preview', $run->id);

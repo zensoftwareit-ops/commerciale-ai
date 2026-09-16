@@ -11,6 +11,7 @@ use App\Services\Licensing\LicenseUsageGuard;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
@@ -234,5 +235,20 @@ class PricingImportTest extends CommercialeAiTestCase
         Http::assertSentCount(1);
         Http::assertSent(fn ($request) => $request['input'][1]['content'][1]['filename'] === 'listino.pdf'
             && str_starts_with($request['input'][1]['content'][1]['file_data'], 'data:application/pdf;base64,'));
+    }
+
+    public function test_a_connection_timeout_returns_a_useful_reference(): void
+    {
+        [$org, $owner] = $this->organizationWithUser();
+        Http::fake(fn () => throw new ConnectionException('cURL error 28: operation timed out'));
+        $response = $this->actingAs($owner)->withSession(['organization_id' => $org->id])
+            ->post(route('pricing-import.generate'), $this->upload());
+        $response->assertSessionHasErrors('import');
+        $message = $response->getSession()->get('errors')->first('import');
+        $this->assertStringContainsString('non ha risposto entro il tempo previsto', $message);
+        $run = AiRun::withoutGlobalScopes()->firstOrFail();
+        $this->assertStringContainsString($run->id, $message);
+        $this->assertSame('pricing_import_timeout', $run->error_code);
+        $this->assertDatabaseCount('pricing_rules', 0);
     }
 }

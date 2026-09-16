@@ -6,6 +6,10 @@ use App\Models\AiRun;
 use App\Services\Licensing\LicenseUsageGuard;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use JsonException;
 use RuntimeException;
 use Throwable;
 
@@ -35,7 +39,7 @@ class ImportPricingDocuments
             }
             $model = config('commerciale-ai.openai.model');
             $response = Http::withToken(config('commerciale-ai.openai.api_key'))->acceptJson()
-                ->connectTimeout(10)->timeout((int) config('commerciale-ai.openai.timeout', 45))
+                ->connectTimeout(15)->timeout(max(60, (int) config('commerciale-ai.openai.file_timeout', 180)))
                 ->post('https://api.openai.com/v1/responses', [
                     'model' => $model, 'store' => false, 'max_output_tokens' => 8000,
                     'reasoning' => ['effort' => config('commerciale-ai.openai.reasoning_effort', 'low')],
@@ -46,7 +50,11 @@ class ImportPricingDocuments
                     'text' => ['format' => ['type' => 'json_schema', 'name' => 'pricing_import', 'strict' => true, 'schema' => self::schema()]],
                 ]);
             if ($response->failed()) {
-                throw new RuntimeException('Analisi allegati non riuscita: OpenAI HTTP '.$response->status().'. Controlla credito, modello e formati dei documenti.');
+                $providerMessage = trim((string) $response->json('error.message', ''));
+                $requestId = $response->header('x-request-id');
+                throw new RuntimeException('OpenAI ha rifiutato l’analisi (HTTP '.$response->status().')'
+                    .($providerMessage !== '' ? ': '.Str::limit($providerMessage, 300) : '.')
+                    .($requestId ? ' Request ID: '.$requestId.'.' : ''));
             }
             $input = (int) $response->json('usage.input_tokens', 0);
             $output = (int) $response->json('usage.output_tokens', 0);
@@ -82,8 +90,24 @@ class ImportPricingDocuments
             return $run;
         } catch (Throwable $e) {
             // Never persist provider response bodies, uploaded bytes or credentials in error logs.
-            $run->update(['status' => 'failed', 'error_code' => 'pricing_import_failed', 'completed_at' => now()]);
-            throw $e;
+            $code = match (true) {
+                $e instanceof ConnectionException => 'pricing_import_timeout',
+                $e instanceof ValidationException => 'pricing_import_invalid_output',
+                $e instanceof JsonException => 'pricing_import_invalid_json',
+                default => 'pricing_import_failed',
+            };
+            $run->update([
+                'status' => 'failed', 'error_code' => $code,
+                'error_message' => class_basename($e).': '.Str::limit($e->getMessage(), 700),
+                'completed_at' => now(),
+            ]);
+            report($e);
+            $message = match ($code) {
+                'pricing_import_timeout' => 'OpenAI non ha risposto entro il tempo previsto. Riprova con un solo documento o con un PDF più breve.',
+                'pricing_import_invalid_output', 'pricing_import_invalid_json' => 'OpenAI ha restituito una proposta incompleta o non interpretabile. Riprova con una spiegazione più precisa.',
+                default => $e instanceof RuntimeException ? $e->getMessage() : 'Si è verificato un errore interno durante l’analisi.',
+            };
+            throw new RuntimeException($message.' Riferimento: '.$run->id.'.', 0, $e);
         }
     }
 

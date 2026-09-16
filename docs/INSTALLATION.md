@@ -240,6 +240,7 @@ OPENAI_API_KEY=CHIAVE_OPENAI
 OPENAI_MODEL=gpt-5.6-terra
 OPENAI_REASONING_EFFORT=low
 OPENAI_TIMEOUT=45
+OPENAI_FILE_TIMEOUT=180
 ```
 
 Sono supportati anche PostgreSQL (`DB_CONNECTION=pgsql`) e SQLite. Per un'istanza pubblica è consigliato MySQL/MariaDB o PostgreSQL; SQLite è più adatto al collaudo locale.
