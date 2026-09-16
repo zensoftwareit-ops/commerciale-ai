@@ -26,6 +26,26 @@
     ];
     $handoffReasonCode = $handoffActivity ? data_get($handoffActivity->data, 'reason') : null;
     $handoffReason = $handoffReasonLabels[$handoffReasonCode] ?? 'Daria non può proseguire questa conversazione in modo affidabile.';
+    $requestRows = [];
+    $flattenRequestData = function (array $data, string $prefix = '') use (&$flattenRequestData, &$requestRows): void {
+        foreach ($data as $key => $value) {
+            $label = $prefix === '' ? (string) $key : $prefix.' › '.$key;
+            if (is_array($value)) {
+                if ($value === []) {
+                    $requestRows[] = [$label, '—'];
+                } elseif (array_is_list($value) && collect($value)->every(fn ($item) => is_scalar($item) || $item === null)) {
+                    $requestRows[] = [$label, collect($value)->filter(fn ($item) => filled($item))->implode(', ') ?: '—'];
+                } else {
+                    $flattenRequestData($value, $label);
+                }
+            } elseif (is_bool($value)) {
+                $requestRows[] = [$label, $value ? 'Sì' : 'No'];
+            } else {
+                $requestRows[] = [$label, filled($value) ? (string) $value : '—'];
+            }
+        }
+    };
+    $flattenRequestData(is_array($lead->request_data) ? $lead->request_data : []);
 @endphp
 @if($lead->operational_status === 'needs_action' && $handoffActivity)
     <div class="warning" style="margin-bottom:16px">
@@ -47,16 +67,10 @@
         @if(filled(data_get($lead->request_data, 'message')))<p>{{ data_get($lead->request_data, 'message') }}</p>@endif
         @if(filled($lead->request_data))
             <table><tbody>
-            @foreach($lead->request_data as $key => $value)
+            @foreach($requestRows as [$key, $value])
                 @continue($key === 'message')
                 <tr><th>{{ str($key)->replace('_', ' ')->title() }}</th><td>
-                    @if(is_array($value))
-                        {{ collect($value)->map(fn($item) => is_scalar($item) ? $item : json_encode($item, JSON_UNESCAPED_UNICODE))->implode(', ') ?: '—' }}
-                    @elseif(is_bool($value))
-                        {{ $value ? 'Sì' : 'No' }}
-                    @else
-                        {{ filled($value) ? $value : '—' }}
-                    @endif
+                    {!! nl2br(e($value)) !!}
                 </td></tr>
             @endforeach
             </tbody></table>

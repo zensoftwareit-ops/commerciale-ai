@@ -16,7 +16,7 @@ class AdaptiveLeadPayload
         'email' => ['contact.email', 'customer.email', 'email', 'e_mail', 'email_address', 'mail'],
         'phone' => ['contact.phone', 'customer.phone', 'phone', 'phone_number', 'telephone', 'telefono', 'numero_telefono', 'cellulare', 'mobile'],
         'company' => ['contact.company', 'customer.company', 'company', 'company_name', 'business', 'business_name', 'azienda', 'ragione_sociale'],
-        'service' => ['request.project_type', 'request.service', 'project_type', 'tipo_progetto', 'requested_service', 'service', 'servizio', 'tipo_sito', 'tipo_di_sito', 'website_type'],
+        'service' => ['request.project_type', 'request.service', 'project_type', 'tipo_progetto', 'requested_service', 'service', 'servizio', 'tipo_sito', 'tipo_di_sito', 'website_type', 'mezzo', 'tipo_mezzo', 'quale_mezzo_ti_occorre', 'prodotto'],
         'message' => ['request.message', 'request.notes', 'message', 'messaggio', 'notes', 'note', 'details', 'dettagli', 'description', 'descrizione'],
         'privacy' => ['consent.privacy_accepted', 'privacy_accepted', 'privacy_consent', 'consenso_privacy', 'gdpr_consent', 'gdpr', 'privacy'],
         'marketing' => ['consent.marketing_accepted', 'marketing_accepted', 'marketing_consent', 'consenso_marketing', 'newsletter'],
@@ -25,6 +25,7 @@ class AdaptiveLeadPayload
     /** @return array<string, mixed> */
     public function normalize(array $payload, InboundSource $source): array
     {
+        $payload = $this->expandBusinessContainers($payload);
         $name = $this->find($payload, self::ALIASES['name']);
         if (! filled($name)) {
             $name = trim(implode(' ', array_filter([
@@ -60,6 +61,7 @@ class AdaptiveLeadPayload
 
     public function explicitPrivacyRefusal(array $payload): bool
     {
+        $payload = $this->expandBusinessContainers($payload);
         $value = $this->find($payload, self::ALIASES['privacy']);
 
         return $value !== null && $this->boolean($value) === false;
@@ -74,9 +76,9 @@ class AdaptiveLeadPayload
             }
         }
 
-        $wanted = collect($aliases)->map(fn (string $alias): string => Str::afterLast($alias, '.'))->all();
+        $wanted = collect($aliases)->map(fn (string $alias): string => $this->normalizeKey(Str::afterLast($alias, '.')))->all();
         foreach (Arr::dot($payload) as $path => $value) {
-            $key = Str::of(Str::afterLast((string) $path, '.'))->snake()->lower()->toString();
+            $key = $this->normalizeKey(Str::afterLast((string) $path, '.'));
             if (in_array($key, $wanted, true) && $this->usable($value)) {
                 return $value;
             }
@@ -91,12 +93,12 @@ class AdaptiveLeadPayload
             ...self::ALIASES['name'], ...self::ALIASES['first_name'], ...self::ALIASES['last_name'],
             ...self::ALIASES['email'], ...self::ALIASES['phone'], ...self::ALIASES['company'],
             ...self::ALIASES['privacy'], ...self::ALIASES['marketing'],
-        ])->map(fn (string $alias): string => Str::afterLast($alias, '.'))->unique()->all();
+        ])->map(fn (string $alias): string => $this->normalizeKey(Str::afterLast($alias, '.')))->unique()->all();
 
         $clean = function (array $data) use (&$clean, $excluded): array {
             $result = [];
             foreach ($data as $key => $value) {
-                $normalizedKey = Str::of((string) $key)->snake()->lower()->toString();
+                $normalizedKey = $this->normalizeKey((string) $key);
                 if (in_array($normalizedKey, $excluded, true)) {
                     continue;
                 }
@@ -115,9 +117,117 @@ class AdaptiveLeadPayload
         return $clean($payload);
     }
 
+    /**
+     * WPForms integrations commonly wrap answers in data/fields or send a list
+     * of {label|name, value} objects. Convert those variants to label => value
+     * before aliases and business data are evaluated.
+     *
+     * @return array<string, mixed>
+     */
+    private function expandBusinessContainers(array $payload): array
+    {
+        $expanded = $payload;
+        foreach (['data', 'fields', 'form_data', 'answers', 'responses'] as $containerKey) {
+            if (! array_key_exists($containerKey, $expanded)) {
+                continue;
+            }
+            $container = $expanded[$containerKey];
+            if (is_string($container)) {
+                try {
+                    $decoded = json_decode($container, true, 128, JSON_THROW_ON_ERROR);
+                    $container = is_array($decoded) ? $decoded : $container;
+                } catch (\JsonException) {
+                    // Keep a non-JSON string as ordinary source data.
+                }
+            }
+            if (! is_array($container)) {
+                continue;
+            }
+            $answers = $this->namedAnswers($container);
+            if ($answers === []) {
+                continue;
+            }
+            unset($expanded[$containerKey]);
+            foreach ($answers as $label => $value) {
+                $this->appendAnswer($expanded, $label, $value);
+            }
+        }
+
+        return $expanded;
+    }
+
+    /** @return array<string, mixed> */
+    private function namedAnswers(array $data): array
+    {
+        $answers = [];
+        foreach ($data as $key => $item) {
+            if (! is_array($item)) {
+                if (! is_int($key) && trim((string) $key) !== '') {
+                    $this->appendAnswer($answers, (string) $key, $item);
+                }
+                continue;
+            }
+
+            $label = null;
+            foreach (['label', 'name', 'caption', 'title', 'question'] as $labelKey) {
+                if (isset($item[$labelKey]) && is_scalar($item[$labelKey]) && trim((string) $item[$labelKey]) !== '') {
+                    $label = trim((string) $item[$labelKey]);
+                    break;
+                }
+            }
+            $hasValue = false;
+            $value = null;
+            foreach (['value', 'answer', 'values', 'value_raw'] as $valueKey) {
+                if (array_key_exists($valueKey, $item)) {
+                    $value = $item[$valueKey];
+                    $hasValue = true;
+                    break;
+                }
+            }
+            if ($label !== null && $hasValue) {
+                $this->appendAnswer($answers, $label, $value);
+                continue;
+            }
+
+            if (! is_int($key) && ! array_is_list($item)) {
+                $this->appendAnswer($answers, (string) $key, $item);
+                continue;
+            }
+            foreach ($this->namedAnswers($item) as $nestedLabel => $nestedValue) {
+                $this->appendAnswer($answers, $nestedLabel, $nestedValue);
+            }
+        }
+
+        return $answers;
+    }
+
+    private function appendAnswer(array &$answers, string $label, mixed $value): void
+    {
+        $label = trim($label);
+        if ($label === '') {
+            return;
+        }
+        $candidate = $label;
+        $suffix = 2;
+        while (array_key_exists($candidate, $answers)) {
+            if ($answers[$candidate] === $value) {
+                return;
+            }
+            $candidate = $label.' ('.$suffix++.')';
+        }
+        $answers[$candidate] = $value;
+    }
+
     private function usable(mixed $value): bool
     {
         return is_scalar($value) && $value !== '';
+    }
+
+    private function normalizeKey(string $key): string
+    {
+        $key = Str::of($key)->ascii()->snake()->lower()->toString();
+
+        return trim((string) preg_replace('/[^a-z0-9]+/', '_', $key), '_');
     }
 
     private function string(mixed $value, int $limit): ?string

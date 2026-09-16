@@ -60,6 +60,8 @@ Content-Type: application/json
 <payload originale del sito>
 ```
 
+Daria accetta anche i formati comuni di WPForms: risposte raccolte negli oggetti `data`, `fields`, `form_data`, `answers` o `responses`, comprese liste di elementi `label`/`name` + `value`. Le caption originali e i valori multilinea vengono conservati nella richiesta del lead; non è necessario rinominare i campi nel sito sorgente.
+
 Non sono richiesti mapping, firma o header personalizzati. Daria riconosce automaticamente le strutture più comuni e genera internamente la chiave di idempotenza. L’endpoint deve restare nel backend: non inserirlo in JavaScript pubblico.
 
 Un POST server-to-server non espone necessariamente un dominio verificabile. Il token segreto è quindi l’autenticazione primaria; quando la richiesta contiene `Origin`, `Referer` o un URL sorgente, il dominio viene anche confrontato con quelli consentiti nel database.

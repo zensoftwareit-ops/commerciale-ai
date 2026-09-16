@@ -79,6 +79,66 @@ class SimpleInboundWebhookTest extends CommercialeAiTestCase
         $this->assertSame(0, Lead::withoutGlobalScopes()->count());
     }
 
+    public function test_it_preserves_wpforms_caption_values_from_a_data_object(): void
+    {
+        [$organization, $owner] = $this->organizationWithUser();
+        [, $token] = $this->source($organization, ['example.com']);
+        $payload = [
+            'form_title' => 'Richiesta mezzo',
+            'entry_id' => 'wpforms-72',
+            'data' => [
+                'Nome e cognome' => 'Federico Ghigna',
+                'Email' => 'federico@example.test',
+                'Quale mezzo ti occorre?' => 'Ape Lineare',
+                'Per quanti giorni ti occorre il mezzo?' => '4',
+                'Dal giorno' => '12-10-2026',
+                'Quali servizi ti occorrono?' => "Decorazione parziale\nLogistica\nTrasporto",
+                'Quale località deve raggiungere il mezzo?' => 'Cremona',
+                'Campo condizionale non compilato' => '',
+            ],
+        ];
+
+        $response = $this->postJson("/api/v1/inbound/leads/{$token}", $payload)->assertCreated();
+        $lead = Lead::withoutGlobalScopes()->sole();
+        $this->assertSame('Federico Ghigna', $lead->name);
+        $this->assertSame('federico@example.test', $lead->email);
+        $this->assertSame('Ape Lineare', $lead->requested_service);
+        $this->assertSame('Ape Lineare', $lead->request_data['Quale mezzo ti occorre?']);
+        $this->assertSame('4', $lead->request_data['Per quanti giorni ti occorre il mezzo?']);
+        $this->assertSame('12-10-2026', $lead->request_data['Dal giorno']);
+        $this->assertSame("Decorazione parziale\nLogistica\nTrasporto", $lead->request_data['Quali servizi ti occorrono?']);
+        $this->assertSame('Cremona', $lead->request_data['Quale località deve raggiungere il mezzo?']);
+        $this->assertArrayHasKey('Campo condizionale non compilato', $lead->request_data);
+        $this->assertNull($lead->request_data['Campo condizionale non compilato']);
+        $this->assertArrayNotHasKey('data', $lead->request_data);
+
+        $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
+            ->get(route('leads.show', $response->json('lead_id')))
+            ->assertOk()->assertSee('Ape Lineare')->assertSee('Cremona')
+            ->assertSee('Decorazione parziale')->assertSee('Logistica')->assertSee('Trasporto');
+    }
+
+    public function test_it_preserves_wpforms_label_value_field_lists_and_json_wrappers(): void
+    {
+        [$organization] = $this->organizationWithUser();
+        [, $token] = $this->source($organization, ['example.com']);
+        $fields = [
+            ['name' => 'Nome e cognome', 'value' => 'Mario Rossi'],
+            ['label' => 'Email', 'value' => 'mario@example.test'],
+            ['caption' => 'Quale mezzo ti occorre?', 'answer' => 'Truck vela'],
+            ['label' => 'Servizi', 'values' => ['Decorazione', 'Trasporto']],
+        ];
+
+        $this->postJson("/api/v1/inbound/leads/{$token}", ['fields' => json_encode($fields, JSON_THROW_ON_ERROR)])
+            ->assertCreated();
+        $lead = Lead::withoutGlobalScopes()->sole();
+        $this->assertSame('Mario Rossi', $lead->name);
+        $this->assertSame('mario@example.test', $lead->email);
+        $this->assertSame('Truck vela', $lead->requested_service);
+        $this->assertSame(['Decorazione', 'Trasporto'], $lead->request_data['Servizi']);
+        $this->assertArrayNotHasKey('fields', $lead->request_data);
+    }
+
     private function source($organization, array $domains): array
     {
         $token = str_repeat('a', 32).bin2hex(random_bytes(16));
