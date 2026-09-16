@@ -114,9 +114,17 @@ class ImportPricingDocuments
                 'guidance' => 'present|nullable|string|max:20000',
                 'warnings' => 'present|array|max:20', 'warnings.*' => 'required|string|max:2000',
             ])->validate();
-            foreach ($draft['items'] as $item) {
-                if (($item['pricing_formula'] ?? null) !== null) $this->formulaValidator->validate($item['pricing_formula']);
+            foreach ($draft['items'] as $index => &$item) {
+                if (($item['pricing_formula'] ?? null) === null) continue;
+                try {
+                    $item['pricing_formula'] = $this->formulaValidator->validate($item['pricing_formula']);
+                } catch (ValidationException $e) {
+                    $item['pricing_formula'] = null;
+                    $detail = implode(' ', collect($e->errors())->flatten()->all());
+                    $draft['warnings'][] = 'Ricetta automatica non attivata per “'.($item['name'] ?? 'voce '.($index + 1)).'”: '.$detail.' I dati del listino sono comunque disponibili e la ricetta può essere rigenerata dopo aver chiarito le informazioni mancanti.';
+                }
             }
+            unset($item);
             $run->update(['status' => 'completed', 'output' => $draft, 'completed_at' => now()]);
             return $run;
         } catch (Throwable $e) {

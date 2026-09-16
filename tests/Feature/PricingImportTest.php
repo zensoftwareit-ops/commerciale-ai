@@ -167,6 +167,34 @@ class PricingImportTest extends CommercialeAiTestCase
         $this->assertDatabaseCount('pricing_rules', 0);
     }
 
+    public function test_a_semantically_invalid_recipe_does_not_discard_the_valid_pricing_draft(): void
+    {
+        [$org, $owner] = $this->organizationWithUser();
+        $draft = $this->draft();
+        $draft['items'][0]['pricing_formula'] = [
+            'version' => 1,
+            'variables' => [[
+                'key' => 'destination', 'label' => 'Destinazione', 'type' => 'distance_km',
+                'aliases' => ['destinazione'], 'required' => true,
+            ]],
+            'components' => [[
+                'key' => 'transport', 'label' => 'Trasporto', 'operation' => 'multiply',
+                'quantity_variable' => 'destination', 'unit_price' => 2,
+            ]],
+        ];
+        $this->fakeResponse($draft);
+
+        $this->actingAs($owner)->withSession(['organization_id' => $org->id])
+            ->post(route('pricing-import.generate'), $this->upload())
+            ->assertSessionHasNoErrors()->assertRedirect();
+
+        $run = AiRun::withoutGlobalScopes()->where('operation', 'pricing_import')->firstOrFail();
+        $this->assertSame('completed', $run->status);
+        $this->assertNull($run->output['items'][0]['pricing_formula']);
+        $this->assertStringContainsString('località di partenza', implode(' ', $run->output['warnings']));
+        $this->get(route('pricing-import.preview', $run->id))->assertOk()->assertSee('Ricetta automatica non attivata');
+    }
+
     public function test_images_and_documents_use_distinct_multimodal_input_types(): void
     {
         [$org, $owner] = $this->organizationWithUser();
