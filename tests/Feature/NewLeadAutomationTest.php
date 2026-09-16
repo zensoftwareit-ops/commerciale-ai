@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\LeadReplyMail;
+use App\Contracts\QuotationEstimator;
 use App\Models\CommercialNotification;
 use App\Models\Lead;
 use App\Models\OrganizationSetting;
@@ -97,6 +98,54 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         $this->assertNull($quotation->pdf_generated_at);
         $this->assertSame(['destination'], $quotation->missing_fields);
         $this->assertSame(1, CommercialNotification::withoutGlobalScopes()->where('lead_id', $lead->id)->where('type', 'direct_quote_operator')->count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_review_mode_generates_a_pdf_even_when_the_ai_estimate_has_low_confidence(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        $this->app->instance(QuotationEstimator::class, new class implements QuotationEstimator
+        {
+            public function estimate(array $input): array
+            {
+                return [
+                    'scope_title' => 'Ape Lineare',
+                    'scope_description' => 'Noleggio per quattro giorni con trasporto e decorazione parziale.',
+                    'deliverables' => ['Noleggio Ape Lineare', 'Trasporto', 'Decorazione parziale'],
+                    'assumptions' => ['Disponibilità da confermare in fase di revisione.'],
+                    'complexity_score' => 60, 'confidence' => 0.51,
+                    'rationale' => 'Il documento deve comunque essere prodotto per la revisione interna.',
+                    '_meta' => ['provider' => 'test', 'model' => 'low-confidence', 'input_units' => 0, 'output_units' => 0, 'estimated_cost' => 0],
+                ];
+            }
+        });
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Mezzi promozionali',
+            'products_services' => 'Ape Lineare', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'auto_analyze_new_leads' => true, 'direct_quote_enabled' => true,
+            'quotation_review_mode' => true, 'new_lead_automation_started_at' => now()->subMinute(),
+        ]);
+        PricingRule::create([
+            'name' => 'Ape Lineare', 'keywords' => ['ape lineare'], 'required_fields' => ['destination'],
+            'minimum_price' => 500, 'maximum_price' => 1200, 'validity_days' => 15, 'is_active' => true,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Caso completo', 'email' => 'cliente@example.test', 'requested_service' => 'Ape Lineare',
+            'source_label' => 'WPForms', 'request_data' => ['Quale località deve raggiungere il mezzo?' => 'Cremona'],
+        ]);
+        app(TenantContext::class)->clear();
+
+        $stats = app(RunNewLeadAutomation::class)->handle();
+
+        $quotation = Quotation::withoutGlobalScopes()->where('lead_id', $lead->id)->firstOrFail();
+        $this->assertSame(1, $stats['drafted']);
+        $this->assertSame(51, $quotation->confidence);
+        $this->assertNotNull($quotation->pdf_generated_at);
+        $this->assertSame('awaiting_approval', $lead->fresh()->operational_status);
+        $this->assertStringContainsString('Verificare il preventivo PDF', $lead->analyses()->withoutGlobalScopes()->firstOrFail()->recommended_next_action);
         Mail::assertNothingSent();
     }
 

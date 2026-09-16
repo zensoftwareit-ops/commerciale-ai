@@ -26,11 +26,12 @@ class PrepareDirectQuotation
         if (($quotation->missing_fields ?? []) !== []) {
             return $this->handoff($lead, $quotation, 'Mancano dati obbligatori del listino: '.implode(', ', $quotation->missing_fields).'.');
         }
-        if ($quotation->estimated_price === null || $quotation->confidence < 75) {
-            return $this->handoff($lead, $quotation, 'La stima non ha raggiunto l’affidabilità minima del 75%.');
+        if ($quotation->estimated_price === null) {
+            return $this->handoff($lead, $quotation, 'Non è stato possibile calcolare un importo dalla regola di listino applicabile.');
         }
 
         $this->pdfs->ensure($quotation);
+        $this->markAnalysisAsQuoted($analysis, $quotation);
         $lead->update(['operational_status' => 'awaiting_approval', 'next_action_at' => now(), 'last_activity_at' => now()]);
         Activity::create([
             'organization_id' => $lead->organization_id, 'lead_id' => $lead->id,
@@ -42,6 +43,18 @@ class PrepareDirectQuotation
             ['quotation_id' => $quotation->id]);
 
         return ['status' => 'ready', 'quotation' => $quotation->fresh(), 'reason' => null];
+    }
+
+    private function markAnalysisAsQuoted(AiAnalysis $analysis, Quotation $quotation): void
+    {
+        $missingInformation = collect($analysis->missing_information ?? [])
+            ->reject(fn ($item) => preg_match('/\b(?:listin|tariff|regol[ae]\s+(?:di\s+)?prezz|pricing)\w*/iu', (string) $item) === 1)
+            ->values()->all();
+
+        $analysis->update([
+            'missing_information' => $missingInformation,
+            'recommended_next_action' => 'Verificare il preventivo PDF '.$quotation->document_number.' generato da Daria prima di qualsiasi invio al cliente.',
+        ]);
     }
 
     private function handoff(Lead $lead, ?Quotation $quotation, string $reason): array
