@@ -82,6 +82,7 @@
     <details class="card config-panel" @if(str_starts_with((string) old('_editor'), 'pricing')) open @endif>
         <summary><div class="config-title"><span class="config-number">7</span><div><h2>Listino strutturato</h2><div class="config-summary">{{ $pricingRules->count() }} {{ $pricingRules->count() === 1 ? 'regola' : 'regole' }} · {{ $pricingRules->where('is_active',true)->count() }} attive. I prezzi comunicati da Daria provengono da qui.</div></div></div><span class="config-action">Gestisci</span></summary>
         <div class="config-body">
+            <p><a class="btn" href="{{ route('pricing-import.create') }}">Crea listini e regole da documenti</a></p>
             @if($pricingRules->isEmpty())<div class="empty-state">Non hai ancora creato fasce di prezzo strutturate.</div>@endif
             <div class="rule-list">
                 @foreach($pricingRules as $rule)

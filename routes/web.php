@@ -17,6 +17,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\AiUsageController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PricingRuleController;
+use App\Http\Controllers\PricingImportController;
 use App\Http\Controllers\SetupWizardController;
 use App\Http\Controllers\Admin\LicensingDashboardController;
 use App\Http\Controllers\Admin\OrganizationController as AdminOrganizationController;
@@ -138,6 +139,10 @@ Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'lic
     Route::put('/settings/whatsapp', [WhatsappAccountController::class, 'update'])->middleware('role:owner')->name('settings.whatsapp.update');
     Route::post('/settings/whatsapp/test', [WhatsappAccountController::class, 'test'])->middleware(['role:owner', 'throttle:6,1'])->name('settings.whatsapp.test');
     Route::post('/settings/pricing-rules', [PricingRuleController::class, 'store'])->middleware('role:owner')->name('settings.pricing-rules.store');
+    Route::get('/settings/pricing-import', [PricingImportController::class, 'create'])->middleware('role:owner')->name('pricing-import.create');
+    Route::post('/settings/pricing-import', [PricingImportController::class, 'generate'])->middleware(['role:owner', 'throttle:3,1'])->name('pricing-import.generate');
+    Route::get('/settings/pricing-import/{draft}', [PricingImportController::class, 'preview'])->middleware('role:owner')->name('pricing-import.preview');
+    Route::post('/settings/pricing-import/{draft}', [PricingImportController::class, 'apply'])->middleware('role:owner')->name('pricing-import.apply');
     Route::put('/settings/pricing-rules/{rule}', [PricingRuleController::class, 'update'])->middleware('role:owner')->name('settings.pricing-rules.update');
     Route::get('/settings/sources', [InboundSourceController::class, 'index'])->middleware('role:owner')->name('settings.sources');
     Route::post('/settings/sources', [InboundSourceController::class, 'store'])->middleware('role:owner')->name('settings.sources.store');

@@ -60,6 +60,7 @@ class GenerateLeadReply
             'email_signature', 'appointment_details', 'promised_response_minutes',
         ]), 'quotation' => $quotationResult['context'], ...$extraContext,
             'conversation_history' => $this->conversationHistory($lead),
+            'imported_pricing_guidance' => app(ImportedPricingGuidance::class)->context(),
             'conversation_policy' => [
                 'qualification_attempts' => $qualificationAttempts,
                 'maximum_qualification_attempts' => 1,

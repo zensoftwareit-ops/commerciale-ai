@@ -19,6 +19,7 @@ class EstimateQuotation
     public function handle(Lead $lead, AiAnalysis $analysis, PricingRule $rule): array
     {
         $input = [
+            'imported_pricing_guidance' => app(\App\Services\Ai\ImportedPricingGuidance::class)->context(),
             'pricing_rule' => [
                 'name' => $rule->name, 'minimum_price' => (float) $rule->minimum_price,
                 'maximum_price' => (float) $rule->maximum_price, 'includes' => $rule->includes, 'excludes' => $rule->excludes,
