@@ -39,8 +39,9 @@ class RunNewLeadAutomation
                 if (! $settings?->auto_analyze_new_leads) continue;
                 $stats['organizations']++;
                 $maxAttempts = max(1, (int) config('commerciale-ai.automation.delivery_max_attempts', 3));
+                $directQuoteMode = $settings->direct_quote_enabled || $settings->quotation_review_mode;
                 $leads = Lead::query()
-                    ->when(! $settings->direct_quote_enabled, fn ($query) => $query->whereNotNull('email_normalized'))
+                    ->when(! $directQuoteMode, fn ($query) => $query->whereNotNull('email_normalized'))
                     ->when($leadId, fn ($query) => $query
                         ->whereKey($leadId)
                         ->whereDoesntHave('replies', fn ($replies) => $replies
@@ -71,7 +72,7 @@ class RunNewLeadAutomation
                             $analysis = $this->analyzer->handle($lead->fresh());
                             $stats['analyzed']++;
                         }
-                        if ($settings->direct_quote_enabled) {
+                        if ($directQuoteMode) {
                             $result = $this->directQuotation->handle($lead->fresh(), $analysis);
                             if ($result['status'] === 'ready') $stats['drafted']++;
                             $lead->update([
@@ -141,8 +142,9 @@ class RunNewLeadAutomation
                 $internalOnly = ($settings?->internal_test_only ?? true) || ! config('commerciale-ai.automation.external_send_enabled');
                 $base = Lead::query();
                 $startedAt = $settings?->new_lead_automation_started_at;
+                $directQuoteMode = ($settings?->direct_quote_enabled ?? false) || ($settings?->quotation_review_mode ?? false);
                 $eligibleNow = (clone $base)
-                    ->when(! $settings?->direct_quote_enabled, fn ($query) => $query->whereNotNull('email_normalized'))
+                    ->when(! $directQuoteMode, fn ($query) => $query->whereNotNull('email_normalized'))
                     ->whereNull('initial_automation_completed_at')
                     ->where('initial_automation_attempts', '<', $maxAttempts)
                     ->where(fn ($query) => $query->whereNull('initial_automation_next_attempt_at')->orWhere('initial_automation_next_attempt_at', '<=', now()));

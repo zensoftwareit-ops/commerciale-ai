@@ -73,7 +73,7 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         OrganizationSetting::create([
             'commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Mezzi promozionali',
             'products_services' => 'Ape Lineare', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale',
-            'email_signature' => 'Demo', 'auto_analyze_new_leads' => true, 'direct_quote_enabled' => true,
+            'email_signature' => 'Demo', 'auto_analyze_new_leads' => true, 'direct_quote_enabled' => false,
             'quotation_review_mode' => true, 'new_lead_automation_started_at' => now()->subMinute(),
         ]);
         PricingRule::create([
@@ -146,6 +146,37 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         $this->assertNotNull($quotation->pdf_generated_at);
         $this->assertSame('awaiting_approval', $lead->fresh()->operational_status);
         $this->assertStringContainsString('Verificare il preventivo PDF', $lead->analyses()->withoutGlobalScopes()->firstOrFail()->recommended_next_action);
+        Mail::assertNothingSent();
+    }
+
+    public function test_manual_analysis_honors_review_mode_even_if_the_direct_flag_was_not_persisted(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        [$organization, $user] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Mezzi promozionali',
+            'products_services' => 'Ape Lineare', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'direct_quote_enabled' => false, 'quotation_review_mode' => true,
+        ]);
+        PricingRule::create([
+            'name' => 'Ape Lineare', 'keywords' => ['ape lineare'], 'required_fields' => [],
+            'minimum_price' => 500, 'maximum_price' => 1200, 'validity_days' => 15, 'is_active' => true,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Analisi manuale', 'email' => 'cliente@example.test',
+            'requested_service' => 'Ape Lineare', 'source_label' => 'WPForms',
+        ]);
+        app(TenantContext::class)->clear();
+
+        $this->actingAs($user)->withSession(['organization_id' => $organization->id])
+            ->post(route('leads.analyze', $lead))
+            ->assertSessionHas('status', 'Analisi completata e preventivo PDF pronto per la revisione. Nessun messaggio è stato inviato.');
+
+        $quotation = Quotation::withoutGlobalScopes()->where('lead_id', $lead->id)->firstOrFail();
+        $this->assertNotNull($quotation->pdf_generated_at);
+        $this->assertSame(0, $lead->replies()->withoutGlobalScopes()->count());
         Mail::assertNothingSent();
     }
 

@@ -30,7 +30,8 @@ class LeadAnalysisController extends Controller
             return back()->withErrors(['analysis' => 'Analisi non completata. Controlla la configurazione o riprova.']);
         }
 
-        if (OrganizationSetting::query()->first()?->direct_quote_enabled) {
+        $settings = OrganizationSetting::query()->first();
+        if ($settings?->direct_quote_enabled || $settings?->quotation_review_mode) {
             try {
                 $result = $directQuotation->handle($lead, $analysis);
             } catch (Throwable) {
