@@ -215,7 +215,7 @@
         · affidabilità {{ $quotation->confidence }}%. @if($quotation->valid_until) Valido fino al {{ $quotation->valid_until->format('d/m/Y') }}.@endif
     </div>
     @if($quotation->scope_description)<p>{{ $quotation->scope_description }}</p>@endif
-    @if(($quotation->missing_fields ?? []) !== [])<div class="warning">Dati obbligatori mancanti: {{ implode(', ', $quotation->missing_fields) }}. Il caso è stato assegnato all’operatore.</div>@endif
+    @if(($quotation->missing_fields ?? []) !== [])<div class="warning">Aspetti da verificare prima dell’invio: {{ implode(', ', $quotation->missing_fields) }}. @if($quotation->pdf_generated_at)Il PDF è stato comunque generato per la revisione interna.@else Il caso è stato assegnato all’operatore.@endif</div>@endif
     @if($quotation->pdf_generated_at)<a class="btn btn-muted" href="{{ route('leads.quotations.pdf',[$lead,$quotation]) }}">Scarica PDF</a>@endif
 </section>
 @endif

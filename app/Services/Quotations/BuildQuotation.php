@@ -15,7 +15,7 @@ class BuildQuotation
     public function __construct(private readonly QuotationNumberGenerator $numbers, private readonly EstimateQuotation $estimator) {}
 
     /** @return array{quotation:Quotation|null,context:array|null,blockers:array,conversation_blockers:array,candidate_rules:array} */
-    public function handle(Lead $lead, ?AiAnalysis $analysis = null): array
+    public function handle(Lead $lead, ?AiAnalysis $analysis = null, bool $allowIncompleteEstimate = false): array
     {
         $settings = OrganizationSetting::query()->first();
         $inbound = $lead->inboundEmails()->latest('received_at')->first();
@@ -60,7 +60,7 @@ class BuildQuotation
             ->where('status', 'sent')
             ->whereIn('reply_kind', ['qualification', 'initial_qualification'])
             ->exists();
-        $estimate = ($missing === [] || $qualificationExhausted) && $analysis
+        $estimate = ($missing === [] || $qualificationExhausted || $allowIncompleteEstimate) && $analysis
             ? $this->estimator->handle($lead, $analysis, $rule)
             : null;
         $estimatedPrice = $estimate ? $this->estimatedPrice(

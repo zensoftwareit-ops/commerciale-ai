@@ -6,6 +6,7 @@ use App\Models\Activity;
 use App\Models\AiAnalysis;
 use App\Models\CommercialNotification;
 use App\Models\Lead;
+use App\Models\OrganizationSetting;
 use App\Models\Quotation;
 
 class PrepareDirectQuotation
@@ -18,12 +19,13 @@ class PrepareDirectQuotation
     /** @return array{status:string,quotation:?Quotation,reason:?string} */
     public function handle(Lead $lead, AiAnalysis $analysis): array
     {
-        $result = $this->builder->handle($lead, $analysis);
+        $reviewMode = OrganizationSetting::query()->first()?->quotation_review_mode ?? false;
+        $result = $this->builder->handle($lead, $analysis, allowIncompleteEstimate: $reviewMode);
         $quotation = $result['quotation'];
         if (! $quotation) {
             return $this->handoff($lead, null, $this->reason($lead, $result['blockers'], $result['candidate_rules'] ?? []));
         }
-        if (($quotation->missing_fields ?? []) !== []) {
+        if (($quotation->missing_fields ?? []) !== [] && ! $reviewMode) {
             return $this->handoff($lead, $quotation, 'Mancano dati obbligatori del listino: '.implode(', ', $quotation->missing_fields).'.');
         }
         if ($quotation->estimated_price === null) {

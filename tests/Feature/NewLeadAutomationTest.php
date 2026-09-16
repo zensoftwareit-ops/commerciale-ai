@@ -64,7 +64,7 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         Mail::assertNothingSent();
     }
 
-    public function test_review_mode_stops_an_incomplete_quote_and_assigns_it_to_an_operator_without_sending(): void
+    public function test_direct_quote_without_review_stops_an_incomplete_quote_and_assigns_it_to_an_operator_without_sending(): void
     {
         Mail::fake();
         Storage::fake('local');
@@ -73,8 +73,8 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         OrganizationSetting::create([
             'commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Mezzi promozionali',
             'products_services' => 'Ape Lineare', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale',
-            'email_signature' => 'Demo', 'auto_analyze_new_leads' => true, 'direct_quote_enabled' => false,
-            'quotation_review_mode' => true, 'new_lead_automation_started_at' => now()->subMinute(),
+            'email_signature' => 'Demo', 'auto_analyze_new_leads' => true, 'direct_quote_enabled' => true,
+            'quotation_review_mode' => false, 'new_lead_automation_started_at' => now()->subMinute(),
         ]);
         PricingRule::create([
             'name' => 'Ape Lineare', 'keywords' => ['ape lineare'], 'required_fields' => ['destination'],
@@ -98,6 +98,39 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         $this->assertNull($quotation->pdf_generated_at);
         $this->assertSame(['destination'], $quotation->missing_fields);
         $this->assertSame(1, CommercialNotification::withoutGlobalScopes()->where('lead_id', $lead->id)->where('type', 'direct_quote_operator')->count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_review_mode_generates_the_pdf_with_missing_executive_details_as_review_warnings(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        [$organization] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Mezzi promozionali',
+            'products_services' => 'Ape Lineare', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'auto_analyze_new_leads' => true, 'quotation_review_mode' => true,
+            'new_lead_automation_started_at' => now()->subMinute(),
+        ]);
+        PricingRule::create([
+            'name' => 'Ape Lineare', 'keywords' => ['ape lineare'], 'required_fields' => ['dettagli decorazione'],
+            'minimum_price' => 500, 'maximum_price' => 1200, 'validity_days' => 15, 'is_active' => true,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Revisione dettagli', 'email' => 'cliente@example.test', 'requested_service' => 'Ape Lineare',
+            'source_label' => 'WPForms', 'request_data' => ['Quali servizi ti occorrono?' => 'Decorazione parziale'],
+        ]);
+        app(TenantContext::class)->clear();
+
+        $stats = app(RunNewLeadAutomation::class)->handle();
+
+        $quotation = Quotation::withoutGlobalScopes()->where('lead_id', $lead->id)->firstOrFail();
+        $this->assertSame(1, $stats['drafted']);
+        $this->assertSame(['dettagli decorazione'], $quotation->missing_fields);
+        $this->assertNotNull($quotation->estimated_price);
+        $this->assertNotNull($quotation->pdf_generated_at);
+        $this->assertSame('awaiting_approval', $lead->fresh()->operational_status);
         Mail::assertNothingSent();
     }
 
