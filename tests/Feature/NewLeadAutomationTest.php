@@ -241,6 +241,40 @@ class NewLeadAutomationTest extends CommercialeAiTestCase
         Mail::assertNothingSent();
     }
 
+    public function test_owner_can_associate_a_rule_generate_the_pdf_and_train_future_matching(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        [$organization, $user] = $this->organizationWithUser();
+        app(TenantContext::class)->set($organization);
+        OrganizationSetting::create([
+            'commercial_name' => 'Demo', 'industry' => 'Noleggio', 'business_description' => 'Street food',
+            'products_services' => 'Mezzi street food', 'ideal_customer' => 'Aziende', 'tone_of_voice' => 'professionale',
+            'email_signature' => 'Demo', 'quotation_review_mode' => true,
+        ]);
+        $rule = PricingRule::create([
+            'name' => 'Pacchetto lineare', 'keywords' => ['pacchetto promozionale'], 'required_fields' => [],
+            'minimum_price' => 500, 'maximum_price' => 1200, 'is_active' => true,
+        ]);
+        $lead = app(CreateLead::class)->handle([
+            'name' => 'Associazione manuale', 'email' => 'cliente@example.test', 'requested_service' => 'Noleggio street food',
+            'source_label' => 'WPForms', 'request_data' => ['Quale mezzo ti occorre?' => 'Ape Lineare'],
+        ]);
+        app(TenantContext::class)->clear();
+        $this->actingAs($user)->withSession(['organization_id' => $organization->id])
+            ->post(route('leads.analyze', $lead))->assertSessionHas('status');
+
+        $this->post(route('leads.direct-quotation', $lead), ['pricing_rule_id' => $rule->id])
+            ->assertSessionHas('status', 'Regola “Pacchetto lineare” associata alla richiesta e preventivo PDF generato. Nessuna email è stata inviata.');
+
+        $quotation = Quotation::withoutGlobalScopes()->where('lead_id', $lead->id)->latest('version')->firstOrFail();
+        $this->assertNotNull($quotation->pdf_generated_at);
+        $this->assertContains('Ape Lineare', $rule->fresh()->keywords);
+        $this->assertSame('awaiting_approval', $lead->fresh()->operational_status);
+        $this->assertSame(0, $lead->replies()->withoutGlobalScopes()->count());
+        Mail::assertNothingSent();
+    }
+
     public function test_it_analyzes_all_new_leads_but_sends_only_to_internal_allowed_leads(): void
     {
         config()->set('mail.default', 'smtp');

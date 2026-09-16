@@ -68,6 +68,26 @@
                 <button class="btn btn-muted" type="submit">Riprova con Daria</button>
             </form>
         @endif
+        @if($handoffActivity->type === 'direct_quotation_operator' && auth()->user()->roleFor(app(\App\Support\Tenancy\TenantContext::class)->organization()) === 'owner')
+            @if($pricingRules->isNotEmpty())
+                <form method="post" action="{{ route('leads.direct-quotation', $lead) }}" style="margin-top:14px">
+                    @csrf
+                    <label for="pricing-rule-for-lead">Associa manualmente la regola corretta</label>
+                    <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+                        <select id="pricing-rule-for-lead" name="pricing_rule_id" required style="max-width:520px">
+                            <option value="">Seleziona una regola del listino…</option>
+                            @foreach($pricingRules as $rule)
+                                <option value="{{ $rule->id }}">{{ $rule->name }} · € {{ number_format($rule->minimum_price,0,',','.') }}–{{ number_format($rule->maximum_price,0,',','.') }}</option>
+                            @endforeach
+                        </select>
+                        <button class="btn" type="submit">Associa e genera PDF</button>
+                    </div>
+                    <small>La scelta viene memorizzata come associazione per riconoscere automaticamente richieste analoghe in futuro.</small>
+                </form>
+            @else
+                <p style="margin-top:12px"><strong>Nessuna regola attiva disponibile.</strong> <a href="{{ route('settings.organization') }}">Crea o attiva una regola nel Listino strutturato</a>.</p>
+            @endif
+        @endif
     </div>
 @endif
 

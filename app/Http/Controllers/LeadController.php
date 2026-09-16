@@ -7,6 +7,7 @@ use App\Models\KnowledgeDocument;
 use App\Models\Lead;
 use App\Models\OrganizationSetting;
 use App\Models\PipelineStage;
+use App\Models\PricingRule;
 use App\Services\Ai\GenerateLeadReply;
 use App\Services\Leads\CreateLead;
 use App\Services\Leads\DeleteLead;
@@ -54,8 +55,9 @@ class LeadController extends Controller
     {
         $lead = Lead::query()->findOrFail($lead);
         $lead->load(['stage', 'assignee', 'activities.actor', 'analyses.run', 'replies.approver', 'inboundEmails', 'whatsappMessages', 'quotations.rule', 'quotations.reply']);
+        $pricingRules = PricingRule::query()->where('is_active', true)->orderBy('name')->get();
 
-        return view('leads.show', compact('lead'));
+        return view('leads.show', compact('lead', 'pricingRules'));
     }
 
     public function update(Request $request, string $lead): RedirectResponse

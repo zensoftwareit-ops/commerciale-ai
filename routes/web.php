@@ -8,6 +8,7 @@ use App\Http\Controllers\InboundEmailController;
 use App\Http\Controllers\KnowledgeDocumentController;
 use App\Http\Controllers\LeadAnalysisController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\LeadDirectQuotationController;
 use App\Http\Controllers\LeadReplyController;
 use App\Http\Controllers\MailboxAccountController;
 use App\Http\Controllers\OrganizationSettingsController;
@@ -118,6 +119,7 @@ Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'lic
     Route::post('/inbound-emails/{email}/link', [InboundEmailController::class, 'link'])->middleware('role:owner,sales')->name('inbound-emails.link');
     Route::delete('/inbound-emails/{email}', [InboundEmailController::class, 'destroy'])->middleware('role:owner,sales')->name('inbound-emails.destroy');
     Route::post('/leads/{lead}/analyze', [LeadAnalysisController::class, 'store'])->middleware('role:owner,sales')->name('leads.analyze');
+    Route::post('/leads/{lead}/direct-quotation', LeadDirectQuotationController::class)->middleware('role:owner')->name('leads.direct-quotation');
     Route::patch('/leads/{lead}/analyses/{analysis}', [LeadAnalysisController::class, 'update'])->middleware('role:owner,sales')->name('analyses.update');
     Route::patch('/leads/{lead}/replies/{reply}', [LeadReplyController::class, 'update'])->middleware('role:owner,sales')->name('replies.update');
     Route::post('/leads/{lead}/replies/{reply}/send', [LeadReplyController::class, 'send'])->middleware('role:owner,sales')->name('replies.send');

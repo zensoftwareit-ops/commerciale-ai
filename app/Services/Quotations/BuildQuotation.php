@@ -15,7 +15,7 @@ class BuildQuotation
     public function __construct(private readonly QuotationNumberGenerator $numbers, private readonly EstimateQuotation $estimator) {}
 
     /** @return array{quotation:Quotation|null,context:array|null,blockers:array,conversation_blockers:array,candidate_rules:array} */
-    public function handle(Lead $lead, ?AiAnalysis $analysis = null, bool $allowIncompleteEstimate = false): array
+    public function handle(Lead $lead, ?AiAnalysis $analysis = null, bool $allowIncompleteEstimate = false, ?string $forcedPricingRuleId = null): array
     {
         $settings = OrganizationSetting::query()->first();
         $inbound = $lead->inboundEmails()->latest('received_at')->first();
@@ -30,13 +30,16 @@ class BuildQuotation
         ]));
         $haystack = $this->normalize(implode(' ', array_filter([$lead->requested_service, json_encode($lead->request_data, JSON_UNESCAPED_UNICODE), $analysisText, $inboundText, $whatsappText])));
         $identityHaystack = $this->identityHaystack($lead);
-        $ranked = PricingRule::query()->where('is_active', true)->get()
+        $activeRules = PricingRule::query()->where('is_active', true)->get();
+        $ranked = $activeRules
             ->map(fn (PricingRule $rule) => [
                 'rule' => $rule,
-                'identity_score' => $this->ruleScore($rule, $identityHaystack),
-                'score' => $this->ruleScore($rule, $haystack),
+                'identity_score' => $forcedPricingRuleId === $rule->id ? PHP_INT_MAX : $this->ruleScore($rule, $identityHaystack),
+                'score' => $forcedPricingRuleId === $rule->id ? PHP_INT_MAX : $this->ruleScore($rule, $haystack),
             ])
-            ->filter(fn ($item) => $item['identity_score'] > 0 || $item['score'] > 0)
+            ->filter(fn ($item) => $forcedPricingRuleId
+                ? $item['rule']->id === $forcedPricingRuleId
+                : ($item['identity_score'] > 0 || $item['score'] > 0))
             ->sort(fn ($left, $right) => [$right['identity_score'], $right['score']] <=> [$left['identity_score'], $left['score']])
             ->values();
 

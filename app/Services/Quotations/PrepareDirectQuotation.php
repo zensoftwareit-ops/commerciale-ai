@@ -17,10 +17,10 @@ class PrepareDirectQuotation
     ) {}
 
     /** @return array{status:string,quotation:?Quotation,reason:?string} */
-    public function handle(Lead $lead, AiAnalysis $analysis): array
+    public function handle(Lead $lead, AiAnalysis $analysis, ?string $forcedPricingRuleId = null): array
     {
         $reviewMode = OrganizationSetting::query()->first()?->quotation_review_mode ?? false;
-        $result = $this->builder->handle($lead, $analysis, allowIncompleteEstimate: $reviewMode);
+        $result = $this->builder->handle($lead, $analysis, allowIncompleteEstimate: $reviewMode, forcedPricingRuleId: $forcedPricingRuleId);
         $quotation = $result['quotation'];
         if (! $quotation) {
             return $this->handoff($lead, null, $this->reason($lead, $result['blockers'], $result['candidate_rules'] ?? []));
@@ -77,11 +77,11 @@ class PrepareDirectQuotation
     private function notify(Lead $lead, string $type, string $title, string $message, array $data): void
     {
         foreach ($lead->organization()->firstOrFail()->users()->wherePivotIn('role', ['owner', 'sales'])->get() as $user) {
-            CommercialNotification::query()->firstOrCreate([
+            CommercialNotification::query()->updateOrCreate([
                 'user_id' => $user->id, 'lead_id' => $lead->id, 'type' => $type,
             ], [
                 'organization_id' => $lead->organization_id, 'title' => $title,
-                'message' => $message, 'data' => $data,
+                'message' => $message, 'data' => $data, 'read_at' => null,
             ]);
         }
     }
