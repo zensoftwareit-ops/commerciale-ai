@@ -5,21 +5,44 @@ namespace App\Http\Controllers;
 use App\Models\Activity;
 use App\Models\AiAnalysis;
 use App\Models\Lead;
+use App\Models\OrganizationSetting;
 use App\Services\Ai\AnalyzeLead;
 use App\Services\Ai\GenerateLeadReply;
+use App\Services\Quotations\PrepareDirectQuotation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Throwable;
 
 class LeadAnalysisController extends Controller
 {
-    public function store(Request $request, string $lead, AnalyzeLead $analyzer, GenerateLeadReply $replyGenerator): RedirectResponse
+    public function store(
+        Request $request,
+        string $lead,
+        AnalyzeLead $analyzer,
+        GenerateLeadReply $replyGenerator,
+        PrepareDirectQuotation $directQuotation,
+    ): RedirectResponse
     {
         $lead = Lead::query()->findOrFail($lead);
         try {
             $analysis = $analyzer->handle($lead, $request->user()->id);
         } catch (Throwable) {
             return back()->withErrors(['analysis' => 'Analisi non completata. Controlla la configurazione o riprova.']);
+        }
+
+        if (OrganizationSetting::query()->first()?->direct_quote_enabled) {
+            try {
+                $result = $directQuotation->handle($lead, $analysis);
+            } catch (Throwable) {
+                return back()->with('status', 'Analisi completata.')
+                    ->withErrors(['reply' => 'Il preventivo non è stato generato. Controlla listino e configurazione del documento.']);
+            }
+
+            if ($result['status'] === 'ready') {
+                return back()->with('status', 'Analisi completata e preventivo PDF pronto per la revisione. Nessun messaggio è stato inviato.');
+            }
+
+            return back()->with('status', 'Analisi completata. Daria ha fermato il flusso e assegnato il preventivo all’operatore: '.$result['reason']);
         }
 
         if (! filled($lead->email)) {

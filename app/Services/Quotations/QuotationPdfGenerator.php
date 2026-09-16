@@ -18,7 +18,8 @@ class QuotationPdfGenerator
         }
 
         $quotation->loadMissing(['lead', 'rule', 'reply']);
-        if (! $quotation->reply || ! str_contains($quotation->reply->reply_kind, 'quotation')) {
+        $isReviewReady = ($quotation->missing_fields ?? []) === [] && $quotation->estimated_price !== null;
+        if (! $isReviewReady && (! $quotation->reply || ! str_contains($quotation->reply->reply_kind, 'quotation'))) {
             throw new RuntimeException('Il PDF è disponibile soltanto quando la quotazione è pronta per essere presentata al cliente.');
         }
         $settings = OrganizationSetting::query()->first();

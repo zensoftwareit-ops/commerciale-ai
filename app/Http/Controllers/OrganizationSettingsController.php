@@ -34,7 +34,7 @@ class OrganizationSettingsController extends Controller
             'identity' => ['legal_name', 'commercial_name', 'website_url', 'industry', 'service_area'],
             'offering' => ['business_description', 'products_services', 'ideal_customer', 'pricing_rules', 'differentiators'],
             'lead_handling' => ['qualification_questions_text', 'exclusion_criteria', 'tone_of_voice', 'email_signature', 'appointment_details', 'promised_response_minutes'],
-            'automation' => ['conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only', 'automation_allowed_recipients_text', 'max_automatic_replies', 'max_auto_quote_amount', 'auto_analyze_new_leads', 'auto_send_initial_email'],
+            'automation' => ['conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only', 'automation_allowed_recipients_text', 'max_automatic_replies', 'max_auto_quote_amount', 'auto_analyze_new_leads', 'auto_send_initial_email', 'direct_quote_enabled', 'quotation_review_mode'],
             'privacy' => ['data_retention_days', 'privacy_cleanup_enabled'],
             'quotation_document' => ['quotation_logo', 'remove_quotation_logo', 'quotation_primary_color', 'quotation_header_text', 'quotation_intro_text', 'quotation_company_details', 'quotation_payment_terms', 'quotation_footer', 'quotation_footer_left', 'quotation_footer_center', 'quotation_footer_right', 'quotation_acceptance_text'],
         ];
@@ -54,6 +54,7 @@ class OrganizationSettingsController extends Controller
             'internal_test_only' => ['nullable', 'boolean'], 'automation_allowed_recipients_text' => ['nullable', 'string', 'max:5000'],
             'max_automatic_replies' => ['required', 'integer', 'min:1', 'max:10'], 'max_auto_quote_amount' => ['nullable', 'numeric', 'min:0'],
             'auto_analyze_new_leads' => ['nullable', 'boolean'], 'auto_send_initial_email' => ['nullable', 'boolean'],
+            'direct_quote_enabled' => ['nullable', 'boolean'], 'quotation_review_mode' => ['nullable', 'boolean'],
             'data_retention_days' => ['required', 'integer', 'min:30', 'max:3650'],
             'privacy_cleanup_enabled' => ['nullable', 'boolean'],
             'quotation_logo' => ['nullable', 'file', 'mimes:jpg,jpeg', 'max:2048'],
@@ -80,12 +81,19 @@ class OrganizationSettingsController extends Controller
             $data['automation_allowed_recipients'] = collect(preg_split('/[\r\n,]+/', $data['automation_allowed_recipients_text'] ?? ''))->map(fn ($line) => mb_strtolower(trim($line)))->filter()->values()->all();
             unset($data['automation_allowed_recipients_text']);
         }
-        foreach (['conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only', 'auto_analyze_new_leads', 'auto_send_initial_email', 'privacy_cleanup_enabled'] as $boolean) {
+        foreach (['conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only', 'auto_analyze_new_leads', 'auto_send_initial_email', 'direct_quote_enabled', 'quotation_review_mode', 'privacy_cleanup_enabled'] as $boolean) {
             if ($section === 'all' || in_array($boolean, $sectionFields[$section], true)) {
                 $data[$boolean] = (bool) ($data[$boolean] ?? false);
             }
         }
         $current = OrganizationSetting::query()->first();
+        if (($data['quotation_review_mode'] ?? false) && $section === 'automation') {
+            $data['direct_quote_enabled'] = true;
+            $data['auto_analyze_new_leads'] = true;
+            $data['auto_send_initial_email'] = false;
+            $data['conversation_automation_enabled'] = false;
+            $data['auto_send_quotes_enabled'] = false;
+        }
         if (($data['remove_quotation_logo'] ?? false) && $current?->quotation_logo_path) {
             Storage::disk('local')->delete($current->quotation_logo_path);
             $data['quotation_logo_path'] = null;

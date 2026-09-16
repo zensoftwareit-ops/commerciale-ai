@@ -22,6 +22,27 @@ class SprintTwoAnalysisTest extends CommercialeAiTestCase
 {
     use RefreshDatabase;
 
+    public function test_review_mode_forces_safe_analysis_and_pdf_only_settings(): void
+    {
+        [$organization, $user] = $this->organizationWithUser();
+
+        $this->actingAs($user)->withSession(['organization_id' => $organization->id])
+            ->put(route('settings.organization.update'), [
+                'section' => 'automation', 'quotation_review_mode' => '1',
+                'auto_send_initial_email' => '1', 'conversation_automation_enabled' => '1',
+                'auto_send_quotes_enabled' => '1', 'max_automatic_replies' => 3,
+            ])->assertSessionHasNoErrors();
+
+        $settings = OrganizationSetting::withoutGlobalScopes()->where('organization_id', $organization->id)->firstOrFail();
+        $this->assertTrue($settings->quotation_review_mode);
+        $this->assertTrue($settings->direct_quote_enabled);
+        $this->assertTrue($settings->auto_analyze_new_leads);
+        $this->assertFalse($settings->auto_send_initial_email);
+        $this->assertFalse($settings->conversation_automation_enabled);
+        $this->assertFalse($settings->auto_send_quotes_enabled);
+        $this->assertNotNull($settings->new_lead_automation_started_at);
+    }
+
     public function test_owner_can_complete_company_profile_and_manage_knowledge(): void
     {
         [$organization, $user] = $this->organizationWithUser();

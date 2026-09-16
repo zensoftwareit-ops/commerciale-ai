@@ -19,6 +19,7 @@ class OrganizationSetting extends Model
         'conversation_automation_enabled', 'auto_send_quotes_enabled', 'internal_test_only',
         'automation_allowed_recipients', 'max_automatic_replies', 'max_auto_quote_amount',
         'auto_analyze_new_leads', 'auto_send_initial_email', 'new_lead_automation_started_at',
+        'direct_quote_enabled', 'quotation_review_mode',
         'quotation_logo_path', 'quotation_company_details', 'quotation_payment_terms', 'quotation_footer',
         'quotation_primary_color', 'quotation_header_text', 'quotation_intro_text',
         'quotation_footer_left', 'quotation_footer_center', 'quotation_footer_right', 'quotation_acceptance_text',
@@ -33,6 +34,7 @@ class OrganizationSetting extends Model
             'internal_test_only' => 'boolean', 'automation_allowed_recipients' => 'array',
             'max_automatic_replies' => 'integer', 'max_auto_quote_amount' => 'decimal:2',
             'auto_analyze_new_leads' => 'boolean', 'auto_send_initial_email' => 'boolean',
+            'direct_quote_enabled' => 'boolean', 'quotation_review_mode' => 'boolean',
             'new_lead_automation_started_at' => 'datetime',
         ];
     }

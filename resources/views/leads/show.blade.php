@@ -28,14 +28,16 @@
 </div>
 
 @php
-    $handoffActivity = $lead->activities->firstWhere('type', 'conversation_handoff');
+    $handoffActivity = $lead->activities->first(fn ($activity) => in_array($activity->type, ['conversation_handoff', 'direct_quotation_operator'], true));
     $handoffReasonLabels = [
         'no_pricing_rule_after_conversation_turn' => 'Il cliente ha richiesto un prezzo, ma non esiste un listino applicabile.',
         'qualification_limit_reached' => 'Mancano dati essenziali dopo il tentativo di qualificazione.',
         'unsupported_whatsapp_message_type' => 'Il messaggio WhatsApp ricevuto non è testuale.',
     ];
     $handoffReasonCode = $handoffActivity ? data_get($handoffActivity->data, 'reason') : null;
-    $handoffReason = $handoffReasonLabels[$handoffReasonCode] ?? 'Daria non può proseguire questa conversazione in modo affidabile.';
+    $handoffReason = $handoffActivity?->type === 'direct_quotation_operator'
+        ? ((string) $handoffReasonCode ?: 'Daria non può generare un preventivo affidabile con i dati disponibili.')
+        : ($handoffReasonLabels[$handoffReasonCode] ?? 'Daria non può proseguire questa conversazione in modo affidabile.');
     $requestRows = [];
     $flattenRequestData = function (array $data, string $prefix = '') use (&$flattenRequestData, &$requestRows): void {
         foreach ($data as $key => $value) {
@@ -202,6 +204,22 @@
 </section>
 @endif
 
+@if($quotation = $lead->quotations->first())
+<section class="card" style="margin-top:1rem">
+    <div class="toolbar"><div><h2>Preventivo per revisione</h2><p class="muted">Il documento resta interno finché non decidi esplicitamente di inviarlo.</p></div>
+        @if($quotation->pdf_generated_at)<span class="badge success">PDF PRONTO</span>@else<span class="badge warm">DA COMPLETARE</span>@endif
+    </div>
+    <div class="notice"><strong>{{ $quotation->document_number ?: 'Bozza v'.$quotation->version }}:</strong>
+        @if($quotation->estimated_price) € {{ number_format($quotation->estimated_price,0,',','.') }} + IVA
+        @else fascia € {{ number_format($quotation->minimum_price,0,',','.') }}–{{ number_format($quotation->maximum_price,0,',','.') }} + IVA @endif
+        · affidabilità {{ $quotation->confidence }}%. @if($quotation->valid_until) Valido fino al {{ $quotation->valid_until->format('d/m/Y') }}.@endif
+    </div>
+    @if($quotation->scope_description)<p>{{ $quotation->scope_description }}</p>@endif
+    @if(($quotation->missing_fields ?? []) !== [])<div class="warning">Dati obbligatori mancanti: {{ implode(', ', $quotation->missing_fields) }}. Il caso è stato assegnato all’operatore.</div>@endif
+    @if($quotation->pdf_generated_at)<a class="btn btn-muted" href="{{ route('leads.quotations.pdf',[$lead,$quotation]) }}">Scarica PDF</a>@endif
+</section>
+@endif
+
 @if($reply = $lead->replies->first())
 <section class="card" style="margin-top:1rem">
     <div class="toolbar">
@@ -248,12 +266,6 @@
             </form>
         </div>
     @endif
-    @if($quotation = $lead->quotations->first())
-        <div class="notice"><div class="toolbar" style="margin:0"><div><strong>Preventivo {{ $quotation->document_number ?: 'v'.$quotation->version }}:</strong> @if($quotation->estimated_price) € {{ number_format($quotation->estimated_price,0,',','.') }} + IVA @else fascia € {{ number_format($quotation->minimum_price,0,',','.') }}–{{ number_format($quotation->maximum_price,0,',','.') }} + IVA @endif · affidabilità {{ $quotation->confidence }}%. @if($quotation->valid_until) Valido fino al {{ $quotation->valid_until->format('d/m/Y') }}. @endif @if($quotation->pdf_generated_at) PDF pronto. @endif @if($quotation->auto_send_eligible) Idoneo all’automazione interna. @else Invio automatico bloccato: {{ implode(', ',$quotation->automation_blockers ?? []) }}. @endif</div>@if($quotation->reply && str_contains($quotation->reply->reply_kind,'quotation'))<a class="btn btn-muted" href="{{ route('leads.quotations.pdf',[$lead,$quotation]) }}">Scarica PDF</a>@endif</div>
-            @if($quotation->scope_description)<p style="margin:12px 0 0">{{ $quotation->scope_description }}</p>@endif
-            @if($lead->inboundEmails->isNotEmpty())<form method="post" action="{{ route('leads.retry-conversation', $lead) }}" style="margin-top:12px">@csrf<button class="btn btn-muted" type="submit">Rigenera preventivo dettagliato</button></form>@endif
-        </div>
-    @endif
     @if($reply->status === 'sent')
         <p><strong>A:</strong> {{ $reply->recipient }}</p>
         @if($reply->channel === 'email')<p><strong>Oggetto:</strong> {{ $reply->subject }}</p>@endif
@@ -281,7 +293,7 @@
         @if($reply->last_error)<p class="error">Ultimo invio non riuscito: {{ $reply->last_error }}</p>@endif
     @endif
 </section>
-@elseif($lead->analyses->isNotEmpty() && filled($lead->email))
+@elseif($lead->analyses->isNotEmpty() && filled($lead->email) && $lead->quotations->isEmpty())
 <section class="card" style="margin-top:1rem">
     @error('reply')<div class="error">{{ $message }}</div>@enderror
     <p>Nessuna bozza disponibile. Ripeti l’analisi per generarne una.</p>

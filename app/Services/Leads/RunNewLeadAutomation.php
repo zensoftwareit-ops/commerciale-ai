@@ -13,6 +13,7 @@ use App\Services\Ai\GenerateLeadReply;
 use App\Services\Mail\SendLeadReply;
 use App\Support\Tenancy\TenantContext;
 use App\Services\Notifications\NotifyAutomationFailure;
+use App\Services\Quotations\PrepareDirectQuotation;
 use Throwable;
 
 class RunNewLeadAutomation
@@ -22,6 +23,7 @@ class RunNewLeadAutomation
         private readonly GenerateLeadReply $replyGenerator,
         private readonly SendLeadReply $sender,
         private readonly NotifyAutomationFailure $failureNotifier,
+        private readonly PrepareDirectQuotation $directQuotation,
     ) {}
 
     /** @return array{organizations:int,candidates:int,analyzed:int,drafted:int,sent:int,failed:int} */
@@ -38,7 +40,7 @@ class RunNewLeadAutomation
                 $stats['organizations']++;
                 $maxAttempts = max(1, (int) config('commerciale-ai.automation.delivery_max_attempts', 3));
                 $leads = Lead::query()
-                    ->whereNotNull('email_normalized')
+                    ->when(! $settings->direct_quote_enabled, fn ($query) => $query->whereNotNull('email_normalized'))
                     ->when($leadId, fn ($query) => $query
                         ->whereKey($leadId)
                         ->whereDoesntHave('replies', fn ($replies) => $replies
@@ -68,6 +70,17 @@ class RunNewLeadAutomation
                         if (! $analysis) {
                             $analysis = $this->analyzer->handle($lead->fresh());
                             $stats['analyzed']++;
+                        }
+                        if ($settings->direct_quote_enabled) {
+                            $result = $this->directQuotation->handle($lead->fresh(), $analysis);
+                            if ($result['status'] === 'ready') $stats['drafted']++;
+                            $lead->update([
+                                'initial_automation_completed_at' => now(),
+                                'initial_automation_next_attempt_at' => null,
+                                'initial_automation_failed_at' => null,
+                                'initial_automation_error' => null,
+                            ]);
+                            continue;
                         }
                         $reply = $lead->replies()->where('status', 'draft')
                             ->whereIn('reply_kind', ['initial', 'initial_qualification', 'initial_quotation'])
@@ -128,6 +141,12 @@ class RunNewLeadAutomation
                 $internalOnly = ($settings?->internal_test_only ?? true) || ! config('commerciale-ai.automation.external_send_enabled');
                 $base = Lead::query();
                 $startedAt = $settings?->new_lead_automation_started_at;
+                $eligibleNow = (clone $base)
+                    ->when(! $settings?->direct_quote_enabled, fn ($query) => $query->whereNotNull('email_normalized'))
+                    ->whereNull('initial_automation_completed_at')
+                    ->where('initial_automation_attempts', '<', $maxAttempts)
+                    ->where(fn ($query) => $query->whereNull('initial_automation_next_attempt_at')->orWhere('initial_automation_next_attempt_at', '<=', now()));
+                if ($startedAt) $eligibleNow->where('created_at', '>=', $startedAt);
                 $rows[] = [
                     'organization' => $organization->name,
                     'conversation' => $settings?->conversation_automation_enabled ? 'ON' : 'OFF',
@@ -143,10 +162,7 @@ class RunNewLeadAutomation
                     'completed' => (clone $base)->whereNotNull('initial_automation_completed_at')->count(),
                     'failed_max' => (clone $base)->whereNull('initial_automation_completed_at')->where('initial_automation_attempts', '>=', $maxAttempts)->count(),
                     'eligible_now' => $settings?->auto_analyze_new_leads && $startedAt
-                        ? (clone $base)->whereNotNull('email_normalized')->whereNull('initial_automation_completed_at')
-                            ->where('initial_automation_attempts', '<', $maxAttempts)
-                            ->where(fn ($query) => $query->whereNull('initial_automation_next_attempt_at')->orWhere('initial_automation_next_attempt_at', '<=', now()))
-                            ->where('created_at', '>=', $startedAt)->count()
+                        ? $eligibleNow->count()
                         : 0,
                 ];
             } finally {
