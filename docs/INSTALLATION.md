@@ -442,6 +442,23 @@ AUTOMATION_EXTERNAL_SEND_ENABLED=false
 
 Questo interruttore server impedisce invii automatici a destinatari esterni anche in caso di errore nel pannello. Abilitarlo solo dopo aver completato i controlli interni.
 
+### Worker per l’analisi dei documenti
+
+L’analisi AI di PDF e immagini viene eseguita fuori dalla richiesta web, così un’elaborazione lenta non causa timeout HTTP 503. Nel file `.env` usare:
+
+```dotenv
+QUEUE_CONNECTION=database
+DB_QUEUE_RETRY_AFTER=360
+```
+
+In Plesk creare un’attività pianificata diretta ogni minuto, separata da `commerciale:run`:
+
+```bash
+cd /PERCORSO/ASSOLUTO/DEL/PROGETTO && /opt/plesk/php/8.3/bin/php artisan queue:work database --queue=ai --stop-when-empty --tries=1 --timeout=300
+```
+
+Il comando termina quando la coda AI è vuota e può quindi essere gestito dalle attività pianificate di Plesk senza un processo residente. Gli allegati sono conservati sul disco privato soltanto fino alla conclusione o al fallimento dell’analisi.
+
 ## 7. Aggiornamenti
 
 Prima di aggiornare eseguire un backup di database e file `.env`, quindi:
@@ -480,7 +497,7 @@ Dal browser verificare inoltre:
 - creazione e rotazione di una sorgente webhook;
 - reset password via email, se SMTP è attivo.
 
-Il worker delle code non è indispensabile per i flussi attuali. Quando saranno introdotti invii o elaborazioni asincrone, avviare stabilmente `php artisan queue:work --tries=3` tramite il sistema di process management del server.
+Il worker della coda `ai` è necessario per l’importazione asincrona dei listini. Se un’analisi resta “In coda” per oltre due minuti, verificare l’attività Plesk e lanciare manualmente il comando descritto sopra.
 
 ## 9. Problemi frequenti
 

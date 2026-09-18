@@ -46,9 +46,10 @@ class PricingImportController extends Controller
             throw ValidationException::withMessages(['attachments' => 'Gli allegati non possono superare 20 MB complessivi.']);
         }
         try {
-            $run = $importer->generate($data['explanation'], $data['attachments'], (string) $request->user()->id);
+            $run = $importer->enqueue($data['explanation'], $data['attachments'], (string) $request->user()->id);
         } catch (Throwable $e) {
             // Do not flash uploaded objects or provider response bodies into the session/logs.
+            if (! $e instanceof ValidationException && ! $e instanceof \RuntimeException) report($e);
             $message = $e instanceof ValidationException
                 ? ($e->validator->errors()->has('license') ? $e->validator->errors()->first('license')
                     : 'OpenAI ha restituito una proposta incompleta o non valida. Prova con documenti più brevi e una spiegazione più dettagliata.')
@@ -56,7 +57,15 @@ class PricingImportController extends Controller
                     : 'Analisi non completata. Consulta il log applicativo e riprova.');
             return back()->withInput(['explanation' => $data['explanation']])->withErrors(['import' => $message]);
         }
-        return redirect()->route('pricing-import.preview', $run->id);
+        return redirect()->route($run->status === 'completed' ? 'pricing-import.preview' : 'pricing-import.status', $run->id);
+    }
+
+    public function status(Request $request, string $draft)
+    {
+        $run = AiRun::query()->where('operation', 'pricing_import')->findOrFail($draft);
+        abort_unless(($run->input_context['user_id'] ?? null) === (string) $request->user()->id, 404);
+        if ($run->status === 'completed') return redirect()->route('pricing-import.preview', $run->id);
+        return view('pricing-import.status', ['run' => $run]);
     }
 
     private function draft(string $id, Request $request, bool $lock = false): AiRun

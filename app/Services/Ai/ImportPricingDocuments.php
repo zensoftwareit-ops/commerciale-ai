@@ -2,9 +2,11 @@
 
 namespace App\Services\Ai;
 
+use App\Jobs\ProcessPricingImport;
 use App\Models\AiRun;
 use App\Services\Licensing\LicenseUsageGuard;
 use App\Services\Quotations\PricingFormulaValidator;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Client\ConnectionException;
@@ -20,27 +22,86 @@ class ImportPricingDocuments
         private readonly LicenseUsageGuard $guard,
         private readonly RecordAiUsage $usage,
         private readonly PricingFormulaValidator $formulaValidator,
+        private readonly Filesystem $filesystem,
     ) {}
 
     public function generate(string $explanation, array $files, string $userId): AiRun
     {
-        $this->guard->assertAiCapacity();
-        if (config('commerciale-ai.ai_provider') !== 'openai' || ! config('commerciale-ai.openai.api_key')) {
-            throw new RuntimeException('Configura il provider OpenAI e la chiave API per analizzare gli allegati.');
-        }
+        $this->assertReady();
         $run = AiRun::create([
             'operation' => 'pricing_import', 'status' => 'running', 'started_at' => now(),
             'input_context' => ['user_id' => $userId, 'explanation' => $explanation,
                 'files' => array_map(fn ($file) => mb_substr($file->getClientOriginalName(), 0, 255), $files)],
         ]);
+        $documents = array_map(fn ($file) => [
+            'name' => mb_substr($file->getClientOriginalName(), 0, 255),
+            'mime' => (string) $file->getMimeType(),
+            'content' => $file->getContent(),
+        ], $files);
+
+        return $this->analyze($run, $explanation, $documents);
+    }
+
+    public function enqueue(string $explanation, array $files, string $userId): AiRun
+    {
+        $this->assertReady();
+        $run = AiRun::create([
+            'operation' => 'pricing_import', 'status' => 'queued', 'started_at' => now(),
+            'input_context' => ['user_id' => $userId, 'explanation' => $explanation,
+                'files' => array_map(fn ($file) => mb_substr($file->getClientOriginalName(), 0, 255), $files)],
+        ]);
+        $directory = 'pricing-imports/'.$run->organization_id.'/'.$run->id;
+        $stored = [];
+        try {
+            foreach ($files as $index => $file) {
+                $extension = strtolower((string) $file->getClientOriginalExtension());
+                $filename = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT).'-'.Str::uuid().($extension !== '' ? '.'.$extension : '');
+                $path = $directory.'/'.$filename;
+                $absolutePath = storage_path('app/private/'.$path);
+                $this->filesystem->ensureDirectoryExists(dirname($absolutePath), 0750);
+                if ($this->filesystem->put($absolutePath, $file->getContent(), true) === false) throw new RuntimeException('Impossibile archiviare temporaneamente gli allegati.');
+                $stored[] = ['path' => $path, 'name' => mb_substr($file->getClientOriginalName(), 0, 255), 'mime' => (string) $file->getMimeType()];
+            }
+            $run->update(['input_context' => $run->input_context + ['stored_files' => $stored]]);
+            ProcessPricingImport::dispatch((string) $run->organization_id, (string) $run->id)->onQueue('ai');
+            return $run->refresh();
+        } catch (Throwable $e) {
+            $this->filesystem->deleteDirectory(storage_path('app/private/'.$directory));
+            $run->refresh();
+            if ($run->status !== 'failed') {
+                $run->update(['status' => 'failed', 'error_code' => 'pricing_import_queue_failed',
+                    'error_message' => class_basename($e).': '.Str::limit($e->getMessage(), 700), 'completed_at' => now()]);
+            }
+            throw $e;
+        }
+    }
+
+    public function process(string $runId): AiRun
+    {
+        $run = AiRun::query()->where('operation', 'pricing_import')->findOrFail($runId);
+        if ($run->status === 'completed') return $run;
+        $context = $run->input_context ?? [];
+        $documents = collect($context['stored_files'] ?? [])->map(function (array $file): array {
+            $absolutePath = storage_path('app/private/'.$file['path']);
+            if (! $this->filesystem->exists($absolutePath)) throw new RuntimeException('Un allegato temporaneo non è più disponibile.');
+            return ['name' => $file['name'], 'mime' => $file['mime'], 'content' => $this->filesystem->get($absolutePath)];
+        })->all();
+        if ($documents === []) throw new RuntimeException('Nessun allegato temporaneo disponibile per l’analisi.');
+        $run->update(['status' => 'running', 'error_code' => null, 'error_message' => null, 'started_at' => now()]);
+
+        return $this->analyze($run, (string) ($context['explanation'] ?? ''), $documents, true);
+    }
+
+    private function analyze(AiRun $run, string $explanation, array $documents, bool $cleanup = false): AiRun
+    {
         try {
             $content = [['type' => 'input_text', 'text' => $explanation]];
-            foreach ($files as $file) {
-                $mime = $file->getMimeType();
-                $data = 'data:'.$mime.';base64,'.base64_encode($file->getContent());
+            foreach ($documents as $file) {
+                $mime = $file['mime'];
+                $data = 'data:'.$mime.';base64,'.base64_encode($file['content']);
                 $content[] = str_starts_with($mime, 'image/')
                     ? ['type' => 'input_image', 'image_url' => $data, 'detail' => 'auto']
-                    : ['type' => 'input_file', 'filename' => basename($file->getClientOriginalName()), 'file_data' => $data];
+                    : ['type' => 'input_file', 'filename' => basename($file['name']), 'file_data' => $data];
             }
             $model = config('commerciale-ai.openai.model');
             $response = Http::withToken(config('commerciale-ai.openai.api_key'))->acceptJson()
@@ -149,6 +210,28 @@ class ImportPricingDocuments
                 default => $e instanceof RuntimeException ? $e->getMessage() : 'Si è verificato un errore interno durante l’analisi.',
             };
             throw new RuntimeException($message.' Riferimento: '.$run->id.'.', 0, $e);
+        } finally {
+            if ($cleanup) $this->cleanupTemporaryFiles($run);
+        }
+    }
+
+    public function cleanupTemporaryFiles(AiRun $run): void
+    {
+        try {
+            $this->filesystem->deleteDirectory(storage_path('app/private/pricing-imports/'.$run->organization_id.'/'.$run->id));
+            $context = $run->fresh()->input_context ?? [];
+            unset($context['stored_files']);
+            $run->update(['input_context' => $context]);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function assertReady(): void
+    {
+        $this->guard->assertAiCapacity();
+        if (config('commerciale-ai.ai_provider') !== 'openai' || ! config('commerciale-ai.openai.api_key')) {
+            throw new RuntimeException('Configura il provider OpenAI e la chiave API per analizzare gli allegati.');
         }
     }
 

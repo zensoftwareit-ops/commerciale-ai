@@ -66,7 +66,15 @@ Non usare `schedule:run`. `commerciale:run` elabora direttamente nuovi lead,
 posta IMAP e conversazioni; un lock impedisce le sovrapposizioni. Eseguire una volta
 il comando a mano e controllare che mostri i tre riepiloghi.
 
-Creare inoltre un secondo comando ogni cinque minuti, indipendente dal primo:
+Creare una seconda attività diretta ogni minuto per le analisi AI dei documenti:
+
+```bash
+cd /var/www/vhosts/daria-ai.it/app.daria-ai.it && /opt/plesk/php/8.3/bin/php artisan queue:work database --queue=ai --stop-when-empty --tries=1 --timeout=300
+```
+
+Questa attività non usa `schedule:run`: prende i lavori dalla coda database, li elabora e termina quando la coda è vuota. Impostare `QUEUE_CONNECTION=database` e `DB_QUEUE_RETRY_AFTER=360`.
+
+Creare inoltre il comando di controllo salute ogni cinque minuti, indipendente dagli altri:
 
 ```bash
 cd /var/www/vhosts/daria-ai.it/app.daria-ai.it && /opt/plesk/php/8.3/bin/php artisan daria:health-alert

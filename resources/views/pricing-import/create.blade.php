@@ -18,7 +18,7 @@
         <h2>3. Genera e controlla</h2>
         <p>Nessuna modifica viene applicata automaticamente. Potrai correggere i dati, scegliere le voci da importare e decidere quali attivare. Prezzi mancanti o ambigui resteranno da compilare.</p>
         <label style="display:flex;gap:10px;align-items:flex-start"><input style="width:auto" type="checkbox" name="consent" value="1" required>Autorizzo l’invio degli allegati e della spiegazione alle API OpenAI configurate per Daria. L’analisi consuma il budget AI del mio account.</label>
-        <p class="muted">Non caricare password, segreti o dati personali non necessari. Gli originali non vengono archiviati da Daria: vengono conservati la bozza generata e i nomi delle fonti. L’analisi può richiedere qualche decina di secondi.</p>
+        <p class="muted">Non caricare password, segreti o dati personali non necessari. Gli originali vengono conservati in area privata solo per il tempo necessario all’analisi e poi eliminati; restano la bozza generata e i nomi delle fonti.</p>
         <button class="btn" id="generate-button">Analizza e proponi listini</button>
         <span id="generation-status" role="status"></span>
     </form>
@@ -31,7 +31,7 @@ document.getElementById('pricing-import-form').addEventListener('submit', functi
         event.preventDefault(); status.textContent = 'Massimo 5 file, 10 MB ciascuno e 20 MB totali.'; return;
     }
     document.getElementById('generate-button').disabled = true;
-    status.textContent = 'Analisi in corso. Attendi senza ricaricare la pagina…';
+    status.textContent = 'Caricamento in corso…';
 });
 </script>
 @endsection

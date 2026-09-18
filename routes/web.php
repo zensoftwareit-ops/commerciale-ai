@@ -143,6 +143,7 @@ Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'lic
     Route::post('/settings/pricing-rules', [PricingRuleController::class, 'store'])->middleware('role:owner')->name('settings.pricing-rules.store');
     Route::get('/settings/pricing-import', [PricingImportController::class, 'create'])->middleware('role:owner')->name('pricing-import.create');
     Route::post('/settings/pricing-import', [PricingImportController::class, 'generate'])->middleware(['role:owner', 'throttle:3,1'])->name('pricing-import.generate');
+    Route::get('/settings/pricing-import/{draft}/status', [PricingImportController::class, 'status'])->middleware('role:owner')->name('pricing-import.status');
     Route::get('/settings/pricing-import/{draft}', [PricingImportController::class, 'preview'])->middleware('role:owner')->name('pricing-import.preview');
     Route::post('/settings/pricing-import/{draft}', [PricingImportController::class, 'apply'])->middleware('role:owner')->name('pricing-import.apply');
     Route::put('/settings/pricing-rules/{rule}', [PricingRuleController::class, 'update'])->middleware('role:owner')->name('settings.pricing-rules.update');

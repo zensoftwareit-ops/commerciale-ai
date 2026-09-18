@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ProcessPricingImport;
 use App\Models\AiRun;
 use App\Models\KnowledgeDocument;
 use App\Models\PricingRule;
@@ -14,6 +15,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
 
 class PricingImportTest extends CommercialeAiTestCase
@@ -90,6 +93,27 @@ class PricingImportTest extends CommercialeAiTestCase
         $this->get(route('settings.organization'))->assertOk()->assertSee('Crea listini e regole da documenti');
         app(TenantContext::class)->set($org);
         $this->assertSame($payload['guidance'], app(ImportedPricingGuidance::class)->context()[0]['content']);
+    }
+
+    public function test_database_queue_returns_immediately_and_exposes_a_private_progress_page(): void
+    {
+        Queue::fake();
+        [$org, $owner] = $this->organizationWithUser();
+
+        $response = $this->actingAs($owner)->withSession(['organization_id' => $org->id])
+            ->post(route('pricing-import.generate'), $this->upload());
+
+        $run = AiRun::withoutGlobalScopes()->where('operation', 'pricing_import')->firstOrFail();
+        $response->assertSessionHasNoErrors()->assertRedirect(route('pricing-import.status', $run->id));
+        $this->assertSame('queued', $run->status);
+        $this->assertNotEmpty($run->input_context['stored_files'] ?? []);
+        Queue::assertPushedOn('ai', ProcessPricingImport::class);
+        $this->get(route('pricing-import.status', $run->id))->assertOk()->assertSee('In coda');
+
+        [$other, $otherOwner] = $this->organizationWithUser();
+        $this->actingAs($otherOwner)->withSession(['organization_id' => $other->id])
+            ->get(route('pricing-import.status', $run->id))->assertNotFound();
+        File::deleteDirectory(storage_path('app/private/pricing-imports/'.$org->id.'/'.$run->id));
     }
 
     public function test_missing_prices_stay_blank_and_cannot_be_saved_as_zero(): void
