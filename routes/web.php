@@ -69,6 +69,7 @@ Route::middleware(['auth', 'superadmin', 'audit.platform'])->prefix('/admin')->n
     Route::get('/health', [SystemHealthController::class, 'index'])->name('health.index');
     Route::post('/health/backup-confirm', [SystemHealthController::class, 'confirmBackup'])->name('health.backup-confirm');
     Route::delete('/organizations/{organization}', [AdminOrganizationController::class, 'destroy'])->name('organizations.destroy');
+    Route::delete('/organizations/{organization}/workspace', [AdminOrganizationController::class, 'reset'])->name('organizations.reset');
     Route::post('/organizations/{organization}/mailboxes/{mailbox}/verify-domain', [AdminOrganizationController::class, 'verifyMailDomain'])->name('organizations.mail.verify');
     Route::delete('/organizations/{organization}/mailboxes/{mailbox}/verify-domain', [AdminOrganizationController::class, 'revokeMailDomain'])->name('organizations.mail.revoke');
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');

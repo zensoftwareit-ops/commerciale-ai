@@ -20,6 +20,13 @@ class OrganizationProvisioner
             'status' => 'onboarding',
         ]);
 
+        $this->initializeWorkspace($organization);
+
+        return $organization;
+    }
+
+    public function initializeWorkspace(Organization $organization): void
+    {
         foreach ([
             ['Nuovo', 'new', 'open'],
             ['Da valutare', 'to_review', 'open'],
@@ -30,7 +37,7 @@ class OrganizationProvisioner
             ['Vinto', 'won', 'won'],
             ['Perso', 'lost', 'lost'],
         ] as $position => [$label, $slug, $category]) {
-            PipelineStage::create([
+            PipelineStage::withoutGlobalScopes()->create([
                 'organization_id' => $organization->id,
                 'name' => $label,
                 'slug' => $slug,
@@ -39,13 +46,11 @@ class OrganizationProvisioner
             ]);
         }
 
-        OrganizationSetting::create([
+        OrganizationSetting::withoutGlobalScopes()->create([
             'organization_id' => $organization->id,
-            'commercial_name' => $name,
+            'commercial_name' => $organization->name,
             'completeness' => 0,
         ]);
-
-        return $organization;
     }
 
     private function uniqueSlug(string $name): string

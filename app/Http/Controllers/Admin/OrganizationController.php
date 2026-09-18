@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
-use App\Models\User;
 use App\Models\UsageRecord;
+use App\Models\User;
+use App\Services\Organizations\ResetOrganizationWorkspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +74,23 @@ class OrganizationController extends Controller
         ]);
 
         return back()->with('status', 'Verifica del dominio revocata: gli invii automatici esterni sono bloccati.');
+    }
+
+    public function reset(Request $request, string $organization, ResetOrganizationWorkspace $reset): RedirectResponse
+    {
+        $organization = Organization::query()->findOrFail($organization);
+        $data = $request->validate(['confirmation' => ['required', 'string']]);
+        $expected = 'RESET '.$organization->name;
+        if (! hash_equals($expected, trim($data['confirmation']))) {
+            throw ValidationException::withMessages([
+                'confirmation' => 'Scrivi esattamente “'.$expected.'” per confermare il reset completo.',
+            ]);
+        }
+
+        $result = $reset->handle($organization);
+        $detached = $result['members_detached'] > 0 ? ' Sono stati scollegati '.$result['members_detached'].' sottoutenti.' : '';
+
+        return back()->with('status', 'Workspace di '.$organization->name.' azzerato. Account owner, organizzazione e licenza sono rimasti attivi.'.$detached);
     }
 
     public function destroy(Request $request, string $organization): RedirectResponse

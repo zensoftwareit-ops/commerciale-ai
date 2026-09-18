@@ -41,6 +41,16 @@
                             <form method="post" action="{{ route('admin.organizations.mail.verify',[$organization,$mailbox]) }}" onsubmit="return confirm('Confermi di avere verificato SPF/DKIM per questo mittente?')">@csrf<button class="btn">Conferma SPF/DKIM</button></form>
                         @endif
                     @endif
+                    <details>
+                        <summary class="muted">Azzera workspace</summary>
+                        <p class="muted">Elimina lead, conversazioni, knowledge, listini, sorgenti, caselle e configurazione. Conserva owner, cliente e licenza.</p>
+                        <form method="post" action="{{ route('admin.organizations.reset', $organization) }}" onsubmit="return confirm('Azzerare definitivamente tutti i dati e la configurazione di questo workspace?')">
+                            @csrf @method('delete')
+                            <label>Scrivi “RESET {{ $organization->name }}”</label>
+                            <input name="confirmation" required autocomplete="off">
+                            <br><button class="btn-danger">Azzera e riparti</button>
+                        </form>
+                    </details>
                     @if($organization->licenses->every(fn($item) => $item->source === 'manual'))
                         <details>
                             <summary class="muted">Elimina cliente</summary>
