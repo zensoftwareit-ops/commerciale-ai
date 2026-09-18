@@ -6,6 +6,7 @@ use App\Models\AiRun;
 use App\Models\KnowledgeDocument;
 use App\Models\PricingRule;
 use App\Models\UsageRecord;
+use App\Services\Ai\ImportPricingDocuments;
 use App\Services\Ai\ImportedPricingGuidance;
 use App\Services\Licensing\LicenseUsageGuard;
 use App\Support\Tenancy\TenantContext;
@@ -193,6 +194,33 @@ class PricingImportTest extends CommercialeAiTestCase
         $this->assertNull($run->output['items'][0]['pricing_formula']);
         $this->assertStringContainsString('località di partenza', implode(' ', $run->output['warnings']));
         $this->get(route('pricing-import.preview', $run->id))->assertOk()->assertSee('Ricetta automatica non attivata');
+    }
+
+    public function test_legacy_daily_rates_from_model_output_are_never_imported_as_a_fallback_recipe(): void
+    {
+        [$org, $owner] = $this->organizationWithUser();
+        $draft = $this->draft();
+        $draft['items'][0]['daily_rate_tiers'] = [
+            ['min_days' => 1, 'max_days' => 3, 'rate_per_day' => 550],
+            ['min_days' => 4, 'max_days' => 8, 'rate_per_day' => 500],
+        ];
+        $draft['items'][0]['origin_address'] = 'Località inventata';
+        $draft['items'][0]['distance_rate_per_km'] = 2;
+        $draft['items'][0]['distance_round_trip'] = true;
+        $draft['items'][0]['pricing_formula'] = null;
+        $this->fakeResponse($draft);
+
+        $this->actingAs($owner)->withSession(['organization_id' => $org->id])
+            ->post(route('pricing-import.generate'), $this->upload())
+            ->assertSessionHasNoErrors()->assertRedirect();
+
+        $output = AiRun::withoutGlobalScopes()->where('operation', 'pricing_import')->firstOrFail()->output;
+        $this->assertSame([], $output['items'][0]['daily_rate_tiers']);
+        $this->assertNull($output['items'][0]['origin_address']);
+        $this->assertNull($output['items'][0]['distance_rate_per_km']);
+        $this->assertFalse($output['items'][0]['distance_round_trip']);
+        $this->assertStringContainsString('Nessuna ricetta eseguibile', implode(' ', $output['warnings']));
+        $this->assertSame('object', ImportPricingDocuments::schema()['properties']['items']['items']['properties']['pricing_formula']['type']);
     }
 
     public function test_images_and_documents_use_distinct_multimodal_input_types(): void
