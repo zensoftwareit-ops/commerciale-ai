@@ -2,9 +2,18 @@
 @section('title', 'Anteprima setup · Daria')
 @section('content')
 <div class="toolbar">
-    <div><div class="page-kicker">Anteprima modificabile</div><h1>Controlla prima di applicare</h1><p class="muted">Nessuna automazione verrà attivata. Modifica liberamente ogni contenuto generato.</p></div>
+    <div><div class="page-kicker">Verifica guidata</div><h1>Controlla prima di applicare</h1><p class="muted">Daria ha separato i fatti trovati nelle fonti dai punti che richiedono una conferma. Nessuna automazione verrà attivata.</p></div>
     <a class="btn btn-muted" href="{{ route('setup-wizard.create') }}">Ricomincia</a>
 </div>
+
+@php($coverage = $draft['quality']['source_coverage'] ?? 'weak')
+<section class="card source-quality">
+    <div class="step-title"><div><div class="page-kicker">Qualità delle fonti</div><h2>Copertura {{ ['weak'=>'debole','partial'=>'parziale','strong'=>'solida'][$coverage] ?? 'da verificare' }}</h2></div><span class="badge {{ $coverage === 'strong' ? 'success' : 'warm' }}">{{ $coverage }}</span></div>
+    <div class="grid grid-2">
+        <div><h3>Informazioni riscontrate</h3><ul>@forelse($draft['quality']['confirmed_facts'] ?? [] as $fact)<li>{{ $fact }}</li>@empty<li>Nessun fatto sufficientemente esplicito nelle fonti.</li>@endforelse</ul></div>
+        <div><h3>Da confermare</h3><ul>@forelse($draft['quality']['needs_confirmation'] ?? [] as $item)<li>{{ $item }}</li>@empty<li>Nessun punto critico segnalato.</li>@endforelse</ul></div>
+    </div>
+</section>
 
 @if($draft['assumptions'])
 <section class="warning"><strong>Da verificare:</strong><ul>@foreach($draft['assumptions'] as $assumption)<li>{{ $assumption }}</li>@endforeach</ul></section>
@@ -61,6 +70,10 @@
 </section>
 
 @foreach($errors->all() as $error)<div class="error">{{ $error }}</div>@endforeach
-<div class="toolbar" style="margin-top:18px"><span class="muted">Potrai modificare ancora tutto dalle pagine Azienda e Knowledge base.</span><button class="btn" type="submit">Applica configurazione</button></div>
+<section class="card" style="margin-top:16px">
+    <label style="display:flex;gap:10px;align-items:flex-start;margin:0;font-weight:600"><input type="checkbox" name="confirm_review" value="1" style="width:auto;margin-top:3px" required><span>Confermo di aver controllato identità, offerta e punti indicati come “da confermare”. Le automazioni resteranno comunque protette fino al superamento dei controlli tecnici.</span></label>
+</section>
+<div class="toolbar" style="margin-top:18px"><span class="muted">Potrai modificare ancora tutto dalle pagine Azienda e Knowledge base.</span><button class="btn" type="submit">Salva la base di conoscenza</button></div>
 </form>
+@push('styles')<style>.source-quality{margin-bottom:16px;border-left:4px solid #f79009}.source-quality h3{margin-top:8px}.source-quality ul{margin:8px 0 0;padding-left:20px;color:#344054}.source-quality li{margin:5px 0}</style>@endpush
 @endsection

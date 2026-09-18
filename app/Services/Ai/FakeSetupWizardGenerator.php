@@ -38,6 +38,11 @@ class FakeSetupWizardGenerator implements SetupWizardGenerator
                 'pricing_guidance' => 'Non comunicare prezzi non presenti nel listino approvato. Se manca una regola applicabile, coinvolgere un commerciale.',
             ],
             'assumptions' => ['Bozza dimostrativa generata dal provider fake.'],
+            'quality' => [
+                'source_coverage' => 'partial',
+                'confirmed_facts' => ['L’azienda offre i servizi descritti nella fonte fornita.'],
+                'needs_confirmation' => ['Prezzi, disponibilità e condizioni commerciali.'],
+            ],
             '_meta' => [
                 'provider' => 'fake', 'model' => 'deterministic-setup-v1', 'policy_version' => 'setup-wizard-v1',
                 'input_units' => 0, 'output_units' => 0, 'estimated_cost' => 0,

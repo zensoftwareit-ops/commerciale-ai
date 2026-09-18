@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AiRun;
 use App\Models\KnowledgeDocument;
 use App\Models\OrganizationSetting;
 use App\Services\Organizations\GenerateOrganizationSetup;
 use App\Services\Organizations\OrganizationLifecycle;
-use App\Services\Organizations\WebsiteContentReader;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
@@ -43,10 +42,7 @@ class SetupWizardController extends Controller
     public function generate(
         Request $request,
         GenerateOrganizationSetup $generator,
-        WebsiteContentReader $websites,
-        TenantContext $tenants,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $data = $request->validate([
             'description' => ['nullable', 'required_without:website_url', 'string', 'min:80', 'max:10000'],
             'website_url' => ['nullable', 'required_without:description', 'url:http,https', 'max:2048'],
@@ -59,14 +55,9 @@ class SetupWizardController extends Controller
             'website_url.max' => 'L’URL del sito è troppo lungo.',
         ]);
         $description = trim((string) ($data['description'] ?? ''));
-        $website = [];
 
         try {
-            if (filled($data['website_url'] ?? null)) {
-                $website = $websites->read((string) $data['website_url']);
-            }
-            $draft = $generator->handle($description, $website);
-            $draft['profile']['website_url'] = $website['url'] ?? null;
+            $run = $generator->enqueue($description, filled($data['website_url'] ?? null) ? (string) $data['website_url'] : null, (string) $request->user()->id);
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
@@ -77,35 +68,49 @@ class SetupWizardController extends Controller
             ]);
         }
 
-        $request->session()->put('setup_wizard_draft', [
-            'id' => (string) Str::uuid(),
-            'organization_id' => $tenants->requireOrganization()->id,
-            'description' => $description,
-            'website' => $website === [] ? null : [
-                'url' => $website['url'],
-                'pages' => collect($website['pages'])->map(fn (array $page): array => [
-                    'url' => $page['url'],
-                    'title' => $page['title'],
-                    'characters' => mb_strlen($page['text']),
-                ])->all(),
-            ],
-            'draft' => $draft,
-            'generated_at' => now()->toIso8601String(),
-        ]);
-
-        return redirect()->route('setup-wizard.preview');
+        return redirect()->route($run->status === 'completed' ? 'setup-wizard.preview' : 'setup-wizard.status', $run->id);
     }
 
-    public function preview(Request $request, TenantContext $tenants): View|RedirectResponse
+    public function status(Request $request, string $draft): View|RedirectResponse
     {
-        $payload = $request->session()->get('setup_wizard_draft');
-        if (! is_array($payload) || ($payload['organization_id'] ?? null) !== $tenants->requireOrganization()->id) {
-            return redirect()->route('setup-wizard.create')->withErrors(['wizard' => 'Genera prima una nuova bozza di configurazione.']);
+        $run = $this->draft($draft, $request);
+        if ($run->status === 'completed') {
+            return redirect()->route('setup-wizard.preview', $run->id);
         }
 
+        return view('setup-wizard.status', ['run' => $run]);
+    }
+
+    public function retry(Request $request, string $draft, GenerateOrganizationSetup $generator): RedirectResponse
+    {
+        $run = $this->draft($draft, $request);
+        $generator->retry($run);
+
+        return redirect()->route('setup-wizard.status', $run->id);
+    }
+
+    public function preview(Request $request, string $draft): View|RedirectResponse
+    {
+        $run = $this->draft($draft, $request);
+        if ($run->status !== 'completed') {
+            return redirect()->route('setup-wizard.status', $run->id);
+        }
+        if (isset($run->output['applied_at'])) {
+            return redirect()->route('onboarding')->with('status', 'Questa configurazione è già stata applicata.');
+        }
+        $context = $run->input_context ?? [];
+        $draftOutput = $run->output;
+        $draftOutput['profile']['website_url'] = $context['website_url'] ?? ($draftOutput['profile']['website_url'] ?? null);
+
         return view('setup-wizard.preview', [
-            'payload' => $payload,
-            'draft' => $payload['draft'],
+            'payload' => [
+                'id' => $run->id,
+                'description' => $context['activity_description'] ?? '',
+                'website' => filled($context['website_url'] ?? null) ? [
+                    'url' => $context['website_url'], 'pages' => $context['website_pages'] ?? [],
+                ] : null,
+            ],
+            'draft' => $draftOutput,
             'documents' => self::DOCUMENTS,
         ]);
     }
@@ -115,16 +120,12 @@ class SetupWizardController extends Controller
         TenantContext $tenants,
         OrganizationLifecycle $lifecycle,
     ): RedirectResponse {
-        $payload = $request->session()->get('setup_wizard_draft');
         $organization = $tenants->requireOrganization();
-        if (! is_array($payload)
-            || ($payload['organization_id'] ?? null) !== $organization->id
-            || ! hash_equals((string) ($payload['id'] ?? ''), (string) $request->input('draft_id'))) {
-            return redirect()->route('setup-wizard.create')->withErrors(['wizard' => 'La bozza non e piu valida. Generala nuovamente.']);
-        }
+        $run = $this->draft((string) $request->input('draft_id'), $request);
+        abort_unless($run->status === 'completed' && ! isset($run->output['applied_at']), 422);
 
         $data = $request->validate($this->applicationRules());
-        DB::transaction(function () use ($data, $request, $organization): void {
+        DB::transaction(function () use ($data, $request, $organization, $run): void {
             $profile = $data['profile'];
             $profile['qualification_questions'] = collect(preg_split('/\r\n|\r|\n/', $profile['qualification_questions_text']))
                 ->map(fn (string $question): string => trim($question))
@@ -172,18 +173,27 @@ class SetupWizardController extends Controller
                 ->where('source', 'setup_wizard')
                 ->when($selected !== [], fn ($query) => $query->whereNotIn('source_key', $selected))
                 ->update(['status' => 'archived', 'updated_by' => $request->user()->id]);
+            $run->update(['output' => $run->output + ['applied_at' => now()->toIso8601String()]]);
         });
 
-        $request->session()->forget('setup_wizard_draft');
         $lifecycle->refresh($organization);
 
-        return redirect()->route('settings.organization')->with('status', 'Setup AI applicato. Controlla il profilo e la knowledge base prima di attivare le automazioni.');
+        return redirect()->route('onboarding')->with('status', 'Base di conoscenza salvata. Ora Daria esegue i controlli di prontezza prima di consentire le automazioni.');
+    }
+
+    private function draft(string $id, Request $request): AiRun
+    {
+        $run = AiRun::query()->where('operation', 'setup_wizard')->findOrFail($id);
+        abort_unless(($run->input_context['user_id'] ?? null) === (string) $request->user()->id, 404);
+
+        return $run;
     }
 
     private function applicationRules(): array
     {
         $rules = [
             'draft_id' => ['required', 'uuid'],
+            'confirm_review' => ['accepted'],
             'profile' => ['required', 'array'],
             'profile.legal_name' => ['nullable', 'string', 'max:255'],
             'profile.commercial_name' => ['required', 'string', 'max:255'],

@@ -2,19 +2,39 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\SetupWizardGenerator;
+use App\Jobs\ProcessOrganizationSetup;
 use App\Models\AiRun;
 use App\Models\KnowledgeDocument;
 use App\Models\OrganizationSetting;
 use App\Models\UsageRecord;
-use App\Contracts\SetupWizardGenerator;
 use App\Services\Ai\FakeSetupWizardGenerator;
 use App\Services\Organizations\WebsiteContentReader;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 
 class SetupWizardTest extends CommercialeAiTestCase
 {
     use RefreshDatabase;
+
+    public function test_setup_is_queued_and_the_status_page_is_available_without_a_long_web_request(): void
+    {
+        Queue::fake();
+        [$organization, $owner] = $this->organizationWithUser();
+        $description = str_repeat('Descrizione completa di servizi, clienti e processo commerciale. ', 2);
+
+        $response = $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
+            ->post(route('setup-wizard.generate'), ['description' => $description])
+            ->assertSessionHasNoErrors();
+
+        $run = AiRun::withoutGlobalScopes()->where('operation', 'setup_wizard')->firstOrFail();
+        $this->assertSame('queued', $run->status);
+        $response->assertRedirect(route('setup-wizard.status', $run->id));
+        Queue::assertPushed(ProcessOrganizationSetup::class, fn (ProcessOrganizationSetup $job): bool => $job->runId === $run->id);
+        $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
+            ->get(route('setup-wizard.status', $run->id))->assertOk()->assertSee('Daria sta preparando il workspace');
+    }
 
     public function test_owner_can_generate_review_and_apply_a_complete_setup(): void
     {
@@ -46,19 +66,19 @@ class SetupWizardTest extends CommercialeAiTestCase
         $this->mock(SetupWizardGenerator::class)->shouldReceive('generate')->once()->andReturn($draft);
         $response = $this->actingAs($owner)->withSession($session)
             ->post(route('setup-wizard.generate'), ['description' => $description])
-            ->assertRedirect(route('setup-wizard.preview'))
             ->assertSessionHasNoErrors();
 
-        $payload = $response->getSession()->get('setup_wizard_draft');
-        $this->assertSame($organization->id, $payload['organization_id']);
-        $this->assertSame('Il team di Azienda Demo', $payload['draft']['profile']['email_signature']);
-        $this->assertNotEmpty($payload['draft']['assumptions']);
-        $this->actingAs($owner)->withSession([...$session, 'setup_wizard_draft' => $payload])
-            ->get(route('setup-wizard.preview'))
+        $run = AiRun::withoutGlobalScopes()->where('operation', 'setup_wizard')->latest('created_at')->firstOrFail();
+        $response->assertRedirect(route('setup-wizard.preview', $run->id));
+        $this->assertSame($organization->id, $run->organization_id);
+        $this->assertSame('Il team di Azienda Demo', $run->output['profile']['email_signature']);
+        $this->assertNotEmpty($run->output['assumptions']);
+        $this->actingAs($owner)->withSession($session)
+            ->get(route('setup-wizard.preview', $run->id))
             ->assertOk()
             ->assertSee('Controlla prima di applicare');
 
-        $profile = $payload['draft']['profile'];
+        $profile = $run->output['profile'];
         $questions = implode("\n", $profile['qualification_questions']);
         unset($profile['qualification_questions']);
         $profile['qualification_questions_text'] = $questions;
@@ -69,16 +89,17 @@ class SetupWizardTest extends CommercialeAiTestCase
             'pricing_guidance' => 'Prezzi e preparazione dei preventivi',
         ];
         $knowledge = [];
-        foreach ($payload['draft']['knowledge'] as $key => $content) {
+        foreach ($run->output['knowledge'] as $key => $content) {
             $knowledge[$key] = ['enabled' => '1', 'title' => $titles[$key], 'content' => $content];
         }
 
-        $this->actingAs($owner)->withSession([...$session, 'setup_wizard_draft' => $payload])
+        $this->actingAs($owner)->withSession($session)
             ->post(route('setup-wizard.apply'), [
-                'draft_id' => $payload['id'],
+                'draft_id' => $run->id,
+                'confirm_review' => '1',
                 'profile' => $profile,
                 'knowledge' => $knowledge,
-            ])->assertRedirect(route('settings.organization'))->assertSessionHasNoErrors();
+            ])->assertRedirect(route('onboarding'))->assertSessionHasNoErrors();
 
         $settings = OrganizationSetting::withoutGlobalScopes()->where('organization_id', $organization->id)->firstOrFail();
         $this->assertSame(100, $settings->completeness);
@@ -117,11 +138,12 @@ class SetupWizardTest extends CommercialeAiTestCase
 
         $response = $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
             ->post(route('setup-wizard.generate'), ['description' => '', 'website_url' => 'https://example.com'])
-            ->assertRedirect(route('setup-wizard.preview'))
             ->assertSessionHasNoErrors();
 
-        $payload = $response->getSession()->get('setup_wizard_draft');
-        $this->assertSame('https://example.com', $payload['website']['url']);
-        $this->assertSame('https://example.com', $payload['draft']['profile']['website_url']);
+        $run = AiRun::withoutGlobalScopes()->where('operation', 'setup_wizard')->latest('created_at')->firstOrFail();
+        $response->assertRedirect(route('setup-wizard.preview', $run->id));
+        $this->assertSame('https://example.com', $run->input_context['website_url']);
+        $this->actingAs($owner)->withSession(['organization_id' => $organization->id])
+            ->get(route('setup-wizard.preview', $run->id))->assertOk()->assertSee('https://example.com');
     }
 }

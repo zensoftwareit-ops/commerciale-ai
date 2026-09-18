@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\InboundSource;
+use App\Models\KnowledgeDocument;
 use App\Models\License;
 use App\Models\LicensePlan;
 use App\Models\OrganizationSetting;
@@ -29,6 +30,8 @@ class OrganizationLifecycleTest extends CommercialeAiTestCase
         app(TenantContext::class)->run($organization, function (): void {
             OrganizationSetting::query()->update(['completeness' => 100]);
             InboundSource::create(['name' => 'Sito', 'allowed_domains' => ['example.test'], 'endpoint_token_hash' => hash('sha256', 'token'), 'is_active' => true]);
+            KnowledgeDocument::create(['title' => 'Servizi', 'type' => 'service', 'content' => str_repeat('Descrizione verificata dei servizi aziendali. ', 3), 'status' => 'active']);
+            KnowledgeDocument::create(['title' => 'Gestione richieste', 'type' => 'text', 'content' => str_repeat('Regole verificate per gestire le richieste commerciali. ', 3), 'status' => 'active']);
         });
 
         $organization = app(OrganizationLifecycle::class)->refresh($organization);

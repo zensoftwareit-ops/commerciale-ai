@@ -108,8 +108,17 @@ class OpenAiSetupWizardGenerator implements SetupWizardGenerator
                     'required' => ['services', 'faq', 'request_management', 'pricing_guidance'],
                 ],
                 'assumptions' => ['type' => 'array', 'maxItems' => 12, 'items' => ['type' => 'string']],
+                'quality' => [
+                    'type' => 'object', 'additionalProperties' => false,
+                    'properties' => [
+                        'source_coverage' => ['type' => 'string', 'enum' => ['weak', 'partial', 'strong']],
+                        'confirmed_facts' => ['type' => 'array', 'maxItems' => 12, 'items' => ['type' => 'string']],
+                        'needs_confirmation' => ['type' => 'array', 'maxItems' => 12, 'items' => ['type' => 'string']],
+                    ],
+                    'required' => ['source_coverage', 'confirmed_facts', 'needs_confirmation'],
+                ],
             ],
-            'required' => ['profile', 'knowledge', 'assumptions'],
+            'required' => ['profile', 'knowledge', 'assumptions', 'quality'],
         ];
     }
 
@@ -122,6 +131,7 @@ Usa il sito come fonte informativa, tenendo conto che potrebbe essere incompleto
 Non inventare prezzi, garanzie, certificazioni, sedi, disponibilita o capacita non dichiarate. Se i prezzi non sono presenti lascia pricing_rules vuoto e indica nelle pricing_guidance che serve un listino approvato.
 La firma email deve essere sempre valorizzata. Se non e indicato un referente usa "Il team di [commercial_name]" senza inventare nomi di persona.
 Puoi proporre buone pratiche operative ragionevoli, ma elencale in assumptions affinche l'utente le verifichi.
+Compila quality separando rigorosamente i fatti esplicitamente presenti nelle fonti dalle informazioni che richiedono conferma. source_coverage e strong solo se identita, offerta, destinatari e processo commerciale sono tutti supportati dalle fonti; non considerare la sola fluidita del testo come qualita della fonte.
 Le domande di qualificazione devono essere poche, non ripetitive e utili a decidere se formulare un'offerta o passare la richiesta a un commerciale.
 Il processo deve evitare conversazioni infinite: dopo informazioni insufficienti o segnali di rischio deve prevedere il passaggio a un umano.
 Non abilitare automazioni e non produrre dati personali. Scrivi tutto in italiano, in modo professionale, concreto e sintetico.

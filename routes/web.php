@@ -100,7 +100,9 @@ Route::middleware(['auth', 'tenant', 'customer.2fa'])->group(function (): void {
 Route::middleware(['auth', 'tenant', 'customer.2fa', 'organization.access', 'license'])->group(function (): void {
     Route::get('/setup-wizard', [SetupWizardController::class, 'create'])->middleware('role:owner')->name('setup-wizard.create');
     Route::post('/setup-wizard/generate', [SetupWizardController::class, 'generate'])->middleware(['role:owner', 'throttle:3,1'])->name('setup-wizard.generate');
-    Route::get('/setup-wizard/preview', [SetupWizardController::class, 'preview'])->middleware('role:owner')->name('setup-wizard.preview');
+    Route::get('/setup-wizard/{draft}/status', [SetupWizardController::class, 'status'])->middleware('role:owner')->name('setup-wizard.status');
+    Route::post('/setup-wizard/{draft}/retry', [SetupWizardController::class, 'retry'])->middleware(['role:owner', 'throttle:3,1'])->name('setup-wizard.retry');
+    Route::get('/setup-wizard/{draft}/preview', [SetupWizardController::class, 'preview'])->middleware('role:owner')->name('setup-wizard.preview');
     Route::post('/setup-wizard/apply', [SetupWizardController::class, 'apply'])->middleware('role:owner')->name('setup-wizard.apply');
     Route::get('/notifications', [CommercialNotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/unread', [CommercialNotificationController::class, 'unread'])->name('notifications.unread');
